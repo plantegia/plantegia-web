@@ -30,7 +30,8 @@ function clamp(value: number, min: number, max: number): number {
 
 export function useGestures(
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
-  canvasRect: { top: number; left: number }
+  canvasRect: { top: number; left: number },
+  readOnly?: boolean
 ) {
   const gestureRef = useRef<GestureState>({
     isPanning: false,
@@ -69,6 +70,24 @@ export function useGestures(
   const handleTap = useCallback((screenPos: Point) => {
     const worldPos = screenToWorld(screenPos, pan, zoom);
 
+    // In read-only mode, only allow viewing (selection) but no modifications
+    if (readOnly) {
+      if (viewMode === 'space') {
+        const plant = findPlantAt(worldPos, plants, spaces);
+        if (plant) {
+          setSelection({ type: 'plant', id: plant.id });
+          return;
+        }
+        const space = findSpaceAt(worldPos, spaces);
+        if (space) {
+          setSelection({ type: 'space', id: space.id });
+          return;
+        }
+        setSelection(null);
+      }
+      return;
+    }
+
     if (activeTool === 'erase') {
       const plant = findPlantAt(worldPos, plants, spaces);
       if (plant) {
@@ -105,6 +124,61 @@ export function useGestures(
       return;
     }
 
+    if (selectedSeedId && viewMode === 'time') {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const dayHeight = 8;
+      const columnWidth = 60;
+      const headerHeight = 40;
+      const leftMargin = 50;
+      const canvasHeight = canvas.height;
+      const todayY = canvasHeight / 2 - timelineOffset;
+
+      const allCells: { spaceId: string; gridX: number; gridY: number; hasPlant: boolean }[] = [];
+      spaces.forEach((space) => {
+        for (let y = 0; y < space.gridHeight; y++) {
+          for (let x = 0; x < space.gridWidth; x++) {
+            const hasPlant = plants.some(
+              (p) => p.spaceId === space.id && p.gridX === x && p.gridY === y
+            );
+            allCells.push({ spaceId: space.id, gridX: x, gridY: y, hasPlant });
+          }
+        }
+      });
+
+      const columnIndex = Math.floor((screenPos.x - leftMargin - timelineHorizontalOffset) / columnWidth);
+      if (columnIndex < 0 || columnIndex >= allCells.length) return;
+
+      const targetCell = allCells[columnIndex];
+      if (targetCell.hasPlant) return;
+
+      const daysFromToday = Math.round((todayY - screenPos.y) / dayHeight);
+      if (daysFromToday < 0) return;
+
+      const seed = inventory.find(s => s.id === selectedSeedId);
+      if (!seed || seed.quantity <= 0) return;
+
+      const space = spaces.find(s => s.id === targetCell.spaceId);
+      if (!space) return;
+
+      if (!canPlacePlant(space.id, targetCell.gridX, targetCell.gridY, 1, space, plants)) return;
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + daysFromToday);
+
+      createPlant({
+        spaceId: targetCell.spaceId,
+        strainId: seed.strainId,
+        gridX: targetCell.gridX,
+        gridY: targetCell.gridY,
+        generation: seed.isClone ? 'clone' : 'seed',
+        startedAt: startDate.toISOString(),
+      });
+      consumeSeed(selectedSeedId);
+      return;
+    }
+
     if (!activeTool && viewMode === 'space') {
       const plant = findPlantAt(worldPos, plants, spaces);
       if (plant) {
@@ -121,11 +195,14 @@ export function useGestures(
       setSelection(null);
     }
   }, [
-    pan, zoom, activeTool, selectedSeedId, spaces, plants, inventory, viewMode,
+    canvasRef, pan, zoom, activeTool, selectedSeedId, spaces, plants, inventory, viewMode,
     deletePlant, deleteSpace, createPlant, consumeSeed, setSelection,
+    timelineOffset, timelineHorizontalOffset, readOnly,
   ]);
 
   const handleDragEnd = useCallback((startWorld: Point, endWorld: Point) => {
+    if (readOnly) return;
+
     if (activeTool === 'space' && viewMode === 'space') {
       const minX = Math.min(startWorld.x, endWorld.x);
       const minY = Math.min(startWorld.y, endWorld.y);
@@ -147,7 +224,7 @@ export function useGestures(
     }
 
     setDragPreview(null);
-  }, [activeTool, viewMode, spaces.length, createSpace, setDragPreview]);
+  }, [activeTool, viewMode, spaces.length, createSpace, setDragPreview, readOnly]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

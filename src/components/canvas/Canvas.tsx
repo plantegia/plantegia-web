@@ -4,7 +4,11 @@ import { useGestures } from '../../hooks/useGestures';
 import { renderSpaceView, renderTimeView } from './renderers';
 import { COLORS, CELL_SIZE } from '../../constants';
 
-export function Canvas() {
+interface CanvasProps {
+  readOnly?: boolean;
+}
+
+export function Canvas({ readOnly }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth, height: 500 });
@@ -19,7 +23,7 @@ export function Canvas() {
     setPan,
   } = useAppStore();
 
-  useGestures(canvasRef, canvasRect);
+  useGestures(canvasRef, canvasRect, readOnly);
 
   useEffect(() => {
     const updateSize = () => {

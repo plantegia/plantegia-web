@@ -6,7 +6,11 @@ import { EmptySlot } from './EmptySlot';
 import { SeedForm } from '../inspector/SeedForm';
 import { COLORS } from '../../constants';
 
-export function Hotbar() {
+interface HotbarProps {
+  readOnly?: boolean;
+}
+
+export function Hotbar({ readOnly }: HotbarProps) {
   const [showSeedForm, setShowSeedForm] = useState(false);
 
   const activeTool = useAppStore((s) => s.activeTool);
@@ -15,6 +19,27 @@ export function Hotbar() {
   const strains = useAppStore((s) => s.strains);
   const selectedSeedId = useAppStore((s) => s.selectedSeedId);
   const selectSeed = useAppStore((s) => s.selectSeed);
+
+  if (readOnly) {
+    return (
+      <div
+        style={{
+          height: 64,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 12px',
+          borderTop: `1px solid ${COLORS.border}`,
+          background: COLORS.backgroundDark,
+          flexShrink: 0,
+          color: COLORS.textMuted,
+          fontSize: 14,
+        }}
+      >
+        View only
+      </div>
+    );
+  }
 
   return (
     <>

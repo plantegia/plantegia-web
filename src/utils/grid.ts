@@ -1,5 +1,5 @@
-import type { Point, Space, Plant, PlantSize } from '../types';
-import { CELL_SIZE } from '../constants';
+import type { Point, Space, Plant, PlantSize, Strain, Stage } from '../types';
+import { CELL_SIZE, STAGE_DAYS, STAGES } from '../constants';
 
 export function screenToWorld(
   screen: Point,
@@ -144,4 +144,76 @@ export function findPlantAt(
   }
 
   return null;
+}
+
+export interface PlantTimeline {
+  daysInCurrentStage: number;
+  daysRemainingInStage: number;
+  totalDaysRemaining: number;
+  harvestDate: Date;
+  startDate: Date;
+}
+
+export function calculatePlantTimeline(
+  plant: Plant,
+  strain: Strain | undefined,
+  today: Date = new Date()
+): PlantTimeline {
+  const stageStartDate = new Date(plant.stageStartedAt || plant.startedAt);
+  const startDate = new Date(plant.startedAt);
+
+  const daysInCurrentStage = Math.floor(
+    (today.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  const currentStageIndex = STAGES.indexOf(plant.stage);
+
+  let daysRemainingInStage = 0;
+  let totalDaysRemaining = 0;
+
+  if (plant.stage === 'harvested') {
+    return {
+      daysInCurrentStage,
+      daysRemainingInStage: 0,
+      totalDaysRemaining: 0,
+      harvestDate: stageStartDate,
+      startDate,
+    };
+  }
+
+  if (plant.stage === 'flowering') {
+    const floweringDays = strain?.floweringDays || STAGE_DAYS.flowering;
+    daysRemainingInStage = Math.max(0, floweringDays - daysInCurrentStage);
+    totalDaysRemaining = daysRemainingInStage;
+  } else if (plant.stage === 'vegetative') {
+    const vegDays = strain?.vegDays || STAGE_DAYS.vegetative;
+    const floweringDays = strain?.floweringDays || STAGE_DAYS.flowering;
+    daysRemainingInStage = Math.max(0, vegDays - daysInCurrentStage);
+    totalDaysRemaining = daysRemainingInStage + floweringDays;
+  } else {
+    const currentStageDays = STAGE_DAYS[plant.stage];
+    daysRemainingInStage = Math.max(0, currentStageDays - daysInCurrentStage);
+
+    totalDaysRemaining = daysRemainingInStage;
+    for (let i = currentStageIndex + 1; i < STAGES.length - 1; i++) {
+      const stage = STAGES[i];
+      if (stage === 'vegetative') {
+        totalDaysRemaining += strain?.vegDays || STAGE_DAYS.vegetative;
+      } else if (stage === 'flowering') {
+        totalDaysRemaining += strain?.floweringDays || STAGE_DAYS.flowering;
+      } else {
+        totalDaysRemaining += STAGE_DAYS[stage];
+      }
+    }
+  }
+
+  const harvestDate = new Date(today.getTime() + totalDaysRemaining * 24 * 60 * 60 * 1000);
+
+  return {
+    daysInCurrentStage,
+    daysRemainingInStage,
+    totalDaysRemaining,
+    harvestDate,
+    startDate,
+  };
 }

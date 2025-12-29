@@ -3,11 +3,15 @@ import { PlantInspector } from './PlantInspector';
 import { SpaceInspector } from './SpaceInspector';
 import { COLORS } from '../../constants';
 
-export function Inspector() {
+interface InspectorProps {
+  readOnly?: boolean;
+}
+
+export function Inspector({ readOnly }: InspectorProps) {
   const selection = useAppStore((s) => s.selection);
   const setSelection = useAppStore((s) => s.setSelection);
 
-  if (!selection) return null;
+  if (!selection || readOnly) return null;
 
   return (
     <div

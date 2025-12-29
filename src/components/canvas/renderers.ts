@@ -1,6 +1,6 @@
-import type { Space, Plant, Strain } from '../../types';
-import { COLORS, STAGE_COLORS, CELL_SIZE } from '../../constants';
-import { getPlantCells } from '../../utils/grid';
+import type { Space, Plant, Strain, Stage } from '../../types';
+import { COLORS, STAGE_COLORS, CELL_SIZE, STAGE_DAYS, STAGES } from '../../constants';
+import { getPlantCells, calculatePlantTimeline } from '../../utils/grid';
 
 export function renderSpaceView(
   ctx: CanvasRenderingContext2D,
@@ -196,24 +196,106 @@ export function renderTimeView(
       const startDate = new Date(cell.plant.startedAt);
       const daysFromStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       const strain = strains.find((s) => s.id === cell.plant!.strainId);
-      const totalDays = (strain?.vegDays || 30) + (strain?.floweringDays || 60);
-      const daysRemaining = Math.max(0, totalDays - daysFromStart);
+      const timeline = calculatePlantTimeline(cell.plant, strain, today);
 
-      const pastHeight = daysFromStart * dayHeight;
-      const futureHeight = daysRemaining * dayHeight;
+      const currentStageIndex = STAGES.indexOf(cell.plant.stage);
 
-      // Past: draw below TODAY line (positive Y direction)
-      ctx.fillStyle = STAGE_COLORS[cell.plant.stage];
-      ctx.fillRect(x + 2, todayY, columnWidth - 4, pastHeight);
+      // Build timeline segments for each stage
+      const segments: { stage: Stage; startDay: number; endDay: number }[] = [];
 
-      // Future: draw above TODAY line (negative Y direction)
-      ctx.fillStyle = 'rgba(95, 179, 179, 0.4)';
-      ctx.fillRect(x + 2, todayY - futureHeight, columnWidth - 4, futureHeight);
+      if (daysFromStart >= 0) {
+        // Plant has started - calculate past and future segments
+        const stageStartDate = new Date(cell.plant.stageStartedAt || cell.plant.startedAt);
+        const daysInCurrentStage = Math.max(0, Math.floor((today.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+        // Past: all completed stages + current stage's elapsed time
+        // Calculate total past days based on stage durations
+        let totalPastDays = 0;
+        for (let i = 0; i < currentStageIndex; i++) {
+          const stage = STAGES[i];
+          const stageDuration = stage === 'vegetative' ? (strain?.vegDays || STAGE_DAYS.vegetative) :
+                               stage === 'flowering' ? (strain?.floweringDays || STAGE_DAYS.flowering) :
+                               STAGE_DAYS[stage];
+          totalPastDays += stageDuration;
+        }
+        totalPastDays += daysInCurrentStage;
+
+        // Build past segments (negative days = below TODAY line)
+        let pastDayCounter = -totalPastDays;
+        for (let i = 0; i < currentStageIndex; i++) {
+          const stage = STAGES[i];
+          const stageDuration = stage === 'vegetative' ? (strain?.vegDays || STAGE_DAYS.vegetative) :
+                               stage === 'flowering' ? (strain?.floweringDays || STAGE_DAYS.flowering) :
+                               STAGE_DAYS[stage];
+          segments.push({ stage, startDay: pastDayCounter, endDay: pastDayCounter + stageDuration });
+          pastDayCounter += stageDuration;
+        }
+        // Current stage past portion (from stage start to today)
+        if (daysInCurrentStage > 0) {
+          segments.push({ stage: cell.plant.stage, startDay: pastDayCounter, endDay: 0 });
+        }
+
+        // Future: from today to harvest
+        let futureDayCounter = 0;
+        const remainingInCurrentStage = timeline.daysRemainingInStage;
+        if (remainingInCurrentStage > 0 && cell.plant.stage !== 'harvested') {
+          segments.push({ stage: cell.plant.stage, startDay: 0, endDay: remainingInCurrentStage });
+          futureDayCounter = remainingInCurrentStage;
+        }
+        for (let i = currentStageIndex + 1; i < STAGES.length - 1; i++) {
+          const stage = STAGES[i];
+          const stageDuration = stage === 'vegetative' ? (strain?.vegDays || STAGE_DAYS.vegetative) :
+                               stage === 'flowering' ? (strain?.floweringDays || STAGE_DAYS.flowering) :
+                               STAGE_DAYS[stage];
+          segments.push({ stage, startDay: futureDayCounter, endDay: futureDayCounter + stageDuration });
+          futureDayCounter += stageDuration;
+        }
+      } else {
+        // Plant starts in the future
+        const daysUntilStart = Math.abs(daysFromStart);
+        let dayCounter = daysUntilStart;
+        for (let i = 0; i < STAGES.length - 1; i++) {
+          const stage = STAGES[i];
+          const stageDuration = stage === 'vegetative' ? (strain?.vegDays || STAGE_DAYS.vegetative) :
+                               stage === 'flowering' ? (strain?.floweringDays || STAGE_DAYS.flowering) :
+                               STAGE_DAYS[stage];
+          segments.push({ stage, startDay: dayCounter, endDay: dayCounter + stageDuration });
+          dayCounter += stageDuration;
+        }
+      }
+
+      // Draw segments
+      // startDay/endDay: negative = past, positive = future
+      // Y coords: todayY is baseline, above = future (smaller Y), below = past (larger Y)
+      segments.forEach((seg) => {
+        // Convert days to Y positions (negative days = past = below TODAY = larger Y)
+        const segTopY = todayY - seg.endDay * dayHeight;
+        const segBottomY = todayY - seg.startDay * dayHeight;
+        const segHeight = segBottomY - segTopY;
+
+        if (segHeight <= 0) return;
+
+        const isFuture = seg.endDay > 0;
+        if (isFuture) {
+          ctx.fillStyle = STAGE_COLORS[seg.stage] + '80'; // 50% opacity for future
+        } else {
+          ctx.fillStyle = STAGE_COLORS[seg.stage]; // full color for past
+        }
+        ctx.fillRect(x + 2, segTopY, columnWidth - 4, segHeight);
+
+        // Draw stage boundary line at transition
+        ctx.strokeStyle = COLORS.background;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + 2, segTopY);
+        ctx.lineTo(x + columnWidth - 2, segTopY);
+        ctx.stroke();
+      });
 
       ctx.fillStyle = COLORS.text;
       ctx.font = '9px "Space Mono", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(cell.plant.code, x + columnWidth / 2, todayY + 10);
+      ctx.fillText(cell.plant.code, x + columnWidth / 2, todayY + 12);
     } else {
       ctx.strokeStyle = COLORS.border;
       ctx.lineWidth = 1;

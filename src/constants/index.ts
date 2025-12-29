@@ -11,6 +11,7 @@ export const COLORS = {
 
   text: '#e8e8e8',
   textMuted: '#8888a0',
+  muted: '#6a6a8a',
   border: '#3a3a5c',
 
   danger: '#c45c5c',

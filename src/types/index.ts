@@ -24,6 +24,7 @@ export interface Plant {
   stage: Stage;
   generation: Generation;
   startedAt: string;
+  stageStartedAt: string;
 }
 
 export interface Strain {
@@ -49,4 +50,17 @@ export interface Selection {
 export interface Point {
   x: number;
   y: number;
+}
+
+export interface Plantation {
+  id: string;
+  ownerId: string;
+  name: string;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  spaces: Space[];
+  plants: Plant[];
+  strains: Strain[];
+  inventory: Seed[];
 }

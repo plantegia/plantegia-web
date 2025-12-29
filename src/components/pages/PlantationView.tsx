@@ -1,0 +1,98 @@
+import { useEffect, useState } from 'react';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { Header } from '../ui/Header';
+import { Canvas } from '../canvas/Canvas';
+import { Hotbar } from '../hotbar/Hotbar';
+import { Inspector } from '../inspector/Inspector';
+import { useAuth } from '../../hooks/useAuth';
+import { usePlantation } from '../../hooks/usePlantation';
+import { COLORS, VIEWPORT_WIDTH } from '../../constants';
+
+export function PlantationView() {
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { plantation, loading, error } = usePlantation(id || '');
+
+  const isViewOnly = searchParams.get('view') === '1';
+  const isOwner = plantation && user && plantation.ownerId === user.uid;
+  const canEdit = isOwner && !isViewOnly;
+
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.message}>Loading...</div>
+      </div>
+    );
+  }
+
+  if (error || !plantation) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.message}>{error || 'Plantation not found'}</div>
+        <button style={styles.backButton} onClick={() => navigate('/')}>
+          Back to list
+        </button>
+      </div>
+    );
+  }
+
+  if (!isOwner && !plantation.isPublic) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.message}>This plantation is private</div>
+        <button style={styles.backButton} onClick={() => navigate('/')}>
+          Back to list
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        background: COLORS.background,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'visible',
+        position: 'relative',
+      }}
+    >
+      <Header plantationName={plantation.name} canEdit={canEdit} />
+      <Canvas readOnly={!canEdit} />
+      <Inspector readOnly={!canEdit} />
+      <Hotbar readOnly={!canEdit} />
+    </div>
+  );
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    width: VIEWPORT_WIDTH,
+    height: '100dvh',
+    margin: '0 auto',
+    backgroundColor: COLORS.background,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    fontFamily: '"Space Mono", monospace',
+  },
+  message: {
+    fontSize: 14,
+    color: '#8B8B8B',
+  },
+  backButton: {
+    padding: '12px 24px',
+    fontSize: 14,
+    fontFamily: '"Space Mono", monospace',
+    backgroundColor: '#2A2A4E',
+    color: '#fff',
+    border: 'none',
+    cursor: 'pointer',
+  },
+};
