@@ -1,0 +1,240 @@
+import type { Space, Plant, Strain } from '../../types';
+import { COLORS, STAGE_COLORS, CELL_SIZE } from '../../constants';
+import { getPlantCells } from '../../utils/grid';
+
+export function renderSpaceView(
+  ctx: CanvasRenderingContext2D,
+  spaces: Space[],
+  plants: Plant[],
+  strains: Strain[],
+  selection: { type: 'space' | 'plant'; id: string } | null,
+  dragPreview: { startX: number; startY: number; endX: number; endY: number } | null
+) {
+  spaces.forEach((space) => {
+    drawSpace(ctx, space, selection?.type === 'space' && selection.id === space.id);
+  });
+
+  plants.forEach((plant) => {
+    const space = spaces.find((s) => s.id === plant.spaceId);
+    if (space) {
+      const strain = strains.find((s) => s.id === plant.strainId);
+      drawPlant(ctx, plant, space, strain, selection?.type === 'plant' && selection.id === plant.id);
+    }
+  });
+
+  if (dragPreview) {
+    drawDragPreview(ctx, dragPreview);
+  }
+}
+
+function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: boolean) {
+  const { originX, originY, gridWidth, gridHeight, name } = space;
+  const width = gridWidth * CELL_SIZE;
+  const height = gridHeight * CELL_SIZE;
+
+  ctx.fillStyle = COLORS.backgroundLight;
+  ctx.fillRect(originX, originY, width, height);
+
+  ctx.strokeStyle = COLORS.border;
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= gridWidth; x++) {
+    ctx.beginPath();
+    ctx.moveTo(originX + x * CELL_SIZE, originY);
+    ctx.lineTo(originX + x * CELL_SIZE, originY + height);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= gridHeight; y++) {
+    ctx.beginPath();
+    ctx.moveTo(originX, originY + y * CELL_SIZE);
+    ctx.lineTo(originX + width, originY + y * CELL_SIZE);
+    ctx.stroke();
+  }
+
+  if (isSelected) {
+    ctx.strokeStyle = COLORS.teal;
+    ctx.lineWidth = 2;
+  } else {
+    ctx.strokeStyle = COLORS.green;
+    ctx.lineWidth = 2;
+  }
+  ctx.strokeRect(originX, originY, width, height);
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = '14px "Space Mono", monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(name.toUpperCase(), originX + 4, originY - 4);
+}
+
+function drawPlant(
+  ctx: CanvasRenderingContext2D,
+  plant: Plant,
+  space: Space,
+  strain: Strain | undefined,
+  isSelected: boolean
+) {
+  const cells = getPlantCells(plant);
+  const minGridX = Math.min(...cells.map((c) => c.gridX));
+  const minGridY = Math.min(...cells.map((c) => c.gridY));
+  const maxGridX = Math.max(...cells.map((c) => c.gridX));
+  const maxGridY = Math.max(...cells.map((c) => c.gridY));
+
+  const x = space.originX + minGridX * CELL_SIZE;
+  const y = space.originY + minGridY * CELL_SIZE;
+  const width = (maxGridX - minGridX + 1) * CELL_SIZE;
+  const height = (maxGridY - minGridY + 1) * CELL_SIZE;
+
+  ctx.fillStyle = STAGE_COLORS[plant.stage];
+  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
+
+  if (isSelected) {
+    ctx.strokeStyle = COLORS.teal;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
+  }
+
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 12px "Space Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(plant.code, x + width / 2, y + height / 2);
+}
+
+function drawDragPreview(
+  ctx: CanvasRenderingContext2D,
+  preview: { startX: number; startY: number; endX: number; endY: number }
+) {
+  const minX = Math.min(preview.startX, preview.endX);
+  const minY = Math.min(preview.startY, preview.endY);
+  const maxX = Math.max(preview.startX, preview.endX);
+  const maxY = Math.max(preview.startY, preview.endY);
+
+  const snappedX = Math.floor(minX / CELL_SIZE) * CELL_SIZE;
+  const snappedY = Math.floor(minY / CELL_SIZE) * CELL_SIZE;
+  const width = Math.max(CELL_SIZE, Math.ceil((maxX - snappedX) / CELL_SIZE) * CELL_SIZE);
+  const height = Math.max(CELL_SIZE, Math.ceil((maxY - snappedY) / CELL_SIZE) * CELL_SIZE);
+
+  ctx.fillStyle = 'rgba(74, 124, 89, 0.3)';
+  ctx.fillRect(snappedX, snappedY, width, height);
+
+  ctx.strokeStyle = COLORS.green;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.strokeRect(snappedX, snappedY, width, height);
+  ctx.setLineDash([]);
+}
+
+export function renderTimeView(
+  ctx: CanvasRenderingContext2D,
+  spaces: Space[],
+  plants: Plant[],
+  strains: Strain[],
+  canvasWidth: number,
+  canvasHeight: number,
+  timelineOffset: number,
+  horizontalOffset: number = 0
+) {
+  const today = new Date();
+  const dayHeight = 8;
+  const columnWidth = 60;
+  const headerHeight = 40;
+  const leftMargin = 50;
+
+  const allCells: { spaceId: string; spaceName: string; gridX: number; gridY: number; plant: Plant | null }[] = [];
+
+  spaces.forEach((space) => {
+    for (let y = 0; y < space.gridHeight; y++) {
+      for (let x = 0; x < space.gridWidth; x++) {
+        const plant = plants.find(
+          (p) => p.spaceId === space.id && p.gridX === x && p.gridY === y
+        );
+        allCells.push({
+          spaceId: space.id,
+          spaceName: space.name,
+          gridX: x,
+          gridY: y,
+          plant: plant || null,
+        });
+      }
+    }
+  });
+
+  const todayY = canvasHeight / 2 - timelineOffset;
+
+  // Draw TODAY line
+  ctx.strokeStyle = COLORS.orange;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, todayY);
+  ctx.lineTo(canvasWidth, todayY);
+  ctx.stroke();
+
+  ctx.fillStyle = COLORS.orange;
+  ctx.font = '10px "Space Mono", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('TODAY', 4, todayY - 6);
+
+  // Draw all cells with horizontal offset
+  allCells.forEach((cell, i) => {
+    const x = leftMargin + i * columnWidth + horizontalOffset;
+
+    // Skip if completely off screen
+    if (x + columnWidth < 0 || x > canvasWidth) return;
+
+    // Draw header
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '10px "Space Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      cell.plant ? cell.plant.code : `${cell.spaceName.slice(0, 3).toUpperCase()}`,
+      x + columnWidth / 2,
+      headerHeight / 2
+    );
+
+    if (cell.plant) {
+      const startDate = new Date(cell.plant.startedAt);
+      const daysFromStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const strain = strains.find((s) => s.id === cell.plant!.strainId);
+      const totalDays = (strain?.vegDays || 30) + (strain?.floweringDays || 60);
+      const daysRemaining = Math.max(0, totalDays - daysFromStart);
+
+      const pastHeight = daysFromStart * dayHeight;
+      const futureHeight = daysRemaining * dayHeight;
+
+      // Past: draw below TODAY line (positive Y direction)
+      ctx.fillStyle = STAGE_COLORS[cell.plant.stage];
+      ctx.fillRect(x + 2, todayY, columnWidth - 4, pastHeight);
+
+      // Future: draw above TODAY line (negative Y direction)
+      ctx.fillStyle = 'rgba(95, 179, 179, 0.4)';
+      ctx.fillRect(x + 2, todayY - futureHeight, columnWidth - 4, futureHeight);
+
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '9px "Space Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(cell.plant.code, x + columnWidth / 2, todayY + 10);
+    } else {
+      ctx.strokeStyle = COLORS.border;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(x + columnWidth / 2, headerHeight);
+      ctx.lineTo(x + columnWidth / 2, canvasHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  });
+
+  // Draw day labels
+  ctx.fillStyle = COLORS.textMuted;
+  ctx.font = '9px "Space Mono", monospace';
+  ctx.textAlign = 'right';
+
+  for (let d = -30; d <= 90; d += 7) {
+    const y = todayY - d * dayHeight;
+    if (y > headerHeight && y < canvasHeight) {
+      ctx.fillText(`${d > 0 ? '+' : ''}${d}d`, leftMargin - 8, y);
+    }
+  }
+}
