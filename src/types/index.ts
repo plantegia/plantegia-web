@@ -3,6 +3,7 @@ export type Generation = 'seed' | 'clone';
 export type PlantSize = 1 | 2 | 4;
 export type Tool = 'space' | 'erase';
 export type ViewMode = 'space' | 'time';
+export type LightSchedule = '18/6' | '12/12' | '20/4' | '24/0';
 
 export interface Space {
   id: string;
@@ -11,6 +12,8 @@ export interface Space {
   originY: number;
   gridWidth: number;
   gridHeight: number;
+  lightSchedule?: LightSchedule;
+  color?: string;
 }
 
 export interface Plant {
@@ -25,6 +28,8 @@ export interface Plant {
   generation: Generation;
   startedAt: string;
   stageStartedAt: string;
+  // Custom stage durations for this plant (overrides strain defaults)
+  customStageDays?: Partial<Record<Stage, number>>;
 }
 
 export interface Strain {

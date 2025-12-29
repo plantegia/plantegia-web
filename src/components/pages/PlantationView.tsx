@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Header } from '../ui/Header';
 import { Canvas } from '../canvas/Canvas';
@@ -6,6 +5,7 @@ import { Hotbar } from '../hotbar/Hotbar';
 import { Inspector } from '../inspector/Inspector';
 import { useAuth } from '../../hooks/useAuth';
 import { usePlantation } from '../../hooks/usePlantation';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { COLORS, VIEWPORT_WIDTH } from '../../constants';
 
 export function PlantationView() {
@@ -18,6 +18,9 @@ export function PlantationView() {
   const isViewOnly = searchParams.get('view') === '1';
   const isOwner = plantation && user && plantation.ownerId === user.uid;
   const canEdit = isOwner && !isViewOnly;
+
+  // Enable keyboard shortcuts only when user can edit
+  useKeyboardShortcuts(canEdit || false);
 
   if (loading) {
     return (

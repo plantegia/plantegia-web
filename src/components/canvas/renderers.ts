@@ -1,6 +1,6 @@
 import type { Space, Plant, Strain, Stage } from '../../types';
-import { COLORS, STAGE_COLORS, CELL_SIZE, STAGE_DAYS, STAGES } from '../../constants';
-import { getPlantCells, calculatePlantTimeline } from '../../utils/grid';
+import { COLORS, STAGE_COLORS, CELL_SIZE, SPACE_COLORS, STAGE_ABBREV, SPACE_HANDLE_SIZE, TIME_VIEW_HANDLE_HEIGHT, MIN_SEGMENT_HEIGHT_FOR_LABEL } from '../../constants';
+import { getPlantCells, buildPlantTimelineSegments, TIME_VIEW_CONSTANTS } from '../../utils/grid';
 
 export function renderSpaceView(
   ctx: CanvasRenderingContext2D,
@@ -10,8 +10,14 @@ export function renderSpaceView(
   selection: { type: 'space' | 'plant'; id: string } | null,
   dragPreview: { startX: number; startY: number; endX: number; endY: number } | null
 ) {
+  // First pass: draw space backgrounds and grids
+  spaces.forEach((space, index) => {
+    drawSpace(ctx, space, selection?.type === 'space' && selection.id === space.id, index);
+  });
+
+  // Second pass: draw space labels on top (so they're not covered by other spaces)
   spaces.forEach((space) => {
-    drawSpace(ctx, space, selection?.type === 'space' && selection.id === space.id);
+    drawSpaceLabel(ctx, space, spaces);
   });
 
   plants.forEach((plant) => {
@@ -27,12 +33,51 @@ export function renderSpaceView(
   }
 }
 
-function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: boolean) {
-  const { originX, originY, gridWidth, gridHeight, name } = space;
+// Export background grid renderer separately so it can be called before transform
+export function renderBackgroundGrid(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  pan: { x: number; y: number },
+  zoom: number
+) {
+  const scaledCellSize = CELL_SIZE * zoom;
+
+  // Calculate grid offset based on pan
+  const offsetX = ((pan.x % scaledCellSize) + scaledCellSize) % scaledCellSize;
+  const offsetY = ((pan.y % scaledCellSize) + scaledCellSize) % scaledCellSize;
+
+  ctx.strokeStyle = COLORS.border;
+  ctx.lineWidth = 0.5;
+  ctx.globalAlpha = 0.3;
+
+  // Vertical lines
+  for (let x = offsetX; x <= canvasWidth; x += scaledCellSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvasHeight);
+    ctx.stroke();
+  }
+
+  // Horizontal lines
+  for (let y = offsetY; y <= canvasHeight; y += scaledCellSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvasWidth, y);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: boolean, spaceIndex: number) {
+  const { originX, originY, gridWidth, gridHeight, color } = space;
   const width = gridWidth * CELL_SIZE;
   const height = gridHeight * CELL_SIZE;
 
-  ctx.fillStyle = COLORS.backgroundLight;
+  // Use space's color or fallback to palette by index
+  const spaceColor = color || SPACE_COLORS[spaceIndex % SPACE_COLORS.length];
+  ctx.fillStyle = spaceColor;
   ctx.fillRect(originX, originY, width, height);
 
   ctx.strokeStyle = COLORS.border;
@@ -59,18 +104,124 @@ function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: bool
   }
   ctx.strokeRect(originX, originY, width, height);
 
+  // Draw resize handles when selected
+  if (isSelected) {
+    const corners = [
+      { x: originX, y: originY },                    // nw
+      { x: originX + width, y: originY },            // ne
+      { x: originX, y: originY + height },           // sw
+      { x: originX + width, y: originY + height },   // se
+    ];
+
+    ctx.fillStyle = COLORS.teal;
+    corners.forEach(corner => {
+      ctx.fillRect(
+        corner.x - SPACE_HANDLE_SIZE / 2,
+        corner.y - SPACE_HANDLE_SIZE / 2,
+        SPACE_HANDLE_SIZE,
+        SPACE_HANDLE_SIZE
+      );
+    });
+
+    // Draw edge handles (midpoints)
+    const edgeHandles = [
+      { x: originX + width / 2, y: originY },                // n
+      { x: originX + width / 2, y: originY + height },       // s
+      { x: originX, y: originY + height / 2 },               // w
+      { x: originX + width, y: originY + height / 2 },       // e
+    ];
+
+    ctx.fillStyle = COLORS.teal;
+    edgeHandles.forEach(handle => {
+      ctx.fillRect(
+        handle.x - SPACE_HANDLE_SIZE / 2,
+        handle.y - SPACE_HANDLE_SIZE / 2,
+        SPACE_HANDLE_SIZE,
+        SPACE_HANDLE_SIZE
+      );
+    });
+  }
+}
+
+function drawSpaceLabel(ctx: CanvasRenderingContext2D, space: Space, allSpaces: Space[]) {
+  const { originX, originY, gridWidth, gridHeight, name } = space;
+  const width = gridWidth * CELL_SIZE;
+  const height = gridHeight * CELL_SIZE;
+  const labelHeight = 14;
+  const padding = 4;
+
+  // Check which sides are free (not overlapping with other spaces)
+  const checkOverlap = (x: number, y: number, w: number, h: number): boolean => {
+    return allSpaces.some(other => {
+      if (other.id === space.id) return false;
+      const otherX = other.originX;
+      const otherY = other.originY;
+      const otherW = other.gridWidth * CELL_SIZE;
+      const otherH = other.gridHeight * CELL_SIZE;
+      return !(x + w <= otherX || x >= otherX + otherW || y + h <= otherY || y >= otherY + otherH);
+    });
+  };
+
+  // Try positions: top, bottom, left, right
+  type Position = { x: number; y: number; align: CanvasTextAlign; baseline: CanvasTextBaseline; maxWidth: number };
+  const positions: Position[] = [
+    // Top (above space)
+    { x: originX + padding, y: originY - padding, align: 'left', baseline: 'bottom', maxWidth: width - padding * 2 },
+    // Bottom (below space)
+    { x: originX + padding, y: originY + height + padding, align: 'left', baseline: 'top', maxWidth: width - padding * 2 },
+    // Left (to the left of space)
+    { x: originX - padding, y: originY + padding, align: 'right', baseline: 'top', maxWidth: 100 },
+    // Right (to the right of space)
+    { x: originX + width + padding, y: originY + padding, align: 'left', baseline: 'top', maxWidth: 100 },
+  ];
+
+  // Check areas for each position
+  const labelAreas = [
+    { x: originX, y: originY - labelHeight - padding, w: width, h: labelHeight + padding }, // top
+    { x: originX, y: originY + height, w: width, h: labelHeight + padding }, // bottom
+    { x: originX - 100 - padding, y: originY, w: 100 + padding, h: labelHeight }, // left
+    { x: originX + width, y: originY, w: 100 + padding, h: labelHeight }, // right
+  ];
+
+  // Find first free position
+  let chosenPosition: Position | null = null;
+  for (let i = 0; i < positions.length; i++) {
+    if (!checkOverlap(labelAreas[i].x, labelAreas[i].y, labelAreas[i].w, labelAreas[i].h)) {
+      chosenPosition = positions[i];
+      break;
+    }
+  }
+
+  // If all sides are occupied, don't show label
+  if (!chosenPosition) return;
+
+  ctx.font = '10px "Space Mono", monospace';
+  ctx.textAlign = chosenPosition.align;
+  ctx.textBaseline = chosenPosition.baseline;
+
+  // Truncate name if too long
+  let displayName = name.toUpperCase();
+  let textWidth = ctx.measureText(displayName).width;
+
+  if (textWidth > chosenPosition.maxWidth) {
+    while (textWidth > chosenPosition.maxWidth - 10 && displayName.length > 1) {
+      displayName = displayName.slice(0, -1);
+      textWidth = ctx.measureText(displayName + '…').width;
+    }
+    displayName += '…';
+  }
+
   ctx.fillStyle = COLORS.text;
-  ctx.font = '14px "Space Mono", monospace';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(name.toUpperCase(), originX + 4, originY - 4);
+  ctx.globalAlpha = 0.7;
+  ctx.fillText(displayName, chosenPosition.x, chosenPosition.y);
+  ctx.globalAlpha = 1;
 }
 
 function drawPlant(
   ctx: CanvasRenderingContext2D,
   plant: Plant,
   space: Space,
-  strain: Strain | undefined,
+  _strain: Strain | undefined,
   isSelected: boolean
 ) {
   const cells = getPlantCells(plant);
@@ -84,6 +235,13 @@ function drawPlant(
   const width = (maxGridX - minGridX + 1) * CELL_SIZE;
   const height = (maxGridY - minGridY + 1) * CELL_SIZE;
 
+  // Dark semi-transparent backdrop for depth effect
+  ctx.fillStyle = COLORS.background;
+  ctx.globalAlpha = 0.8;
+  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
+  ctx.globalAlpha = 1;
+
+  // Plant color on top
   ctx.fillStyle = STAGE_COLORS[plant.stage];
   ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
 
@@ -135,10 +293,7 @@ export function renderTimeView(
   horizontalOffset: number = 0
 ) {
   const today = new Date();
-  const dayHeight = 8;
-  const columnWidth = 60;
-  const headerHeight = 40;
-  const leftMargin = 50;
+  const { dayHeight, weekHeight, columnWidth, headerHeight, leftMargin } = TIME_VIEW_CONSTANTS;
 
   const allCells: { spaceId: string; spaceName: string; gridX: number; gridY: number; plant: Plant | null }[] = [];
 
@@ -160,6 +315,26 @@ export function renderTimeView(
   });
 
   const todayY = canvasHeight / 2 - timelineOffset;
+
+  // Draw horizontal week grid lines
+  ctx.strokeStyle = COLORS.border;
+  ctx.lineWidth = 0.5;
+  ctx.globalAlpha = 0.4;
+
+  // Calculate range of weeks to draw (beyond visible area for smooth scrolling)
+  const weeksAbove = Math.ceil((todayY - headerHeight) / weekHeight) + 2;
+  const weeksBelow = Math.ceil((canvasHeight - todayY) / weekHeight) + 2;
+
+  for (let w = -weeksBelow; w <= weeksAbove; w++) {
+    const y = todayY - w * weekHeight;
+    if (y > headerHeight && y < canvasHeight) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvasWidth, y);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
 
   // Draw TODAY line
   ctx.strokeStyle = COLORS.orange;
@@ -193,80 +368,16 @@ export function renderTimeView(
     );
 
     if (cell.plant) {
-      const startDate = new Date(cell.plant.startedAt);
-      const daysFromStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       const strain = strains.find((s) => s.id === cell.plant!.strainId);
-      const timeline = calculatePlantTimeline(cell.plant, strain, today);
 
-      const currentStageIndex = STAGES.indexOf(cell.plant.stage);
-
-      // Build timeline segments for each stage
-      const segments: { stage: Stage; startDay: number; endDay: number }[] = [];
-
-      if (daysFromStart >= 0) {
-        // Plant has started - calculate past and future segments
-        const stageStartDate = new Date(cell.plant.stageStartedAt || cell.plant.startedAt);
-        const daysInCurrentStage = Math.max(0, Math.floor((today.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60 * 24)));
-
-        // Past: all completed stages + current stage's elapsed time
-        // Calculate total past days based on stage durations
-        let totalPastDays = 0;
-        for (let i = 0; i < currentStageIndex; i++) {
-          const stage = STAGES[i];
-          const stageDuration = stage === 'vegetative' ? (strain?.vegDays || STAGE_DAYS.vegetative) :
-                               stage === 'flowering' ? (strain?.floweringDays || STAGE_DAYS.flowering) :
-                               STAGE_DAYS[stage];
-          totalPastDays += stageDuration;
-        }
-        totalPastDays += daysInCurrentStage;
-
-        // Build past segments (negative days = below TODAY line)
-        let pastDayCounter = -totalPastDays;
-        for (let i = 0; i < currentStageIndex; i++) {
-          const stage = STAGES[i];
-          const stageDuration = stage === 'vegetative' ? (strain?.vegDays || STAGE_DAYS.vegetative) :
-                               stage === 'flowering' ? (strain?.floweringDays || STAGE_DAYS.flowering) :
-                               STAGE_DAYS[stage];
-          segments.push({ stage, startDay: pastDayCounter, endDay: pastDayCounter + stageDuration });
-          pastDayCounter += stageDuration;
-        }
-        // Current stage past portion (from stage start to today)
-        if (daysInCurrentStage > 0) {
-          segments.push({ stage: cell.plant.stage, startDay: pastDayCounter, endDay: 0 });
-        }
-
-        // Future: from today to harvest
-        let futureDayCounter = 0;
-        const remainingInCurrentStage = timeline.daysRemainingInStage;
-        if (remainingInCurrentStage > 0 && cell.plant.stage !== 'harvested') {
-          segments.push({ stage: cell.plant.stage, startDay: 0, endDay: remainingInCurrentStage });
-          futureDayCounter = remainingInCurrentStage;
-        }
-        for (let i = currentStageIndex + 1; i < STAGES.length - 1; i++) {
-          const stage = STAGES[i];
-          const stageDuration = stage === 'vegetative' ? (strain?.vegDays || STAGE_DAYS.vegetative) :
-                               stage === 'flowering' ? (strain?.floweringDays || STAGE_DAYS.flowering) :
-                               STAGE_DAYS[stage];
-          segments.push({ stage, startDay: futureDayCounter, endDay: futureDayCounter + stageDuration });
-          futureDayCounter += stageDuration;
-        }
-      } else {
-        // Plant starts in the future
-        const daysUntilStart = Math.abs(daysFromStart);
-        let dayCounter = daysUntilStart;
-        for (let i = 0; i < STAGES.length - 1; i++) {
-          const stage = STAGES[i];
-          const stageDuration = stage === 'vegetative' ? (strain?.vegDays || STAGE_DAYS.vegetative) :
-                               stage === 'flowering' ? (strain?.floweringDays || STAGE_DAYS.flowering) :
-                               STAGE_DAYS[stage];
-          segments.push({ stage, startDay: dayCounter, endDay: dayCounter + stageDuration });
-          dayCounter += stageDuration;
-        }
-      }
+      // Use shared function for timeline segments
+      const segments = buildPlantTimelineSegments(cell.plant, strain, today);
 
       // Draw segments
       // startDay/endDay: negative = past, positive = future
       // Y coords: todayY is baseline, above = future (smaller Y), below = past (larger Y)
+      const drawnSegments: { stage: Stage; topY: number; bottomY: number }[] = [];
+
       segments.forEach((seg) => {
         // Convert days to Y positions (negative days = past = below TODAY = larger Y)
         const segTopY = todayY - seg.endDay * dayHeight;
@@ -274,6 +385,8 @@ export function renderTimeView(
         const segHeight = segBottomY - segTopY;
 
         if (segHeight <= 0) return;
+
+        drawnSegments.push({ stage: seg.stage, topY: segTopY, bottomY: segBottomY });
 
         const isFuture = seg.endDay > 0;
         if (isFuture) {
@@ -283,6 +396,20 @@ export function renderTimeView(
         }
         ctx.fillRect(x + 2, segTopY, columnWidth - 4, segHeight);
 
+        // Draw stage label if segment is tall enough
+        if (segHeight >= MIN_SEGMENT_HEIGHT_FOR_LABEL) {
+          const centerX = x + columnWidth / 2;
+          const centerY = segTopY + segHeight / 2;
+          ctx.save();
+          ctx.fillStyle = COLORS.text;
+          ctx.globalAlpha = isFuture ? 0.6 : 0.9;
+          ctx.font = '8px "Space Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(STAGE_ABBREV[seg.stage], centerX, centerY);
+          ctx.restore();
+        }
+
         // Draw stage boundary line at transition
         ctx.strokeStyle = COLORS.background;
         ctx.lineWidth = 1;
@@ -291,6 +418,41 @@ export function renderTimeView(
         ctx.lineTo(x + columnWidth - 2, segTopY);
         ctx.stroke();
       });
+
+      // Draw drag handles at stage boundaries (for future stages only) - always visible
+      if (drawnSegments.length > 0) {
+        const handleWidth = columnWidth - 4;
+
+        drawnSegments.forEach((seg, idx) => {
+          // Only show handles for editable stages (not germinating or harvested)
+          // and only for future stage boundaries (above TODAY line)
+          const isEditableStage = seg.stage !== 'germinating' && seg.stage !== 'harvested';
+          if (seg.topY < todayY && idx > 0 && isEditableStage) {
+            // Draw handle at the top of this segment (boundary between stages)
+            // Background bar
+            ctx.fillStyle = COLORS.teal;
+            ctx.globalAlpha = 0.9;
+            ctx.fillRect(
+              x + 2,
+              seg.topY - TIME_VIEW_HANDLE_HEIGHT / 2,
+              handleWidth,
+              TIME_VIEW_HANDLE_HEIGHT
+            );
+            // Center grip lines for visual affordance
+            ctx.strokeStyle = COLORS.background;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.5;
+            const gripY = seg.topY;
+            ctx.beginPath();
+            ctx.moveTo(x + 10, gripY - 2);
+            ctx.lineTo(x + columnWidth - 10, gripY - 2);
+            ctx.moveTo(x + 10, gripY + 2);
+            ctx.lineTo(x + columnWidth - 10, gripY + 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+        });
+      }
 
       ctx.fillStyle = COLORS.text;
       ctx.font = '9px "Space Mono", monospace';

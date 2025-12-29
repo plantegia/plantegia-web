@@ -13,6 +13,10 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
   const viewMode = useAppStore((s) => s.viewMode);
   const setViewMode = useAppStore((s) => s.setViewMode);
   const currentPlantationId = useAppStore((s) => s.currentPlantationId);
+  const undo = useAppStore((s) => s.undo);
+  const redo = useAppStore((s) => s.redo);
+  const historyPastLength = useAppStore((s) => s.history.past.length);
+  const historyFutureLength = useAppStore((s) => s.history.future.length);
 
   const handleShare = async () => {
     if (!currentPlantationId) return;
@@ -60,22 +64,56 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
           {plantationName || 'PLANTASIA'}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {canEdit && (
-          <button
-            onClick={handleShare}
-            style={{
-              background: 'transparent',
-              border: `1px solid ${COLORS.muted}`,
-              color: COLORS.muted,
-              padding: '6px 10px',
-              fontSize: 14,
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-            }}
-          >
-            Share
-          </button>
+          <>
+            <button
+              onClick={undo}
+              disabled={historyPastLength === 0}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: historyPastLength > 0 ? COLORS.muted : COLORS.border,
+                fontSize: 16,
+                cursor: historyPastLength > 0 ? 'pointer' : 'default',
+                padding: '4px 6px',
+                opacity: historyPastLength > 0 ? 1 : 0.5,
+              }}
+              title="Undo (Ctrl+Z)"
+            >
+              ↶
+            </button>
+            <button
+              onClick={redo}
+              disabled={historyFutureLength === 0}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: historyFutureLength > 0 ? COLORS.muted : COLORS.border,
+                fontSize: 16,
+                cursor: historyFutureLength > 0 ? 'pointer' : 'default',
+                padding: '4px 6px',
+                opacity: historyFutureLength > 0 ? 1 : 0.5,
+              }}
+              title="Redo (Ctrl+Y)"
+            >
+              ↷
+            </button>
+            <button
+              onClick={handleShare}
+              style={{
+                background: 'transparent',
+                border: `1px solid ${COLORS.muted}`,
+                color: COLORS.muted,
+                padding: '6px 10px',
+                fontSize: 14,
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+              }}
+            >
+              Share
+            </button>
+          </>
         )}
         <button
           onClick={() => setViewMode(viewMode === 'space' ? 'time' : 'space')}

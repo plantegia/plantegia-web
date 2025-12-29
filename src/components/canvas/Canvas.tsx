@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { useGestures } from '../../hooks/useGestures';
-import { renderSpaceView, renderTimeView } from './renderers';
+import { renderSpaceView, renderTimeView, renderBackgroundGrid } from './renderers';
 import { COLORS, CELL_SIZE } from '../../constants';
 
 interface CanvasProps {
@@ -90,6 +90,9 @@ export function Canvas({ readOnly }: CanvasProps) {
     ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
     if (viewMode === 'space') {
+      // Draw background grid before transform (in screen coordinates)
+      renderBackgroundGrid(ctx, canvasSize.width, canvasSize.height, pan, zoom);
+
       ctx.save();
       ctx.translate(pan.x, pan.y);
       ctx.scale(zoom, zoom);
