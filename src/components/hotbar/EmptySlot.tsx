@@ -6,24 +6,42 @@ interface EmptySlotProps {
 
 export function EmptySlot({ onClick }: EmptySlotProps) {
   return (
-    <button
-      onClick={onClick}
+    <div
       style={{
-        width: 44,
-        height: 44,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        background: 'transparent',
-        border: `1px dashed ${COLORS.border}`,
-        color: COLORS.textMuted,
-        fontSize: 20,
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        transition: 'all 0.15s',
+        gap: 4,
       }}
     >
-      +
-    </button>
+      <button
+        onClick={onClick}
+        style={{
+          width: 44,
+          height: 44,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'transparent',
+          border: `1px dashed ${COLORS.border}`,
+          color: COLORS.textMuted,
+          fontSize: 20,
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+      >
+        +
+      </button>
+      <span
+        style={{
+          fontSize: 10,
+          color: COLORS.textMuted,
+          textTransform: 'uppercase',
+        }}
+      >
+        Add
+      </span>
+    </div>
   );
 }

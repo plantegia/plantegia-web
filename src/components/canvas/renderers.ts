@@ -1,13 +1,16 @@
-import type { Space, Plant, Strain, Stage, PlantSegment } from '../../types';
+import type { Space, Plant, Strain, Stage, PlantSegment, TimeViewPlacementPreview } from '../../types';
 import { COLORS, STAGE_COLORS, CELL_SIZE, SPACE_COLORS, STAGE_ABBREV, SPACE_HANDLE_SIZE, STAGES } from '../../constants';
 import {
   getPlantCells,
   TIME_VIEW_CONSTANTS,
   buildSlotList,
   dateToScreenX,
+  screenXToDate,
   getPlantEndDate,
   getStageDuration,
+  SlotInfo,
 } from '../../utils/grid';
+import { getCurrentSegment } from '../../utils/migration';
 
 export function renderSpaceView(
   ctx: CanvasRenderingContext2D,
@@ -15,7 +18,8 @@ export function renderSpaceView(
   plants: Plant[],
   strains: Strain[],
   selection: { type: 'space' | 'plant'; id: string } | null,
-  dragPreview: { startX: number; startY: number; endX: number; endY: number } | null
+  dragPreview: { startX: number; startY: number; endX: number; endY: number } | null,
+  placementPreview: { worldX: number; worldY: number; canPlace: boolean; abbreviation: string } | null
 ) {
   // First pass: draw space backgrounds and grids
   spaces.forEach((space, index) => {
@@ -27,16 +31,34 @@ export function renderSpaceView(
     drawSpaceLabel(ctx, space, spaces);
   });
 
+  const today = new Date();
   plants.forEach((plant) => {
-    const space = spaces.find((s) => s.id === plant.spaceId);
+    // Get the segment active at current date
+    const currentSegment = getCurrentSegment(plant, today);
+    if (!currentSegment) return;
+
+    // Check if plant lifecycle has ended (past harvest stage)
+    const strain = strains.find((s) => s.id === plant.strainId);
+    const plantEndDate = getPlantEndDate(plant, strain);
+    if (today > plantEndDate) return;
+
+    // Check if plant hasn't started yet
+    const plantStartDate = new Date(plant.startedAt);
+    if (today < plantStartDate) return;
+
+    // Find the space for the current segment
+    const space = spaces.find((s) => s.id === currentSegment.spaceId);
     if (space) {
-      const strain = strains.find((s) => s.id === plant.strainId);
-      drawPlant(ctx, plant, space, strain, selection?.type === 'plant' && selection.id === plant.id);
+      drawPlant(ctx, plant, space, selection?.type === 'plant' && selection.id === plant.id, currentSegment);
     }
   });
 
   if (dragPreview) {
     drawDragPreview(ctx, dragPreview);
+  }
+
+  if (placementPreview) {
+    drawPlacementPreview(ctx, placementPreview);
   }
 }
 
@@ -228,10 +250,13 @@ function drawPlant(
   ctx: CanvasRenderingContext2D,
   plant: Plant,
   space: Space,
-  _strain: Strain | undefined,
-  isSelected: boolean
+  isSelected: boolean,
+  segment?: PlantSegment
 ) {
-  const cells = getPlantCells(plant);
+  // Use segment position if provided, otherwise fall back to plant's backward-compat fields
+  const gridX = segment?.gridX ?? plant.gridX;
+  const gridY = segment?.gridY ?? plant.gridY;
+  const cells = getPlantCells({ ...plant, gridX, gridY });
   const minGridX = Math.min(...cells.map((c) => c.gridX));
   const minGridY = Math.min(...cells.map((c) => c.gridY));
   const maxGridX = Math.max(...cells.map((c) => c.gridX));
@@ -289,6 +314,137 @@ function drawDragPreview(
   ctx.setLineDash([]);
 }
 
+function drawPlacementPreview(
+  ctx: CanvasRenderingContext2D,
+  preview: { worldX: number; worldY: number; canPlace: boolean; abbreviation: string }
+) {
+  const x = preview.worldX;
+  const y = preview.worldY;
+  const size = CELL_SIZE;
+
+  const color = preview.canPlace ? COLORS.green : COLORS.orange;
+  const fillAlpha = preview.canPlace ? 0.3 : 0.2;
+
+  // Fill
+  ctx.fillStyle = color;
+  ctx.globalAlpha = fillAlpha;
+  ctx.fillRect(x, y, size, size);
+  ctx.globalAlpha = 1;
+
+  // Dashed border
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+  ctx.setLineDash([]);
+
+  // Abbreviation in center
+  ctx.font = 'bold 14px "Space Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.fillText(preview.abbreviation, x + size / 2, y + size / 2);
+}
+
+// Draw placement preview for Time View - shows full plant lifecycle timeline as ghost preview
+function drawTimeViewPlacementPreview(
+  ctx: CanvasRenderingContext2D,
+  screenX: number,
+  slotY: number,
+  leftMargin: number,
+  canvasWidth: number,
+  canPlace: boolean,
+  abbreviation: string,
+  strain: Strain | undefined,
+  panX: number,
+  today: Date
+) {
+  const { segmentHeight, segmentGap } = TIME_VIEW_CONSTANTS;
+  const segmentY = slotY + segmentGap;
+
+  // Calculate start date from cursor position
+  const startDate = screenXToDate(screenX, panX);
+
+  // Calculate total plant duration using default/strain stage durations
+  let totalDays = 0;
+  const stageDurations: { stage: Stage; duration: number; startDay: number }[] = [];
+
+  for (const stage of STAGES) {
+    const duration = getStageDuration(stage, null, strain);
+    stageDurations.push({ stage, duration, startDay: totalDays });
+    totalDays += duration;
+  }
+
+  // Calculate end X position
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + totalDays);
+  const endX = dateToScreenX(endDate, panX, today);
+
+  // Base alpha for ghost preview
+  const baseAlpha = canPlace ? 0.6 : 0.4;
+
+  // Draw each stage as colored segment
+  for (const { stage, duration, startDay } of stageDurations) {
+    const stageStartDate = new Date(startDate);
+    stageStartDate.setDate(stageStartDate.getDate() + startDay);
+    const stageEndDate = new Date(stageStartDate);
+    stageEndDate.setDate(stageEndDate.getDate() + duration);
+
+    const stageX1 = dateToScreenX(stageStartDate, panX, today);
+    const stageX2 = dateToScreenX(stageEndDate, panX, today);
+
+    // Skip if completely off screen
+    if (stageX2 < leftMargin || stageX1 > canvasWidth) continue;
+
+    // Clip to visible area
+    const drawX1 = Math.max(stageX1, leftMargin);
+    const drawX2 = Math.min(stageX2, canvasWidth);
+    const stageWidth = drawX2 - drawX1;
+
+    if (stageWidth <= 0) continue;
+
+    // Draw stage background
+    ctx.globalAlpha = baseAlpha;
+    ctx.fillStyle = STAGE_COLORS[stage];
+    ctx.fillRect(drawX1, segmentY, stageWidth, segmentHeight);
+
+    // Draw stage label if wide enough
+    if (stageWidth > 25) {
+      ctx.globalAlpha = baseAlpha * 0.9;
+      ctx.fillStyle = stage === 'germinating' ? COLORS.backgroundDark : COLORS.text;
+      ctx.font = 'bold 9px "Space Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      if (stage === 'germinating') {
+        // Show abbreviation in germinating stage
+        ctx.fillText(abbreviation, drawX1 + stageWidth / 2, segmentY + segmentHeight / 2);
+      } else if (stageWidth > 35) {
+        // Show stage abbrev + weeks
+        const weeks = Math.round(duration / 7);
+        ctx.fillText(`${STAGE_ABBREV[stage]} ${weeks}W`, drawX1 + stageWidth / 2, segmentY + segmentHeight / 2);
+      } else {
+        // Just abbreviation
+        ctx.fillText(STAGE_ABBREV[stage], drawX1 + stageWidth / 2, segmentY + segmentHeight / 2);
+      }
+    }
+  }
+
+  ctx.globalAlpha = 1;
+
+  // Draw dashed border around entire preview segment
+  const previewX1 = Math.max(screenX, leftMargin);
+  const previewWidth = Math.min(endX, canvasWidth) - previewX1;
+
+  if (previewWidth > 0) {
+    ctx.strokeStyle = canPlace ? COLORS.green : COLORS.orange;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(previewX1, segmentY, previewWidth, segmentHeight);
+    ctx.setLineDash([]);
+  }
+}
+
 // New horizontal Time View (X = dates, Y = slots)
 export function renderTimeView(
   ctx: CanvasRenderingContext2D,
@@ -298,7 +454,9 @@ export function renderTimeView(
   canvasWidth: number,
   canvasHeight: number,
   panY: number,
-  panX: number = 0
+  panX: number = 0,
+  splitPreview: { x: number; plantId: string; segmentId: string } | null = null,
+  timeViewPlacementPreview: TimeViewPlacementPreview | null = null
 ) {
   const today = new Date();
   const {
@@ -325,9 +483,9 @@ export function renderTimeView(
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   // Draw week grid lines (vertical)
-  ctx.strokeStyle = COLORS.border;
+  ctx.strokeStyle = COLORS.text;
   ctx.lineWidth = 0.5;
-  ctx.globalAlpha = 0.3;
+  ctx.globalAlpha = 0.15;
 
   const weeksToShow = Math.ceil(canvasWidth / weekWidth) + 10;
   const startWeek = Math.floor(-panX / weekWidth) - 5;
@@ -383,8 +541,8 @@ export function renderTimeView(
       ctx.fillText(`${slot.gridX},${slot.gridY}`, leftMargin - 8, y + slotHeight / 2);
 
       // Row separator
-      ctx.strokeStyle = COLORS.border;
-      ctx.globalAlpha = 0.2;
+      ctx.strokeStyle = COLORS.text;
+      ctx.globalAlpha = 0.1;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(leftMargin, y + slotHeight);
@@ -412,25 +570,32 @@ export function renderTimeView(
     ctx.fillText('TODAY', todayX, topMargin - 6);
   }
 
-  // Draw date labels at top
+  // Draw date labels at top (smart spacing to avoid overlap)
   ctx.fillStyle = COLORS.textMuted;
   ctx.font = '9px "Space Mono", monospace';
   ctx.textAlign = 'center';
 
   const daysToShow = Math.ceil(canvasWidth / dayWidth) + 60;
   const startDay = Math.floor(-panX / dayWidth) - 30;
+  const minLabelSpacing = 50; // minimum pixels between labels
+  let lastLabelX = -Infinity;
 
   for (let d = startDay; d < startDay + daysToShow; d += 7) {
     const dateObj = new Date(today);
     dateObj.setDate(dateObj.getDate() + d);
     const x = dateToScreenX(dateObj, panX, today);
 
-    if (x > leftMargin && x < canvasWidth) {
+    // Skip if too close to TODAY label
+    const tooCloseToToday = Math.abs(x - todayX) < minLabelSpacing;
+    if (x > leftMargin && x < canvasWidth && x - lastLabelX >= minLabelSpacing && !tooCloseToToday) {
       const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
       const day = dateObj.getDate();
-      ctx.fillText(`${month} ${day}`, x, topMargin / 2);
+      ctx.fillText(`${day} ${month}`, x, topMargin / 2);
+      lastLabelX = x;
     }
   }
+
+  const { splitGap } = TIME_VIEW_CONSTANTS;
 
   // Draw plant segments
   plants.forEach((plant) => {
@@ -449,8 +614,23 @@ export function renderTimeView(
       const segStartDate = new Date(segment.startDate);
       const segEndDate = segment.endDate ? new Date(segment.endDate) : plantEndDate;
 
-      const x1 = dateToScreenX(segStartDate, panX, today);
-      const x2 = dateToScreenX(segEndDate, panX, today);
+      // Check if this segment has a split before/after it
+      const hasSplitBefore = segIdx > 0;
+      const hasSplitAfter = segIdx < plant.segments.length - 1 && segment.endDate !== null;
+
+      // Apply gap offset for split segments
+      let x1 = dateToScreenX(segStartDate, panX, today);
+      let x2 = dateToScreenX(segEndDate, panX, today);
+
+      // Add half-gap to start if there's a split before
+      if (hasSplitBefore) {
+        x1 += splitGap / 2;
+      }
+      // Subtract half-gap from end if there's a split after
+      if (hasSplitAfter) {
+        x2 -= splitGap / 2;
+      }
+
       const y = topMargin + slot.yOffset - panY + segmentGap;
 
       // Skip if off screen
@@ -458,24 +638,133 @@ export function renderTimeView(
       if (y + segmentHeight < topMargin || y > canvasHeight) return;
 
       // Draw segment with stage colors
-      drawSegmentWithStages(ctx, plant, strain, segment, x1, x2, y, segmentHeight, today, leftMargin);
+      drawSegmentWithStages(ctx, plant, strain, segment, x1, x2, y, segmentHeight, today, leftMargin, hasSplitBefore, hasSplitAfter);
 
-      // Draw plant code label
-      const segWidth = x2 - x1;
-      if (segWidth > 40) {
-        ctx.fillStyle = COLORS.text;
-        ctx.font = 'bold 9px "Space Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(plant.code, Math.max(leftMargin + 20, x1) + Math.min(segWidth, x2 - leftMargin) / 2, y + segmentHeight / 2);
+      // Draw zigzag edges for split points
+      if (hasSplitBefore && x1 > leftMargin) {
+        drawZigzagEdge(ctx, x1, y, segmentHeight, 'right', COLORS.background);
+      }
+      if (hasSplitAfter && x2 > leftMargin && x2 < canvasWidth) {
+        drawZigzagEdge(ctx, x2, y, segmentHeight, 'left', COLORS.background);
       }
     });
+  });
 
-    // Draw Bezier connections between segments
-    if (plant.segments.length > 1) {
-      drawSegmentConnections(ctx, plant, strain, slots, panX, panY, today, plantEndDate);
+  // Draw conflict highlights for overlapping segments in the same slot
+  type SegmentInfo = {
+    plantId: string;
+    segmentId: string;
+    startDate: Date;
+    endDate: Date;
+    slot: SlotInfo;
+    x1: number;
+    x2: number;
+    y: number;
+  };
+  const allSegments: SegmentInfo[] = [];
+
+  // Collect all segment info
+  plants.forEach((plant) => {
+    if (!plant.segments) return;
+    const strain = strains.find((s) => s.id === plant.strainId);
+    const plantEndDate = getPlantEndDate(plant, strain);
+
+    plant.segments.forEach((segment) => {
+      const slot = slots.find(
+        (s) => !s.isSpaceHeader && s.spaceId === segment.spaceId && s.gridX === segment.gridX && s.gridY === segment.gridY
+      );
+      if (!slot) return;
+
+      const segStartDate = new Date(segment.startDate);
+      const segEndDate = segment.endDate ? new Date(segment.endDate) : plantEndDate;
+      const x1 = dateToScreenX(segStartDate, panX, today);
+      const x2 = dateToScreenX(segEndDate, panX, today);
+      const y = topMargin + slot.yOffset - panY + segmentGap;
+
+      allSegments.push({
+        plantId: plant.id,
+        segmentId: segment.id,
+        startDate: segStartDate,
+        endDate: segEndDate,
+        slot,
+        x1,
+        x2,
+        y,
+      });
+    });
+  });
+
+  // Find and draw conflicts
+  for (let i = 0; i < allSegments.length; i++) {
+    for (let j = i + 1; j < allSegments.length; j++) {
+      const a = allSegments[i];
+      const b = allSegments[j];
+
+      // Skip if same plant or different slots
+      if (a.plantId === b.plantId) continue;
+      if (a.slot.spaceId !== b.slot.spaceId || a.slot.gridX !== b.slot.gridX || a.slot.gridY !== b.slot.gridY) continue;
+
+      // Check time overlap
+      if (a.startDate < b.endDate && b.startDate < a.endDate) {
+        // Found conflict - draw overlap region with danger border
+        const overlapStart = Math.max(a.x1, b.x1);
+        const overlapEnd = Math.min(a.x2, b.x2);
+
+        if (overlapEnd > overlapStart && overlapEnd > leftMargin && overlapStart < canvasWidth) {
+          const drawX = Math.max(overlapStart, leftMargin);
+          const drawWidth = Math.min(overlapEnd, canvasWidth) - drawX;
+
+          ctx.strokeStyle = COLORS.danger;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(drawX, a.y, drawWidth, segmentHeight);
+        }
+      }
+    }
+  }
+
+  // Draw all Bezier connections AFTER all segments (so they're on top)
+  plants.forEach((plant) => {
+    if (!plant.segments || plant.segments.length <= 1) return;
+    const strain = strains.find((s) => s.id === plant.strainId);
+    const plantEndDate = getPlantEndDate(plant, strain);
+    drawSegmentConnections(ctx, plant, strain, slots, panX, panY, today, plantEndDate);
+  });
+
+  // Draw merge buttons after connections
+  plants.forEach((plant) => {
+    if (!plant.segments || plant.segments.length < 2) return;
+
+    for (let i = 0; i < plant.segments.length - 1; i++) {
+      const seg1 = plant.segments[i];
+      const seg2 = plant.segments[i + 1];
+
+      // Only show merge button if segments are in the same slot (not moved)
+      if (seg1.spaceId === seg2.spaceId && seg1.gridX === seg2.gridX && seg1.gridY === seg2.gridY) {
+        const slot = slots.find(
+          (s) => !s.isSpaceHeader && s.spaceId === seg1.spaceId && s.gridX === seg1.gridX && s.gridY === seg1.gridY
+        );
+        if (!slot) continue;
+
+        const splitDate = new Date(seg2.startDate);
+        const splitX = dateToScreenX(splitDate, panX, today);
+        const y = topMargin + slot.yOffset - panY + segmentGap;
+
+        if (splitX > leftMargin && splitX < canvasWidth && y > topMargin && y < canvasHeight) {
+          drawMergeButton(ctx, splitX, y, segmentHeight);
+        }
+      }
     }
   });
+
+  // Redraw TODAY line on top of segments
+  if (todayX > leftMargin && todayX < canvasWidth) {
+    ctx.strokeStyle = COLORS.orange;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(todayX, topMargin);
+    ctx.lineTo(todayX, canvasHeight);
+    ctx.stroke();
+  }
 
   // Draw left margin background (to cover segments that extend into it)
   ctx.fillStyle = COLORS.background;
@@ -505,20 +794,24 @@ export function renderTimeView(
   ctx.fillStyle = COLORS.background;
   ctx.fillRect(0, 0, canvasWidth, topMargin);
 
-  // Redraw date labels
+  // Redraw date labels (smart spacing to avoid overlap)
   ctx.fillStyle = COLORS.textMuted;
   ctx.font = '9px "Space Mono", monospace';
   ctx.textAlign = 'center';
+  lastLabelX = -Infinity;
 
   for (let d = startDay; d < startDay + daysToShow; d += 7) {
     const dateObj = new Date(today);
     dateObj.setDate(dateObj.getDate() + d);
     const x = dateToScreenX(dateObj, panX, today);
 
-    if (x > leftMargin && x < canvasWidth) {
+    // Skip if too close to TODAY label
+    const tooCloseToToday = Math.abs(x - todayX) < minLabelSpacing;
+    if (x > leftMargin && x < canvasWidth && x - lastLabelX >= minLabelSpacing && !tooCloseToToday) {
       const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
       const day = dateObj.getDate();
-      ctx.fillText(`${month} ${day}`, x, topMargin / 2);
+      ctx.fillText(`${day} ${month}`, x, topMargin / 2);
+      lastLabelX = x;
     }
   }
 
@@ -529,6 +822,105 @@ export function renderTimeView(
     ctx.textAlign = 'center';
     ctx.fillText('TODAY', todayX, topMargin / 2);
   }
+
+  // Draw split preview line on hovered segment
+  if (splitPreview && splitPreview.x > leftMargin) {
+    const plant = plants.find(p => p.id === splitPreview.plantId);
+    if (plant) {
+      const segment = plant.segments?.find(s => s.id === splitPreview.segmentId);
+      if (segment) {
+        const slot = slots.find(
+          s => !s.isSpaceHeader && s.spaceId === segment.spaceId && s.gridX === segment.gridX && s.gridY === segment.gridY
+        );
+        if (slot) {
+          const y = topMargin + slot.yOffset - panY + segmentGap;
+
+          // Only draw if segment row is visible
+          if (y + segmentHeight > topMargin && y < canvasHeight) {
+            ctx.strokeStyle = COLORS.teal;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(splitPreview.x, y);
+            ctx.lineTo(splitPreview.x, y + segmentHeight);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+      }
+    }
+  }
+
+  // Draw Time View placement preview
+  if (timeViewPlacementPreview && timeViewPlacementPreview.screenX > leftMargin) {
+    const slot = slots.find(
+      s => !s.isSpaceHeader &&
+           s.spaceId === timeViewPlacementPreview.spaceId &&
+           s.gridX === timeViewPlacementPreview.gridX &&
+           s.gridY === timeViewPlacementPreview.gridY
+    );
+    if (slot) {
+      const y = topMargin + slot.yOffset - panY;
+
+      // Only draw if slot row is visible
+      if (y + slotHeight > topMargin && y < canvasHeight) {
+        const previewStrain = timeViewPlacementPreview.strainId
+          ? strains.find(s => s.id === timeViewPlacementPreview.strainId)
+          : undefined;
+
+        drawTimeViewPlacementPreview(
+          ctx,
+          timeViewPlacementPreview.screenX,
+          y,
+          leftMargin,
+          canvasWidth,
+          timeViewPlacementPreview.canPlace,
+          timeViewPlacementPreview.abbreviation,
+          previewStrain,
+          panX,
+          today
+        );
+      }
+    }
+  }
+}
+
+// Overlay colors for distinguishing plants
+const PLANT_OVERLAY_COLORS = [
+  '#FF6B6B', // coral red
+  '#4ECDC4', // teal
+  '#FFE66D', // yellow
+  '#95E1D3', // mint
+  '#DDA0DD', // plum
+  '#F7DC6F', // gold
+  '#85C1E9', // sky blue
+  '#F8B500', // amber
+] as const;
+
+// Simple hash function to get consistent color index from plant id
+function getPlantColorIndex(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash) % PLANT_OVERLAY_COLORS.length;
+}
+
+// Draw color overlay on segment to distinguish plants
+function drawSegmentOverlay(
+  ctx: CanvasRenderingContext2D,
+  colorIndex: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  ctx.save();
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = PLANT_OVERLAY_COLORS[colorIndex];
+  ctx.fillRect(x, y, width, height);
+  ctx.restore();
 }
 
 // Draw a segment bar with stage colors
@@ -542,13 +934,13 @@ function drawSegmentWithStages(
   y: number,
   height: number,
   today: Date,
-  leftMargin: number
+  leftMargin: number,
+  hasSplitBefore: boolean = false,
+  hasSplitAfter: boolean = false
 ) {
-  const { dayWidth } = TIME_VIEW_CONSTANTS;
+  const { maxVisibleWidth } = TIME_VIEW_CONSTANTS;
   const plantStartDate = new Date(plant.startedAt);
 
-  // Iterate through each day of the segment and color by stage
-  let currentX = Math.max(x1, leftMargin);
   const endX = x2;
 
   // Calculate stage boundaries within the segment
@@ -582,45 +974,77 @@ function drawSegmentWithStages(
 
     // Check if in past or future
     const isPast = overlapEnd <= today;
-    const isFuture = overlapStart >= today;
-    const isMixed = !isPast && !isFuture;
 
-    if (isMixed) {
-      // Split into past and future portions
-      const todayX = dateToScreenX(today, x1 - dateToScreenX(segStartDate, 0, today), today);
+    // Draw stage with slight transparency to allow lines to show through
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = STAGE_COLORS[stage];
+    ctx.fillRect(overlapX1, y, overlapX2 - overlapX1, height);
+    ctx.globalAlpha = 1;
 
-      // Past portion
-      ctx.fillStyle = STAGE_COLORS[stage];
-      ctx.fillRect(overlapX1, y, Math.min(todayX, overlapX2) - overlapX1, height);
-
-      // Future portion
-      if (todayX < overlapX2) {
-        ctx.fillStyle = STAGE_COLORS[stage] + '80';
-        ctx.fillRect(Math.max(todayX, overlapX1), y, overlapX2 - Math.max(todayX, overlapX1), height);
-      }
-    } else {
-      ctx.fillStyle = isPast ? STAGE_COLORS[stage] : STAGE_COLORS[stage] + '80';
-      ctx.fillRect(overlapX1, y, overlapX2 - overlapX1, height);
-    }
-
-    // Draw stage abbreviation if wide enough
+    // Draw stage label
     const stageWidth = overlapX2 - overlapX1;
-    if (stageWidth > 25) {
+    const weeks = Math.round(stageDuration / 7);
+
+    if (stage === 'germinating') {
+      // For germinating stage, show plant code prominently
+      if (stageWidth > 20) {
+        ctx.save();
+        ctx.fillStyle = COLORS.backgroundDark;
+        ctx.globalAlpha = isPast ? 0.9 : 0.7;
+        ctx.font = 'bold 10px "Space Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(plant.code, overlapX1 + stageWidth / 2, y + height / 2);
+        ctx.restore();
+      }
+    } else if (stage === 'harvested') {
+      // For harvested stage, just show HRV without weeks
+      if (stageWidth > 20) {
+        ctx.save();
+        ctx.fillStyle = COLORS.text;
+        ctx.globalAlpha = isPast ? 0.9 : 0.7;
+        ctx.font = 'bold 9px "Space Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(STAGE_ABBREV[stage], overlapX1 + stageWidth / 2, y + height / 2);
+        ctx.restore();
+      }
+    } else if (stageWidth > 35) {
+      // For other stages, show abbreviation + weeks
       ctx.save();
       ctx.fillStyle = COLORS.text;
-      ctx.globalAlpha = isPast ? 0.9 : 0.6;
-      ctx.font = '7px "Space Mono", monospace';
+      ctx.globalAlpha = isPast ? 0.9 : 0.7;
+      ctx.font = 'bold 9px "Space Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(STAGE_ABBREV[stage], overlapX1 + stageWidth / 2, y + height / 2 + 8);
+      const label = `${STAGE_ABBREV[stage]} ${weeks}W`;
+      ctx.fillText(label, overlapX1 + stageWidth / 2, y + height / 2);
+      ctx.restore();
+    } else if (stageWidth > 20) {
+      // Narrow stage - just abbreviation
+      ctx.save();
+      ctx.fillStyle = COLORS.text;
+      ctx.globalAlpha = isPast ? 0.9 : 0.7;
+      ctx.font = 'bold 9px "Space Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(STAGE_ABBREV[stage], overlapX1 + stageWidth / 2, y + height / 2);
       ctx.restore();
     }
   }
 
-  // Draw segment border
-  ctx.strokeStyle = COLORS.border;
+  // Draw color overlay to distinguish plants
+  const colorIndex = getPlantColorIndex(plant.id);
+  const segX = Math.max(x1, leftMargin);
+  const segWidth = Math.min(x2, leftMargin + maxVisibleWidth) - segX;
+  drawSegmentOverlay(ctx, colorIndex, segX, y, segWidth, height);
+
+  // Draw segment border (subtle)
+  ctx.strokeStyle = COLORS.backgroundDark;
   ctx.lineWidth = 1;
-  ctx.strokeRect(Math.max(x1, leftMargin), y, Math.min(x2, leftMargin + 1000) - Math.max(x1, leftMargin), height);
+  ctx.globalAlpha = 0.5;
+  ctx.strokeRect(Math.max(x1, leftMargin), y, Math.min(x2, leftMargin + maxVisibleWidth) - Math.max(x1, leftMargin), height);
+  ctx.globalAlpha = 1;
 
   // Draw resize handles at STAGE BOUNDARIES (not segment edges)
   // Editable stages: seedling, vegetative, flowering (germinating and harvested are fixed)
@@ -645,7 +1069,7 @@ function drawSegmentWithStages(
       if (stageEndDate > segStartDate && stageEndDate < segEndDate) {
         const handleX = dateToScreenX(stageEndDate, x1 - dateToScreenX(segStartDate, 0, today), today);
 
-        if (handleX > leftMargin && handleX < leftMargin + 2000) {
+        if (handleX > leftMargin && handleX < leftMargin + maxVisibleWidth) {
           ctx.fillStyle = handleColor;
           ctx.fillRect(handleX - handleWidth / 2, y, handleWidth, height);
 
@@ -662,6 +1086,82 @@ function drawSegmentWithStages(
       }
     }
   }
+}
+
+// Draw zigzag edge for split point
+function drawZigzagEdge(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  height: number,
+  direction: 'left' | 'right',
+  color: string
+) {
+  const { zigzagSize } = TIME_VIEW_CONSTANTS;
+  const zigzagCount = Math.floor(height / (zigzagSize * 2));
+  const offset = direction === 'left' ? -zigzagSize : zigzagSize;
+
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+
+  for (let i = 0; i < zigzagCount; i++) {
+    const baseY = y + i * zigzagSize * 2;
+    ctx.lineTo(x + offset, baseY + zigzagSize);
+    ctx.lineTo(x, baseY + zigzagSize * 2);
+  }
+
+  // Complete to bottom and fill
+  ctx.lineTo(x, y + height);
+  if (direction === 'left') {
+    ctx.lineTo(x - zigzagSize, y + height);
+    ctx.lineTo(x - zigzagSize, y);
+  } else {
+    ctx.lineTo(x + zigzagSize, y + height);
+    ctx.lineTo(x + zigzagSize, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+// Draw merge button between split segments (switch icon - two connected circles)
+function drawMergeButton(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  height: number
+) {
+  const { mergeButtonSize } = TIME_VIEW_CONSTANTS;
+  const centerY = y + height / 2;
+  const circleRadius = 3;
+  const offset = 4;
+
+  // Semi-transparent background
+  ctx.fillStyle = 'rgba(26, 42, 30, 0.6)';
+  ctx.beginPath();
+  ctx.roundRect(x - mergeButtonSize / 2, centerY - mergeButtonSize / 2, mergeButtonSize, mergeButtonSize, mergeButtonSize / 2);
+  ctx.fill();
+
+  // Connection line
+  ctx.strokeStyle = COLORS.textMuted;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - offset, centerY - offset);
+  ctx.lineTo(x + offset, centerY + offset);
+  ctx.stroke();
+
+  // Top-left circle
+  ctx.fillStyle = COLORS.teal;
+  ctx.beginPath();
+  ctx.arc(x - offset, centerY - offset, circleRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bottom-right circle
+  ctx.beginPath();
+  ctx.arc(x + offset, centerY + offset, circleRadius, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 // Draw Bezier curve connections between segments

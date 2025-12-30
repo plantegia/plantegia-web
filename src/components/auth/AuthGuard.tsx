@@ -1,5 +1,5 @@
 import { useAuth } from '../../hooks/useAuth';
-import { VIEWPORT_WIDTH } from '../../constants';
+import { VIEWPORT_WIDTH, COLORS } from '../../constants';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, error, signInWithGoogle } = useAuth();
@@ -33,7 +33,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: VIEWPORT_WIDTH,
     height: '100dvh',
     margin: '0 auto',
-    backgroundColor: '#1A1A2E',
+    backgroundColor: COLORS.background,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -43,21 +43,21 @@ const styles: Record<string, React.CSSProperties> = {
   },
   title: {
     fontSize: 24,
-    color: '#4ECDC4',
+    color: COLORS.teal,
     fontWeight: 'bold',
   },
   subtitle: {
     fontSize: 14,
-    color: '#8B8B8B',
+    color: COLORS.textMuted,
     marginBottom: 32,
   },
   text: {
     fontSize: 14,
-    color: '#8B8B8B',
+    color: COLORS.textMuted,
   },
   error: {
     fontSize: 14,
-    color: '#E07A5F',
+    color: COLORS.danger,
     maxWidth: 300,
     textAlign: 'center',
   },
@@ -65,8 +65,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px 24px',
     fontSize: 14,
     fontFamily: '"Space Mono", monospace',
-    backgroundColor: '#4ECDC4',
-    color: '#1A1A2E',
+    backgroundColor: COLORS.teal,
+    color: COLORS.background,
     border: 'none',
     cursor: 'pointer',
   },

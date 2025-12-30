@@ -12,30 +12,43 @@ export function SeedSlot({ seed, strain, selected, onClick }: SeedSlotProps) {
   const abbr = strain?.abbreviation || 'PLT';
 
   return (
-    <button
-      onClick={onClick}
+    <div
       style={{
-        width: 52,
-        height: 44,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: 2,
-        background: selected ? COLORS.green : COLORS.backgroundLight,
-        border: `1px solid ${selected ? COLORS.green : COLORS.border}`,
-        color: COLORS.text,
-        fontSize: 11,
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-        padding: 2,
+        gap: 4,
       }}
     >
-      <span style={{ fontWeight: 'bold', fontSize: 12 }}>{abbr}</span>
-      <span style={{ fontSize: 10, color: COLORS.textMuted }}>
+      <button
+        onClick={onClick}
+        style={{
+          width: 44,
+          height: 44,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: selected ? COLORS.green : COLORS.backgroundLight,
+          border: `1px solid ${selected ? COLORS.green : COLORS.border}`,
+          color: COLORS.text,
+          fontSize: 14,
+          fontWeight: 'bold',
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+      >
+        {abbr}
+      </button>
+      <span
+        style={{
+          fontSize: 10,
+          color: COLORS.textMuted,
+          textTransform: 'uppercase',
+        }}
+      >
         {seed.isClone ? 'C' : 'S'}x{seed.quantity}
       </span>
-    </button>
+    </div>
   );
 }

@@ -16,9 +16,12 @@ import type {
   Generation,
   Plantation,
   SlotId,
+  StrainType,
+  Photoperiod,
+  TimeViewPlacementPreview,
 } from '../types';
 import { generateAbbreviation, generatePlantCode } from '../utils/abbreviation';
-import { DEFAULT_ZOOM } from '../constants';
+import { DEFAULT_ZOOM, CURSORS } from '../constants';
 import { getCurrentSegment } from '../utils/migration';
 
 interface DataSnapshot {
@@ -50,6 +53,14 @@ interface AppState {
 
   dragPreview: { startX: number; startY: number; endX: number; endY: number } | null;
 
+  canvasCursor: string;
+
+  splitPreview: { x: number; plantId: string; segmentId: string } | null;
+
+  placementPreview: { worldX: number; worldY: number; canPlace: boolean; abbreviation: string } | null;
+
+  timeViewPlacementPreview: TimeViewPlacementPreview | null;
+
   timelineOffset: number;
   timelineHorizontalOffset: number;
 
@@ -77,11 +88,12 @@ interface AppState {
 
   // Segment operations
   splitSegment: (plantId: string, segmentId: string, splitDate: Date) => void;
+  mergeSegments: (plantId: string, segmentIndex: number) => void;
   moveSegmentToSlot: (plantId: string, segmentId: string, slot: SlotId) => void;
   shiftPlantInTime: (plantId: string, daysDelta: number) => void;
   resizeSegment: (plantId: string, segmentId: string, edge: 'start' | 'end', newDate: Date) => void;
 
-  createStrain: (data: { name: string; floweringDays?: number; vegDays?: number }) => string;
+  createStrain: (data: { name: string; floweringDays?: number; vegDays?: number; strainType?: StrainType; photoperiod?: Photoperiod }) => string;
   updateStrain: (id: string, updates: Partial<Omit<Strain, 'id'>>) => void;
   deleteStrain: (id: string) => void;
 
@@ -98,6 +110,14 @@ interface AppState {
   setZoom: (zoom: number) => void;
 
   setDragPreview: (preview: { startX: number; startY: number; endX: number; endY: number } | null) => void;
+
+  setCanvasCursor: (cursor: string) => void;
+
+  setSplitPreview: (preview: { x: number; plantId: string; segmentId: string } | null) => void;
+
+  setPlacementPreview: (preview: { worldX: number; worldY: number; canPlace: boolean; abbreviation: string } | null) => void;
+
+  setTimeViewPlacementPreview: (preview: TimeViewPlacementPreview | null) => void;
 
   setTimelineOffset: (offset: number) => void;
   setTimelineHorizontalOffset: (offset: number) => void;
@@ -125,6 +145,14 @@ const initialState = {
   zoom: DEFAULT_ZOOM,
 
   dragPreview: null as { startX: number; startY: number; endX: number; endY: number } | null,
+
+  canvasCursor: CURSORS.default,
+
+  splitPreview: null as { x: number; plantId: string; segmentId: string } | null,
+
+  placementPreview: null as { worldX: number; worldY: number; canPlace: boolean; abbreviation: string } | null,
+
+  timeViewPlacementPreview: null as TimeViewPlacementPreview | null,
 
   timelineOffset: 0,
   timelineHorizontalOffset: 0,
@@ -317,6 +345,33 @@ export const useAppStore = create<AppState>()(
         });
       },
 
+      mergeSegments: (plantId, segmentIndex) => {
+        saveToHistory();
+        set((state) => {
+          const plant = state.plants.find((p) => p.id === plantId);
+          if (!plant || !plant.segments) return;
+
+          // segmentIndex is the index of the first segment to merge
+          if (segmentIndex < 0 || segmentIndex >= plant.segments.length - 1) return;
+
+          const seg1 = plant.segments[segmentIndex];
+          const seg2 = plant.segments[segmentIndex + 1];
+
+          // Merge: keep seg1's start, take seg2's end
+          const mergedSegment: PlantSegment = {
+            id: seg1.id,
+            spaceId: seg1.spaceId,
+            gridX: seg1.gridX,
+            gridY: seg1.gridY,
+            startDate: seg1.startDate,
+            endDate: seg2.endDate,
+          };
+
+          // Replace both segments with merged one
+          plant.segments.splice(segmentIndex, 2, mergedSegment);
+        });
+      },
+
       moveSegmentToSlot: (plantId, segmentId, slot) => {
         set((state) => {
           const plant = state.plants.find((p) => p.id === plantId);
@@ -410,6 +465,8 @@ export const useAppStore = create<AppState>()(
             abbreviation,
             floweringDays: data.floweringDays || 60,
             vegDays: data.vegDays || 30,
+            strainType: data.strainType,
+            photoperiod: data.photoperiod,
           });
         });
 
@@ -528,6 +585,30 @@ export const useAppStore = create<AppState>()(
       setDragPreview: (preview) => {
         set((state) => {
           state.dragPreview = preview;
+        });
+      },
+
+      setCanvasCursor: (cursor) => {
+        set((state) => {
+          state.canvasCursor = cursor;
+        });
+      },
+
+      setSplitPreview: (preview) => {
+        set((state) => {
+          state.splitPreview = preview;
+        });
+      },
+
+      setPlacementPreview: (preview) => {
+        set((state) => {
+          state.placementPreview = preview;
+        });
+      },
+
+      setTimeViewPlacementPreview: (preview) => {
+        set((state) => {
+          state.timeViewPlacementPreview = preview;
         });
       },
 

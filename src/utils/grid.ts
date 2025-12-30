@@ -248,6 +248,12 @@ export const TIME_VIEW_CONSTANTS = {
   segmentHeight: 24,      // visual height of segment bar
   segmentGap: 4,          // vertical padding within slot
   handleWidth: 8,         // resize handle width
+  splitGap: 8,            // horizontal gap between split segments (px)
+  zigzagSize: 4,          // zigzag teeth size
+  mergeButtonSize: 14,    // size of merge (X) button
+
+  // Rendering limits
+  maxVisibleWidth: 2000,  // max width for segment clipping (px)
 };
 
 export function calculatePlantTimeline(
@@ -388,6 +394,62 @@ export function getPlantEndDate(plant: Plant, strain: Strain | undefined): Date 
   return endDate;
 }
 
+// Get total plant duration from strain defaults (for preview before plant exists)
+export function getPlantDurationFromStrain(strain: Strain | undefined): number {
+  let total = 0;
+  for (const stage of STAGES) {
+    if (stage === 'vegetative' && strain?.vegDays) {
+      total += strain.vegDays;
+    } else if (stage === 'flowering' && strain?.floweringDays) {
+      total += strain.floweringDays;
+    } else {
+      total += STAGE_DAYS[stage];
+    }
+  }
+  return total;
+}
+
+// Check if a new plant can be placed at a slot/time without conflicts
+// Unlike canPlacePlant, this checks segment time overlaps for Time View placement
+export function canPlacePlantAtTime(
+  spaceId: string,
+  gridX: number,
+  gridY: number,
+  startDate: Date,
+  durationDays: number,
+  plants: Plant[],
+  strains: Strain[]
+): boolean {
+  const newEndDate = new Date(startDate);
+  newEndDate.setDate(newEndDate.getDate() + durationDays);
+
+  // Check all plants for segment conflicts at this slot
+  for (const plant of plants) {
+    if (!plant.segments) continue;
+
+    const strain = strains.find(s => s.id === plant.strainId);
+    const plantEndDate = getPlantEndDate(plant, strain);
+
+    for (const segment of plant.segments) {
+      // Check if segment is in the same slot
+      if (segment.spaceId !== spaceId || segment.gridX !== gridX || segment.gridY !== gridY) {
+        continue;
+      }
+
+      // Get segment time range
+      const segStartDate = new Date(segment.startDate);
+      const segEndDate = segment.endDate ? new Date(segment.endDate) : plantEndDate;
+
+      // Check time overlap
+      if (startDate < segEndDate && newEndDate > segStartDate) {
+        return false; // Conflict found
+      }
+    }
+  }
+
+  return true;
+}
+
 // Get stage at a specific date for a plant
 export function getStageAtDate(plant: Plant, strain: Strain | undefined, date: Date): Stage {
   const startDate = new Date(plant.startedAt);
@@ -412,13 +474,14 @@ export function getStageAtDate(plant: Plant, strain: Strain | undefined, date: D
 // Editable stages (germinating and harvested are fixed)
 export const EDITABLE_STAGES: Stage[] = ['seedling', 'vegetative', 'flowering'];
 
-export type SegmentHitZone = 'stage-handle' | 'body';
+export type SegmentHitZone = 'stage-handle' | 'body' | 'merge-button';
 
 export interface SegmentHitResult {
   plant: Plant;
   segmentId: string;
   hitZone: SegmentHitZone;
   stage?: Stage; // Which stage's end boundary was hit (for stage-handle)
+  segmentIndex?: number; // Index of segment (for merge operations)
 }
 
 // Find segment at screen position in new horizontal Time View
@@ -482,6 +545,60 @@ export function findSegmentAtHorizontal(
 
         // Not on a handle, return body
         return { plant, segmentId: segment.id, hitZone: 'body' };
+      }
+    }
+  }
+
+  return null;
+}
+
+// Find merge button at screen position
+export interface MergeButtonHitResult {
+  plantId: string;
+  segmentIndex: number;
+}
+
+export function findMergeButtonAt(
+  screenX: number,
+  screenY: number,
+  plants: Plant[],
+  spaces: Space[],
+  panX: number,
+  panY: number,
+  today: Date = new Date()
+): MergeButtonHitResult | null {
+  const { topMargin, segmentHeight, segmentGap, mergeButtonSize } = TIME_VIEW_CONSTANTS;
+  const slots = buildSlotList(spaces);
+
+  for (const plant of plants) {
+    if (!plant.segments || plant.segments.length < 2) continue;
+
+    for (let i = 0; i < plant.segments.length - 1; i++) {
+      const seg1 = plant.segments[i];
+      const seg2 = plant.segments[i + 1];
+
+      // Only check if segments are in the same slot
+      if (seg1.spaceId !== seg2.spaceId || seg1.gridX !== seg2.gridX || seg1.gridY !== seg2.gridY) {
+        continue;
+      }
+
+      const slot = slots.find(
+        (s) => !s.isSpaceHeader && s.spaceId === seg1.spaceId && s.gridX === seg1.gridX && s.gridY === seg1.gridY
+      );
+      if (!slot) continue;
+
+      const splitDate = new Date(seg2.startDate);
+      const splitX = dateToScreenX(splitDate, panX, today);
+      const y = topMargin + slot.yOffset - panY + segmentGap;
+      const buttonCenterY = y + segmentHeight / 2;
+
+      // Check if click is within the merge button circle
+      const dx = screenX - splitX;
+      const dy = screenY - buttonCenterY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance <= mergeButtonSize / 2) {
+        return { plantId: plant.id, segmentIndex: i };
       }
     }
   }

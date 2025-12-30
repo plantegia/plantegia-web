@@ -1,9 +1,11 @@
 export type Stage = 'germinating' | 'seedling' | 'vegetative' | 'flowering' | 'harvested';
 export type Generation = 'seed' | 'clone';
 export type PlantSize = 1 | 2 | 4;
-export type Tool = 'space' | 'erase' | 'split';
+export type Tool = 'cursor' | 'space' | 'erase' | 'split';
 export type ViewMode = 'space' | 'time';
 export type LightSchedule = '18/6' | '12/12' | '20/4' | '24/0';
+export type StrainType = 'indica' | 'sativa' | 'hybrid';
+export type Photoperiod = 'auto' | 'photo';
 
 export interface PlantSegment {
   id: string;
@@ -12,6 +14,17 @@ export interface PlantSegment {
   gridY: number;
   startDate: string;  // absolute ISO date
   endDate: string | null;  // null = until end of lifecycle
+}
+
+// Time View placement preview for showing ghost plant before placing
+export interface TimeViewPlacementPreview {
+  screenX: number;
+  spaceId: string;
+  gridX: number;
+  gridY: number;
+  canPlace: boolean;
+  abbreviation: string;
+  strainId: string | null;
 }
 
 export interface Space {
@@ -48,6 +61,8 @@ export interface Strain {
   abbreviation: string;
   floweringDays: number;
   vegDays: number;
+  strainType?: StrainType;
+  photoperiod?: Photoperiod;
 }
 
 export interface Seed {

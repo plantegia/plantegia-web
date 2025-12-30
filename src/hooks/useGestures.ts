@@ -6,6 +6,8 @@ import {
   findCellInSpace,
   findPlantAt,
   canPlacePlant,
+  canPlacePlantAtTime,
+  getPlantDurationFromStrain,
   snapToGrid,
   findSpaceEdgeAt,
   SpaceEdge,
@@ -18,8 +20,9 @@ import {
   buildSlotList,
   SegmentHitZone,
   getStageDuration,
+  findMergeButtonAt,
 } from '../utils/grid';
-import { MIN_ZOOM, MAX_ZOOM, CELL_SIZE, SPACE_COLORS } from '../constants';
+import { MIN_ZOOM, MAX_ZOOM, CELL_SIZE, SPACE_COLORS, CURSORS, EDGE_CURSORS } from '../constants';
 import type { Point, Space, Plant, Stage, PlantSegment } from '../types';
 
 type SpaceDragMode = 'none' | 'move' | 'resize';
@@ -95,7 +98,7 @@ export function useGestures(
 
   const {
     pan, setPan, zoom, setZoom,
-    activeTool, selectedSeedId,
+    activeTool, selectedSeedId, setActiveTool,
     spaces, plants, strains, inventory,
     createSpace, createPlant, consumeSeed,
     deletePlant, deleteSpace, updateSpace, updatePlant,
@@ -106,7 +109,15 @@ export function useGestures(
     timelineHorizontalOffset, setTimelineHorizontalOffset,
     saveSnapshot,
     // Segment operations
-    splitSegment, moveSegmentToSlot, shiftPlantInTime,
+    splitSegment, mergeSegments, moveSegmentToSlot, shiftPlantInTime,
+    // Cursor
+    setCanvasCursor,
+    // Split preview
+    setSplitPreview,
+    // Placement preview
+    setPlacementPreview,
+    // Time View placement preview
+    setTimeViewPlacementPreview,
   } = useAppStore();
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number): Point => {
@@ -115,6 +126,210 @@ export function useGestures(
       y: clientY - canvasRect.top,
     };
   }, [canvasRect]);
+
+  // Get cursor for current tool/seed selection
+  const getToolCursor = useCallback((): string | null => {
+    if (activeTool === 'space') return CURSORS.crosshair;
+    if (activeTool === 'erase') return CURSORS.notAllowed;
+    if (activeTool === 'split') return CURSORS.split;
+    if (selectedSeedId) return CURSORS.cell;
+    return null;
+  }, [activeTool, selectedSeedId]);
+
+  // Determine cursor based on current state and hover position
+  const updateCursor = useCallback((screenPos: Point, isDragging: boolean, dragMode: SpaceDragMode | TimeViewDragMode, resizeEdge?: SpaceEdge | null) => {
+    // Priority 1: Active drag operation
+    if (isDragging) {
+      if (dragMode === 'move' || dragMode === 'segment-move-x' || dragMode === 'segment-move-y') {
+        setCanvasCursor(CURSORS.grabbing);
+        return;
+      }
+      if (dragMode === 'resize' && resizeEdge) {
+        setCanvasCursor(EDGE_CURSORS[resizeEdge] || CURSORS.default);
+        return;
+      }
+      if (dragMode === 'stage-resize') {
+        setCanvasCursor(CURSORS.colResize);
+        return;
+      }
+      if (dragMode === 'pan') {
+        setCanvasCursor(CURSORS.grabbing);
+        return;
+      }
+    }
+
+    // Priority 2: Tool/seed selected
+    const toolCursor = getToolCursor();
+    if (toolCursor) {
+      setCanvasCursor(toolCursor);
+      // Update split preview when split tool is active and hovering over segment
+      if (activeTool === 'split' && viewMode === 'time') {
+        const hitResult = findSegmentAtHorizontal(
+          screenPos.x,
+          screenPos.y,
+          plants,
+          strains,
+          spaces,
+          timelineHorizontalOffset,
+          timelineOffset
+        );
+        if (hitResult) {
+          setSplitPreview({ x: screenPos.x, plantId: hitResult.plant.id, segmentId: hitResult.segmentId });
+        } else {
+          setSplitPreview(null);
+        }
+        setPlacementPreview(null);
+      } else if (selectedSeedId && viewMode === 'space') {
+        // Update placement preview when seed is selected
+        setSplitPreview(null);
+        setTimeViewPlacementPreview(null);
+        const worldPos = screenToWorld(screenPos, pan, zoom);
+        // Snap to grid for preview (show on any cell, not just inside spaces)
+        const snappedX = snapToGrid(worldPos.x);
+        const snappedY = snapToGrid(worldPos.y);
+
+        // Get abbreviation from selected seed's strain
+        const seed = inventory.find(s => s.id === selectedSeedId);
+        const strain = seed ? strains.find(st => st.id === seed.strainId) : null;
+        const abbreviation = strain?.abbreviation || 'PLT';
+
+        // Check if we can place at this location
+        const space = findSpaceAt(worldPos, spaces);
+        let canPlace = false;
+        if (space) {
+          const cell = findCellInSpace(worldPos, space);
+          if (cell) {
+            canPlace = canPlacePlant(space.id, cell.gridX, cell.gridY, 1, space, plants);
+          }
+        }
+
+        setPlacementPreview({ worldX: snappedX, worldY: snappedY, canPlace, abbreviation });
+      } else if (selectedSeedId && viewMode === 'time') {
+        // Update Time View placement preview when seed is selected
+        setSplitPreview(null);
+        setPlacementPreview(null);
+
+        const slot = findSlotAtY(screenPos.y, timelineOffset, spaces);
+        if (slot && !slot.isSpaceHeader) {
+          const seed = inventory.find(s => s.id === selectedSeedId);
+          const strain = seed ? strains.find(st => st.id === seed.strainId) : undefined;
+          const abbreviation = strain?.abbreviation || 'PLT';
+
+          // Calculate start date from cursor position and plant duration
+          const startDate = screenXToDate(screenPos.x, timelineHorizontalOffset);
+          const duration = getPlantDurationFromStrain(strain);
+
+          // Check for time-based conflicts (not just space occupancy)
+          const canPlace = canPlacePlantAtTime(
+            slot.spaceId,
+            slot.gridX,
+            slot.gridY,
+            startDate,
+            duration,
+            plants,
+            strains
+          );
+
+          setTimeViewPlacementPreview({
+            screenX: screenPos.x,
+            spaceId: slot.spaceId,
+            gridX: slot.gridX,
+            gridY: slot.gridY,
+            canPlace,
+            abbreviation,
+            strainId: seed?.strainId || null,
+          });
+        } else {
+          setTimeViewPlacementPreview(null);
+        }
+      } else {
+        setSplitPreview(null);
+        setPlacementPreview(null);
+        setTimeViewPlacementPreview(null);
+      }
+      return;
+    }
+
+    // Clear previews when no tool selected
+    setSplitPreview(null);
+    setPlacementPreview(null);
+    setTimeViewPlacementPreview(null);
+
+    // Priority 3: Hover detection
+    const worldPos = screenToWorld(screenPos, pan, zoom);
+
+    if (viewMode === 'space') {
+      // Check if hovering over selected space edges/body
+      if (selection?.type === 'space') {
+        const space = spaces.find(s => s.id === selection.id);
+        if (space) {
+          const edge = findSpaceEdgeAt(worldPos, space);
+          if (edge) {
+            setCanvasCursor(EDGE_CURSORS[edge] || CURSORS.default);
+            return;
+          }
+        }
+      }
+
+      // Check if hovering over any plant
+      const plant = findPlantAt(worldPos, plants, spaces);
+      if (plant) {
+        setCanvasCursor(CURSORS.pointer);
+        return;
+      }
+
+      // Check if hovering over any space (for selection)
+      const space = findSpaceAt(worldPos, spaces);
+      if (space) {
+        setCanvasCursor(CURSORS.pointer);
+        return;
+      }
+    } else if (viewMode === 'time') {
+      // Check for merge button hover first
+      const mergeHit = findMergeButtonAt(
+        screenPos.x,
+        screenPos.y,
+        plants,
+        spaces,
+        timelineHorizontalOffset,
+        timelineOffset
+      );
+
+      if (mergeHit) {
+        setCanvasCursor(CURSORS.pointer);
+        return;
+      }
+
+      // Check for segment hover
+      const hitResult = findSegmentAtHorizontal(
+        screenPos.x,
+        screenPos.y,
+        plants,
+        strains,
+        spaces,
+        timelineHorizontalOffset,
+        timelineOffset
+      );
+
+      if (hitResult) {
+        if (hitResult.hitZone === 'stage-handle') {
+          setCanvasCursor(CURSORS.colResize);
+          return;
+        }
+        setCanvasCursor(CURSORS.grab);
+        return;
+      }
+    }
+
+    // Default cursor
+    setCanvasCursor(CURSORS.default);
+  }, [getToolCursor, activeTool, selectedSeedId, viewMode, pan, zoom, selection, spaces, plants, strains, inventory, timelineOffset, timelineHorizontalOffset, setCanvasCursor, setSplitPreview, setPlacementPreview, setTimeViewPlacementPreview]);
+
+  // Update cursor when tool/seed selection changes (without mouse movement)
+  useEffect(() => {
+    const toolCursor = getToolCursor();
+    setCanvasCursor(toolCursor || CURSORS.default);
+  }, [getToolCursor, setCanvasCursor]);
 
   // Check if resize is valid (no plants would be cut off)
   const canResizeSpace = useCallback((spaceId: string, newWidth: number, newHeight: number): boolean => {
@@ -175,19 +390,15 @@ export function useGestures(
                 generation: seed.isClone ? 'clone' : 'seed',
               });
               consumeSeed(selectedSeedId);
-              return;
             }
           }
         }
-        // If plant couldn't be placed, select the space instead
-        setSelection({ type: 'space', id: space.id });
       }
       return;
     }
 
     if (selectedSeedId && viewMode === 'time') {
       // In new horizontal Time View, tapping with seed selected places a plant at that slot/date
-      const slots = buildSlotList(spaces);
       const slot = findSlotAtY(screenPos.y, timelineOffset, spaces);
       if (!slot || slot.isSpaceHeader) return;
 
@@ -197,10 +408,13 @@ export function useGestures(
       const space = spaces.find(s => s.id === slot.spaceId);
       if (!space) return;
 
-      if (!canPlacePlant(space.id, slot.gridX, slot.gridY, 1, space, plants)) return;
-
-      // Get date from X position
+      // Get date from X position and calculate duration
       const startDate = screenXToDate(screenPos.x, timelineHorizontalOffset);
+      const strain = strains.find(st => st.id === seed.strainId);
+      const duration = getPlantDurationFromStrain(strain);
+
+      // Check for time-based conflicts (not just space occupancy)
+      if (!canPlacePlantAtTime(slot.spaceId, slot.gridX, slot.gridY, startDate, duration, plants, strains)) return;
 
       createPlant({
         spaceId: slot.spaceId,
@@ -230,19 +444,38 @@ export function useGestures(
         const { plant, segmentId } = hitResult;
         const splitDate = screenXToDate(screenPos.x, timelineHorizontalOffset);
         splitSegment(plant.id, segmentId, splitDate);
+        // Reset to cursor after splitting
+        setActiveTool('cursor');
       }
       return;
     }
 
+    // Handle merge button click in Time View (before checking for segment drag)
+    if ((!activeTool || activeTool === 'cursor') && viewMode === 'time') {
+      const mergeHit = findMergeButtonAt(
+        screenPos.x,
+        screenPos.y,
+        plants,
+        spaces,
+        timelineHorizontalOffset,
+        timelineOffset
+      );
+
+      if (mergeHit) {
+        mergeSegments(mergeHit.plantId, mergeHit.segmentIndex);
+        return;
+      }
+    }
+
     // In Time View, don't select plants on tap (no inspector needed)
     // Drag interactions are handled in mouseDown/mouseMove
-    if (!activeTool && !selectedSeedId && viewMode === 'time') {
+    if ((!activeTool || activeTool === 'cursor') && !selectedSeedId && viewMode === 'time') {
       // Clear selection on tap outside plants
       setSelection(null);
       return;
     }
 
-    if (!activeTool && viewMode === 'space') {
+    if ((!activeTool || activeTool === 'cursor') && !selectedSeedId && viewMode === 'space') {
       const plant = findPlantAt(worldPos, plants, spaces);
       if (plant) {
         setSelection({ type: 'plant', id: plant.id });
@@ -259,8 +492,8 @@ export function useGestures(
     }
   }, [
     canvasRef, pan, zoom, activeTool, selectedSeedId, spaces, plants, strains, inventory, viewMode,
-    deletePlant, deleteSpace, createPlant, consumeSeed, setSelection,
-    timelineOffset, timelineHorizontalOffset, readOnly, splitSegment,
+    deletePlant, deleteSpace, createPlant, consumeSeed, setSelection, setActiveTool,
+    timelineOffset, timelineHorizontalOffset, readOnly, splitSegment, mergeSegments,
   ]);
 
   const handleDragEnd = useCallback((startWorld: Point, endWorld: Point) => {
@@ -288,10 +521,12 @@ export function useGestures(
         gridHeight,
         color: randomColor,
       });
+      // Reset to cursor after creating space
+      setActiveTool('cursor');
     }
 
     setDragPreview(null);
-  }, [activeTool, viewMode, spaces.length, createSpace, setDragPreview, readOnly]);
+  }, [activeTool, viewMode, spaces.length, createSpace, setDragPreview, readOnly, setActiveTool]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -370,7 +605,7 @@ export function useGestures(
             endX: currentWorld.x,
             endY: currentWorld.y,
           });
-        } else if (!activeTool && !selectedSeedId) {
+        } else if ((!activeTool || activeTool === 'cursor') && !selectedSeedId) {
           g.isPanning = true;
           setPan({
             x: g.lastPan.x + dx,
@@ -420,7 +655,7 @@ export function useGestures(
       g.originalStartedAt = null;
 
       // Check if clicking on selected space's edges for resize/move (Space View)
-      if (!readOnly && selection?.type === 'space' && viewMode === 'space' && !activeTool && !selectedSeedId) {
+      if (!readOnly && selection?.type === 'space' && viewMode === 'space' && (!activeTool || activeTool === 'cursor') && !selectedSeedId) {
         const space = spaces.find(s => s.id === selection.id);
         if (space) {
           const edge = findSpaceEdgeAt(g.startWorld, space);
@@ -447,6 +682,20 @@ export function useGestures(
           return;
         }
 
+        // Check if clicking on merge button - handled on tap, not drag
+        const mergeHit = findMergeButtonAt(
+          screenPos.x,
+          screenPos.y,
+          plants,
+          spaces,
+          timelineHorizontalOffset,
+          timelineOffset
+        );
+        if (mergeHit) {
+          // Merge button click will be handled in handleTap
+          return;
+        }
+
         // Check for segment hit
         const hitResult = findSegmentAtHorizontal(
           screenPos.x,
@@ -458,7 +707,7 @@ export function useGestures(
           timelineOffset
         );
 
-        if (hitResult && !activeTool) {
+        if (hitResult && (!activeTool || activeTool === 'cursor')) {
           const { plant, segmentId, hitZone, stage } = hitResult;
 
           saveSnapshot(); // Save before drag starts
@@ -486,10 +735,27 @@ export function useGestures(
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (e.buttons !== 1) return;
-
       const g = gestureRef.current;
       const screenPos = getCanvasPoint(e.clientX, e.clientY);
+
+      // Handle hover (no button pressed)
+      if (e.buttons === 0) {
+        updateCursor(screenPos, false, 'none', null);
+        return;
+      }
+
+      // Handle drag (button pressed)
+      if (e.buttons !== 1) return;
+
+      // Update cursor during drag
+      if (g.spaceDragMode !== 'none') {
+        updateCursor(screenPos, true, g.spaceDragMode, g.resizeEdge);
+      } else if (g.timeViewDragMode !== 'none') {
+        updateCursor(screenPos, true, g.timeViewDragMode, null);
+      } else if (g.isPanning) {
+        updateCursor(screenPos, true, 'pan', null);
+      }
+
       const dx = screenPos.x - g.startScreen.x;
       const dy = screenPos.y - g.startScreen.y;
 
@@ -622,7 +888,7 @@ export function useGestures(
           endX: currentWorld.x,
           endY: currentWorld.y,
         });
-      } else if (!activeTool && !selectedSeedId) {
+      } else if ((!activeTool || activeTool === 'cursor') && !selectedSeedId) {
         g.isPanning = true;
         setPan({
           x: g.lastPan.x + dx,
@@ -668,6 +934,10 @@ export function useGestures(
       g.isPanning = false;
       g.isDragging = false;
       g.moved = false;
+
+      // Reset cursor after drag ends
+      const screenPos = getCanvasPoint(e.clientX, e.clientY);
+      updateCursor(screenPos, false, 'none', null);
     };
 
     const handleWheel = (e: WheelEvent) => {
@@ -711,6 +981,6 @@ export function useGestures(
     getCanvasPoint, handleTap, handleDragEnd, setPan, setZoom, setDragPreview, dragPreview,
     timelineOffset, timelineHorizontalOffset, setTimelineOffset, setTimelineHorizontalOffset,
     selection, spaces, plants, strains, readOnly, updateSpace, updatePlant, canResizeSpace, setSelection,
-    saveSnapshot, splitSegment, moveSegmentToSlot, shiftPlantInTime,
+    saveSnapshot, splitSegment, moveSegmentToSlot, shiftPlantInTime, updateCursor,
   ]);
 }

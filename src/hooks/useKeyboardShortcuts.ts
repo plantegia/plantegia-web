@@ -4,6 +4,10 @@ import { useAppStore } from '../store/useAppStore';
 export function useKeyboardShortcuts(enabled: boolean = true) {
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
+  const setActiveTool = useAppStore((s) => s.setActiveTool);
+  const activeTool = useAppStore((s) => s.activeTool);
+  const selectedSeedId = useAppStore((s) => s.selectedSeedId);
+  const selectSeed = useAppStore((s) => s.selectSeed);
 
   useEffect(() => {
     if (!enabled) return;
@@ -12,6 +16,18 @@ export function useKeyboardShortcuts(enabled: boolean = true) {
       // Skip if user is typing in an input field
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return;
+      }
+
+      // Escape: Reset to cursor tool
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (selectedSeedId) {
+          selectSeed(null);
+        }
+        if (activeTool && activeTool !== 'cursor') {
+          setActiveTool('cursor');
+        }
         return;
       }
 
@@ -30,5 +46,5 @@ export function useKeyboardShortcuts(enabled: boolean = true) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, undo, redo]);
+  }, [enabled, undo, redo, setActiveTool, activeTool, selectedSeedId, selectSeed]);
 }

@@ -21,6 +21,10 @@ export function Canvas({ readOnly }: CanvasProps) {
     selection, dragPreview,
     viewMode, timelineOffset, timelineHorizontalOffset,
     setPan,
+    canvasCursor,
+    splitPreview,
+    placementPreview,
+    timeViewPlacementPreview,
   } = useAppStore();
 
   useGestures(canvasRef, canvasRect, readOnly);
@@ -97,7 +101,7 @@ export function Canvas({ readOnly }: CanvasProps) {
       ctx.translate(pan.x, pan.y);
       ctx.scale(zoom, zoom);
 
-      renderSpaceView(ctx, spaces, plants, strains, selection, dragPreview);
+      renderSpaceView(ctx, spaces, plants, strains, selection, dragPreview, placementPreview);
 
       ctx.restore();
     } else {
@@ -110,12 +114,14 @@ export function Canvas({ readOnly }: CanvasProps) {
         canvasSize.width,
         canvasSize.height,
         timelineOffset,           // panY (vertical scroll for slots)
-        timelineHorizontalOffset  // panX (horizontal scroll for dates)
+        timelineHorizontalOffset, // panX (horizontal scroll for dates)
+        splitPreview,
+        timeViewPlacementPreview
       );
     }
   }, [
     canvasSize, pan, zoom, spaces, plants, strains,
-    selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset,
+    selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, splitPreview, placementPreview, timeViewPlacementPreview,
   ]);
 
   useEffect(() => {
@@ -137,7 +143,7 @@ export function Canvas({ readOnly }: CanvasProps) {
           width: canvasSize.width,
           height: canvasSize.height,
           touchAction: 'none',
-          cursor: 'crosshair',
+          cursor: canvasCursor,
         }}
       />
     </div>

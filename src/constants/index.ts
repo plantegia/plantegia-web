@@ -1,38 +1,38 @@
 import type { Stage } from '../types';
 
 export const COLORS = {
-  background: '#1A1A2E',
-  backgroundLight: '#25253d',
-  backgroundDark: '#12121f',
+  background: '#15472C',
+  backgroundLight: '#1e5a38',
+  backgroundDark: '#231F20',
 
-  green: '#4a7c59',
-  orange: '#d4a574',
-  teal: '#5fb3b3',
+  green: '#51853B',
+  orange: '#F15D43',
+  teal: '#FBD19F',
 
-  text: '#e8e8e8',
-  textMuted: '#8888a0',
-  muted: '#6a6a8a',
-  border: '#3a3a5c',
+  text: '#FBD19F',
+  textMuted: '#d4b088',
+  muted: '#3a6a3a',
+  border: '#51853B',
 
-  danger: '#c45c5c',
+  danger: '#F15D43',
 } as const;
 
 export const STAGE_COLORS: Record<Stage, string> = {
-  germinating: '#8b7355',
-  seedling: '#7da87b',
-  vegetative: '#4a7c59',
-  flowering: '#7c5a8c',
-  harvested: '#5a5a6e',
+  germinating: '#a08060',
+  seedling: '#6aA050',
+  vegetative: '#51853B',
+  flowering: '#15472C',
+  harvested: '#3a3530',
 };
 
 // Colors for different spaces (cycling palette)
 export const SPACE_COLORS = [
-  '#2d3a4a', // blue-gray
-  '#3a2d4a', // purple-gray
-  '#2d4a3a', // green-gray
-  '#4a3a2d', // brown-gray
-  '#3a4a4a', // teal-gray
-  '#4a2d3a', // magenta-gray
+  '#1e5a38', // light green
+  '#0d3820', // dark green
+  '#2a5a2a', // forest
+  '#1a4a30', // deep green
+  '#2a4a3a', // teal-green
+  '#1a3a28', // darker
 ] as const;
 
 export const CELL_SIZE = 56;
@@ -41,13 +41,14 @@ export const MAX_ZOOM = 2;
 export const DEFAULT_ZOOM = 1;
 
 export const VIEWPORT_WIDTH = 390;
+export const HOTBAR_HEIGHT = 88;
 
 export const STAGE_DAYS: Record<Stage, number> = {
-  germinating: 7,
+  germinating: 10,
   seedling: 14,
   vegetative: 30,
   flowering: 60,
-  harvested: 7, // Fixed 1 week for harvest period
+  harvested: 10, // Fixed period for harvest
 };
 
 export const STAGES: Stage[] = ['germinating', 'seedling', 'vegetative', 'flowering', 'harvested'];
@@ -63,3 +64,37 @@ export const STAGE_ABBREV: Record<Stage, string> = {
 
 // UI sizing constants
 export const SPACE_HANDLE_SIZE = 8;
+
+// Cursor constants
+export const CURSORS = {
+  default: 'default',
+  grab: 'grab',
+  grabbing: 'grabbing',
+  crosshair: 'crosshair',
+  cell: 'cell',
+  pointer: 'pointer',
+  notAllowed: 'not-allowed',
+  text: 'text',
+  split: 'url(/cursors/split.svg) 12 12, crosshair',
+  colResize: 'col-resize',
+  nResize: 'n-resize',
+  sResize: 's-resize',
+  eResize: 'e-resize',
+  wResize: 'w-resize',
+  neResize: 'ne-resize',
+  nwResize: 'nw-resize',
+  seResize: 'se-resize',
+  swResize: 'sw-resize',
+} as const;
+
+export const EDGE_CURSORS: Record<string, string> = {
+  n: CURSORS.nResize,
+  s: CURSORS.sResize,
+  e: CURSORS.eResize,
+  w: CURSORS.wResize,
+  ne: CURSORS.neResize,
+  nw: CURSORS.nwResize,
+  se: CURSORS.seResize,
+  sw: CURSORS.swResize,
+  body: CURSORS.grab,
+};
