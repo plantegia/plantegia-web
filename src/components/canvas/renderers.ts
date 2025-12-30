@@ -1,4 +1,4 @@
-import type { Space, Plant, Strain, Stage, PlantSegment, TimeViewPlacementPreview } from '../../types';
+import type { Space, Plant, Strain, Stage, PlantSegment, TimeViewPlacementPreview, PlantDragPreview } from '../../types';
 import { COLORS, STAGE_COLORS, CELL_SIZE, SPACE_COLORS, STAGE_ABBREV, SPACE_HANDLE_SIZE, STAGES } from '../../constants';
 import {
   getPlantCells,
@@ -19,7 +19,8 @@ export function renderSpaceView(
   strains: Strain[],
   selection: { type: 'space' | 'plant'; id: string } | null,
   dragPreview: { startX: number; startY: number; endX: number; endY: number } | null,
-  placementPreview: { worldX: number; worldY: number; canPlace: boolean; abbreviation: string } | null
+  placementPreview: { worldX: number; worldY: number; canPlace: boolean; abbreviation: string } | null,
+  plantDragPreview: PlantDragPreview | null
 ) {
   // First pass: draw space backgrounds and grids
   spaces.forEach((space, index) => {
@@ -46,10 +47,15 @@ export function renderSpaceView(
     const plantStartDate = new Date(plant.startedAt);
     if (today < plantStartDate) return;
 
+    const isSelected = selection?.type === 'plant' && selection.id === plant.id;
+
     // Find the space for the current segment
-    const space = spaces.find((s) => s.id === currentSegment.spaceId);
+    const space = currentSegment.spaceId ? spaces.find((s) => s.id === currentSegment.spaceId) : null;
     if (space) {
-      drawPlant(ctx, plant, space, selection?.type === 'plant' && selection.id === plant.id, currentSegment);
+      drawPlant(ctx, plant, space, isSelected, currentSegment);
+    } else if (currentSegment.spaceId === null) {
+      // Draw floating plant (not attached to any space)
+      drawFloatingPlant(ctx, plant, isSelected, currentSegment);
     }
   });
 
@@ -59,6 +65,10 @@ export function renderSpaceView(
 
   if (placementPreview) {
     drawPlacementPreview(ctx, placementPreview);
+  }
+
+  if (plantDragPreview) {
+    drawPlantDragPreview(ctx, plantDragPreview);
   }
 }
 
@@ -246,6 +256,49 @@ function drawSpaceLabel(ctx: CanvasRenderingContext2D, space: Space, allSpaces: 
   ctx.globalAlpha = 1;
 }
 
+// Common plant drawing logic
+function drawPlantBox(
+  ctx: CanvasRenderingContext2D,
+  plant: Plant,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  isSelected: boolean,
+  isFloating: boolean
+) {
+  // Dark semi-transparent backdrop for depth effect
+  ctx.fillStyle = COLORS.background;
+  ctx.globalAlpha = 0.8;
+  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
+  ctx.globalAlpha = 1;
+
+  // Plant color on top
+  ctx.fillStyle = STAGE_COLORS[plant.stage];
+  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
+
+  // Border
+  if (isFloating) {
+    // Dashed border for floating plants
+    ctx.strokeStyle = isSelected ? COLORS.teal : COLORS.textMuted;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
+    ctx.setLineDash([]);
+  } else if (isSelected) {
+    ctx.strokeStyle = COLORS.teal;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
+  }
+
+  // Plant code label
+  ctx.fillStyle = COLORS.text;
+  ctx.font = 'bold 12px "Space Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(plant.code, x + width / 2, y + height / 2);
+}
+
 function drawPlant(
   ctx: CanvasRenderingContext2D,
   plant: Plant,
@@ -253,7 +306,6 @@ function drawPlant(
   isSelected: boolean,
   segment?: PlantSegment
 ) {
-  // Use segment position if provided, otherwise fall back to plant's backward-compat fields
   const gridX = segment?.gridX ?? plant.gridX;
   const gridY = segment?.gridY ?? plant.gridY;
   const cells = getPlantCells({ ...plant, gridX, gridY });
@@ -267,27 +319,28 @@ function drawPlant(
   const width = (maxGridX - minGridX + 1) * CELL_SIZE;
   const height = (maxGridY - minGridY + 1) * CELL_SIZE;
 
-  // Dark semi-transparent backdrop for depth effect
-  ctx.fillStyle = COLORS.background;
-  ctx.globalAlpha = 0.8;
-  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
-  ctx.globalAlpha = 1;
+  drawPlantBox(ctx, plant, x, y, width, height, isSelected, false);
+}
 
-  // Plant color on top
-  ctx.fillStyle = STAGE_COLORS[plant.stage];
-  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
+// Draw a floating plant (not attached to any space) using world coordinates
+function drawFloatingPlant(
+  ctx: CanvasRenderingContext2D,
+  plant: Plant,
+  isSelected: boolean,
+  segment: PlantSegment
+) {
+  const cells = getPlantCells({ ...plant, gridX: segment.gridX, gridY: segment.gridY });
+  const minGridX = Math.min(...cells.map((c) => c.gridX));
+  const minGridY = Math.min(...cells.map((c) => c.gridY));
+  const maxGridX = Math.max(...cells.map((c) => c.gridX));
+  const maxGridY = Math.max(...cells.map((c) => c.gridY));
 
-  if (isSelected) {
-    ctx.strokeStyle = COLORS.teal;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
-  }
+  const x = minGridX * CELL_SIZE;
+  const y = minGridY * CELL_SIZE;
+  const width = (maxGridX - minGridX + 1) * CELL_SIZE;
+  const height = (maxGridY - minGridY + 1) * CELL_SIZE;
 
-  ctx.fillStyle = COLORS.text;
-  ctx.font = 'bold 12px "Space Mono", monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(plant.code, x + width / 2, y + height / 2);
+  drawPlantBox(ctx, plant, x, y, width, height, isSelected, true);
 }
 
 function drawDragPreview(
@@ -344,6 +397,61 @@ function drawPlacementPreview(
   ctx.textBaseline = 'middle';
   ctx.fillStyle = color;
   ctx.fillText(preview.abbreviation, x + size / 2, y + size / 2);
+}
+
+function drawPlantDragPreview(
+  ctx: CanvasRenderingContext2D,
+  preview: PlantDragPreview
+) {
+  const size = CELL_SIZE;
+  const color = preview.canPlace ? COLORS.green : COLORS.orange;
+
+  // Draw ghost at source position (faded)
+  ctx.fillStyle = COLORS.teal;
+  ctx.globalAlpha = 0.2;
+  ctx.fillRect(preview.sourceWorldX, preview.sourceWorldY, size, size);
+  ctx.globalAlpha = 1;
+
+  // Draw dashed border at source
+  ctx.strokeStyle = COLORS.teal;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.strokeRect(preview.sourceWorldX + 1, preview.sourceWorldY + 1, size - 2, size - 2);
+  ctx.setLineDash([]);
+
+  // Draw line connecting source to target
+  const srcCenterX = preview.sourceWorldX + size / 2;
+  const srcCenterY = preview.sourceWorldY + size / 2;
+  const tgtCenterX = preview.targetWorldX + size / 2;
+  const tgtCenterY = preview.targetWorldY + size / 2;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(srcCenterX, srcCenterY);
+  ctx.lineTo(tgtCenterX, tgtCenterY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw target position preview
+  const fillAlpha = preview.canPlace ? 0.4 : 0.25;
+  ctx.fillStyle = color;
+  ctx.globalAlpha = fillAlpha;
+  ctx.fillRect(preview.targetWorldX, preview.targetWorldY, size, size);
+  ctx.globalAlpha = 1;
+
+  // Draw solid border at target
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(preview.targetWorldX + 1, preview.targetWorldY + 1, size - 2, size - 2);
+
+  // Abbreviation at target
+  ctx.font = 'bold 14px "Space Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.fillText(preview.abbreviation, preview.targetWorldX + size / 2, preview.targetWorldY + size / 2);
 }
 
 // Draw placement preview for Time View - shows full plant lifecycle timeline as ghost preview
@@ -471,7 +579,7 @@ export function renderTimeView(
   } = TIME_VIEW_CONSTANTS;
 
   // Build slot list
-  const slots = buildSlotList(spaces);
+  const slots = buildSlotList(spaces, plants);
 
   // Calculate total height needed for all slots
   const totalSlotsHeight = slots.length > 0

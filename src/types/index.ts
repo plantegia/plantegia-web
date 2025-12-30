@@ -9,7 +9,7 @@ export type Photoperiod = 'auto' | 'photo';
 
 export interface PlantSegment {
   id: string;
-  spaceId: string;
+  spaceId: string | null;  // null = floating (not assigned to any space)
   gridX: number;
   gridY: number;
   startDate: string;  // absolute ISO date
@@ -19,12 +19,23 @@ export interface PlantSegment {
 // Time View placement preview for showing ghost plant before placing
 export interface TimeViewPlacementPreview {
   screenX: number;
-  spaceId: string;
+  spaceId: string | null;  // null = floating slot
   gridX: number;
   gridY: number;
   canPlace: boolean;
   abbreviation: string;
   strainId: string | null;
+}
+
+// Plant drag preview for Space View
+export interface PlantDragPreview {
+  plantId: string;
+  abbreviation: string;
+  sourceWorldX: number;
+  sourceWorldY: number;
+  targetWorldX: number;
+  targetWorldY: number;
+  canPlace: boolean;
 }
 
 export interface Space {
@@ -49,7 +60,7 @@ export interface Plant {
   segments: PlantSegment[];  // ordered by startDate
   customStageDays?: Partial<Record<Stage, number>>;
   // Backward compat - synced with current segment (last segment where startDate <= today)
-  spaceId: string;
+  spaceId: string | null;  // null = floating (not assigned to any space)
   gridX: number;
   gridY: number;
   stageStartedAt: string;
@@ -83,7 +94,7 @@ export interface Point {
 }
 
 export interface SlotId {
-  spaceId: string;
+  spaceId: string | null;  // null = floating slot
   gridX: number;
   gridY: number;
 }

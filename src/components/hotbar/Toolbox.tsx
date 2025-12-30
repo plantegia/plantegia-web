@@ -1,13 +1,74 @@
 import { useAppStore } from '../../store/useAppStore';
 import { ToolButton } from './ToolButton';
 import { COLORS } from '../../constants';
+import { useIsMobile } from '../../hooks/useIsMobile';
+
+const TOOL_ICONS: Record<string, string> = {
+  cursor: '/cursors/cursor.svg',
+  space: '/cursors/space.svg',
+  erase: '/cursors/erase.svg',
+  split: '/cursors/split.svg',
+};
 
 export function Toolbox() {
+  const isMobile = useIsMobile();
   const activeTool = useAppStore((s) => s.activeTool);
   const setActiveTool = useAppStore((s) => s.setActiveTool);
   const viewMode = useAppStore((s) => s.viewMode);
   const selectedSeedId = useAppStore((s) => s.selectedSeedId);
+  const expandedSection = useAppStore((s) => s.expandedHotbarSection);
+  const setExpandedSection = useAppStore((s) => s.setExpandedHotbarSection);
 
+  // On desktop always show expanded, on mobile respect expandedSection
+  const isExpanded = !isMobile || expandedSection === 'toolbox';
+  const currentTool = activeTool || 'cursor';
+  const currentIcon = TOOL_ICONS[currentTool] || TOOL_ICONS.cursor;
+
+  // Collapsed view
+  if (!isExpanded) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '8px 12px 12px',
+          background: COLORS.backgroundDark,
+          border: `1px solid ${COLORS.border}`,
+        }}
+      >
+        <span
+          onClick={() => setExpandedSection('toolbox')}
+          style={{
+            fontSize: 10,
+            color: COLORS.textMuted,
+            textTransform: 'uppercase',
+            marginBottom: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Tools ›
+        </span>
+        <ToolButton
+          icon={currentIcon}
+          active={!selectedSeedId}
+          onClick={() => setExpandedSection('toolbox')}
+        />
+        <span
+          style={{
+            fontSize: 10,
+            color: COLORS.textMuted,
+            textTransform: 'uppercase',
+            marginTop: 4,
+          }}
+        >
+          {currentTool}
+        </span>
+      </div>
+    );
+  }
+
+  // Expanded view
   return (
     <div
       style={{
@@ -31,7 +92,7 @@ export function Toolbox() {
       </span>
       <div style={{ display: 'flex', gap: 6 }}>
         <ToolButton
-          icon="/cursors/cursor.svg"
+          icon={TOOL_ICONS.cursor}
           label="Cursor"
           active={(activeTool === 'cursor' || activeTool === null) && !selectedSeedId}
           onClick={() => setActiveTool('cursor')}
@@ -39,13 +100,13 @@ export function Toolbox() {
         {viewMode === 'space' ? (
           <>
             <ToolButton
-              icon="/cursors/space.svg"
+              icon={TOOL_ICONS.space}
               label="Space"
               active={activeTool === 'space'}
               onClick={() => setActiveTool(activeTool === 'space' ? 'cursor' : 'space')}
             />
             <ToolButton
-              icon="/cursors/erase.svg"
+              icon={TOOL_ICONS.erase}
               label="Erase"
               active={activeTool === 'erase'}
               onClick={() => setActiveTool(activeTool === 'erase' ? 'cursor' : 'erase')}
@@ -54,13 +115,13 @@ export function Toolbox() {
         ) : (
           <>
             <ToolButton
-              icon="/cursors/split.svg"
+              icon={TOOL_ICONS.split}
               label="Split"
               active={activeTool === 'split'}
               onClick={() => setActiveTool(activeTool === 'split' ? 'cursor' : 'split')}
             />
             <ToolButton
-              icon="/cursors/erase.svg"
+              icon={TOOL_ICONS.erase}
               label="Erase"
               active={activeTool === 'erase'}
               onClick={() => setActiveTool(activeTool === 'erase' ? 'cursor' : 'erase')}

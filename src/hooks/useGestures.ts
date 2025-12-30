@@ -25,7 +25,7 @@ import {
 import { MIN_ZOOM, MAX_ZOOM, CELL_SIZE, SPACE_COLORS, CURSORS, EDGE_CURSORS } from '../constants';
 import type { Point, Space, Plant, Stage, PlantSegment } from '../types';
 
-type SpaceDragMode = 'none' | 'move' | 'resize';
+type SpaceDragMode = 'none' | 'move' | 'resize' | 'plant-move';
 type TimeViewDragMode = 'none' | 'segment-move-x' | 'segment-move-y' | 'stage-resize' | 'pan';
 
 interface GestureState {
@@ -45,9 +45,12 @@ interface GestureState {
   draggedSpaceId: string | null;
   resizeEdge: SpaceEdge | null;
   originalSpace: Space | null;
+  // Plant drag state (Space View)
+  draggedSpaceViewPlantId: string | null;
+  originalPlantPosition: { spaceId: string | null; gridX: number; gridY: number } | null;
   // New Time View drag state (horizontal timeline)
   timeViewDragMode: TimeViewDragMode;
-  draggedPlantId: string | null;
+  draggedTimeViewPlantId: string | null;
   draggedSegmentId: string | null;
   segmentHitZone: SegmentHitZone | null;
   originalStartedAt: string | null;
@@ -88,7 +91,9 @@ export function useGestures(
     resizeEdge: null,
     originalSpace: null,
     timeViewDragMode: 'none',
-    draggedPlantId: null,
+    draggedSpaceViewPlantId: null,
+    originalPlantPosition: null,
+    draggedTimeViewPlantId: null,
     draggedSegmentId: null,
     segmentHitZone: null,
     originalStartedAt: null,
@@ -109,7 +114,7 @@ export function useGestures(
     timelineHorizontalOffset, setTimelineHorizontalOffset,
     saveSnapshot,
     // Segment operations
-    splitSegment, mergeSegments, moveSegmentToSlot, shiftPlantInTime,
+    splitSegment, mergeSegments, moveSegmentToSlot, shiftPlantInTime, movePlantInSpaceView,
     // Cursor
     setCanvasCursor,
     // Split preview
@@ -118,6 +123,8 @@ export function useGestures(
     setPlacementPreview,
     // Time View placement preview
     setTimeViewPlacementPreview,
+    // Plant drag preview
+    setPlantDragPreview,
   } = useAppStore();
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number): Point => {
@@ -140,7 +147,7 @@ export function useGestures(
   const updateCursor = useCallback((screenPos: Point, isDragging: boolean, dragMode: SpaceDragMode | TimeViewDragMode, resizeEdge?: SpaceEdge | null) => {
     // Priority 1: Active drag operation
     if (isDragging) {
-      if (dragMode === 'move' || dragMode === 'segment-move-x' || dragMode === 'segment-move-y') {
+      if (dragMode === 'move' || dragMode === 'plant-move' || dragMode === 'segment-move-x' || dragMode === 'segment-move-y') {
         setCanvasCursor(CURSORS.grabbing);
         return;
       }
@@ -209,7 +216,7 @@ export function useGestures(
         setSplitPreview(null);
         setPlacementPreview(null);
 
-        const slot = findSlotAtY(screenPos.y, timelineOffset, spaces);
+        const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants);
         if (slot && !slot.isSpaceHeader) {
           const seed = inventory.find(s => s.id === selectedSeedId);
           const strain = seed ? strains.find(st => st.id === seed.strainId) : undefined;
@@ -399,14 +406,15 @@ export function useGestures(
 
     if (selectedSeedId && viewMode === 'time') {
       // In new horizontal Time View, tapping with seed selected places a plant at that slot/date
-      const slot = findSlotAtY(screenPos.y, timelineOffset, spaces);
+      const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants);
       if (!slot || slot.isSpaceHeader) return;
 
       const seed = inventory.find(s => s.id === selectedSeedId);
       if (!seed || seed.quantity <= 0) return;
 
-      const space = spaces.find(s => s.id === slot.spaceId);
-      if (!space) return;
+      // For floating slots (spaceId === null), we don't need a space
+      const space = slot.spaceId ? spaces.find(s => s.id === slot.spaceId) : null;
+      if (slot.spaceId && !space) return;
 
       // Get date from X position and calculate duration
       const startDate = screenXToDate(screenPos.x, timelineHorizontalOffset);
@@ -649,10 +657,14 @@ export function useGestures(
       g.resizeEdge = null;
       g.originalSpace = null;
       g.timeViewDragMode = 'none';
-      g.draggedPlantId = null;
+      g.draggedTimeViewPlantId = null;
       g.draggedSegmentId = null;
       g.segmentHitZone = null;
       g.originalStartedAt = null;
+
+      // Reset plant drag state
+      g.draggedSpaceViewPlantId = null;
+      g.originalPlantPosition = null;
 
       // Check if clicking on selected space's edges for resize/move (Space View)
       if (!readOnly && selection?.type === 'space' && viewMode === 'space' && (!activeTool || activeTool === 'cursor') && !selectedSeedId) {
@@ -671,6 +683,20 @@ export function useGestures(
             g.resizeEdge = edge;
             g.originalSpace = { ...space };
           }
+        }
+      }
+
+      // Check if clicking on plant for drag (Space View)
+      if (!readOnly && viewMode === 'space' && (!activeTool || activeTool === 'cursor') && !selectedSeedId) {
+        const plant = findPlantAt(g.startWorld, plants, spaces);
+        if (plant) {
+          g.spaceDragMode = 'plant-move';
+          g.draggedSpaceViewPlantId = plant.id;
+          g.originalPlantPosition = {
+            spaceId: plant.spaceId,
+            gridX: plant.gridX,
+            gridY: plant.gridY,
+          };
         }
       }
 
@@ -711,7 +737,7 @@ export function useGestures(
           const { plant, segmentId, hitZone, stage } = hitResult;
 
           saveSnapshot(); // Save before drag starts
-          g.draggedPlantId = plant.id;
+          g.draggedTimeViewPlantId = plant.id;
           g.draggedSegmentId = segmentId;
           g.segmentHitZone = hitZone;
           g.originalStartedAt = plant.startedAt;
@@ -764,7 +790,7 @@ export function useGestures(
       }
 
       // Handle space move/resize
-      if (g.spaceDragMode !== 'none' && g.originalSpace && g.draggedSpaceId) {
+      if ((g.spaceDragMode === 'move' || g.spaceDragMode === 'resize') && g.originalSpace && g.draggedSpaceId) {
         const currentWorld = screenToWorld(screenPos, pan, zoom);
         const deltaX = currentWorld.x - g.startWorld.x;
         const deltaY = currentWorld.y - g.startWorld.y;
@@ -815,8 +841,61 @@ export function useGestures(
         return;
       }
 
+      // Handle plant move in Space View
+      if (g.spaceDragMode === 'plant-move' && g.draggedSpaceViewPlantId && g.originalPlantPosition) {
+        const currentWorld = screenToWorld(screenPos, pan, zoom);
+        const draggedPlant = plants.find(p => p.id === g.draggedSpaceViewPlantId);
+        const strain = draggedPlant?.strainId ? strains.find(s => s.id === draggedPlant.strainId) : null;
+        const abbreviation = strain?.abbreviation || 'PLT';
+
+        // Get source position in world coordinates
+        const origPos = g.originalPlantPosition;
+        const sourceSpace = origPos.spaceId ? spaces.find(s => s.id === origPos.spaceId) : null;
+        const sourceWorldX = sourceSpace ? sourceSpace.originX + origPos.gridX * CELL_SIZE : 0;
+        const sourceWorldY = sourceSpace ? sourceSpace.originY + origPos.gridY * CELL_SIZE : 0;
+
+        // Find which space and cell the cursor is over
+        const targetSpace = findSpaceAt(currentWorld, spaces);
+        if (targetSpace) {
+          const cell = findCellInSpace(currentWorld, targetSpace);
+          if (cell) {
+            // Check if can place (excluding the dragged plant itself)
+            const canPlace = canPlacePlant(targetSpace.id, cell.gridX, cell.gridY, 1, targetSpace, plants, g.draggedSpaceViewPlantId);
+            const targetWorldX = targetSpace.originX + cell.gridX * CELL_SIZE;
+            const targetWorldY = targetSpace.originY + cell.gridY * CELL_SIZE;
+
+            setPlantDragPreview({
+              plantId: g.draggedSpaceViewPlantId,
+              abbreviation,
+              sourceWorldX,
+              sourceWorldY,
+              targetWorldX,
+              targetWorldY,
+              canPlace,
+            });
+            updateCursor(screenPos, true, 'plant-move', null);
+            return;
+          }
+        }
+
+        // Cursor not over valid cell - show preview at cursor position as invalid
+        const snappedX = snapToGrid(currentWorld.x);
+        const snappedY = snapToGrid(currentWorld.y);
+        setPlantDragPreview({
+          plantId: g.draggedSpaceViewPlantId,
+          abbreviation,
+          sourceWorldX,
+          sourceWorldY,
+          targetWorldX: snappedX,
+          targetWorldY: snappedY,
+          canPlace: false,
+        });
+        updateCursor(screenPos, true, 'plant-move', null);
+        return;
+      }
+
       // Handle new horizontal Time View drag interactions
-      if (g.timeViewDragMode !== 'none' && g.draggedPlantId) {
+      if (g.timeViewDragMode !== 'none' && g.draggedTimeViewPlantId) {
         const { dayWidth, slotHeight } = TIME_VIEW_CONSTANTS;
 
         // Detect drag direction and lock to X or Y movement
@@ -837,7 +916,7 @@ export function useGestures(
           const daysDelta = Math.round(dx / dayWidth);
 
           if (daysDelta !== 0) {
-            shiftPlantInTime(g.draggedPlantId, daysDelta);
+            shiftPlantInTime(g.draggedTimeViewPlantId, daysDelta);
             // Reset dx tracking by updating start position
             g.startScreen.x = screenPos.x;
           }
@@ -846,9 +925,9 @@ export function useGestures(
 
         if (g.timeViewDragMode === 'segment-move-y') {
           // Vertical drag = move segment to different slot
-          const slot = findSlotAtY(screenPos.y, timelineOffset, spaces);
+          const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants);
           if (slot && !slot.isSpaceHeader && g.draggedSegmentId) {
-            moveSegmentToSlot(g.draggedPlantId, g.draggedSegmentId, {
+            moveSegmentToSlot(g.draggedTimeViewPlantId, g.draggedSegmentId, {
               spaceId: slot.spaceId,
               gridX: slot.gridX,
               gridY: slot.gridY,
@@ -863,13 +942,13 @@ export function useGestures(
           const newDays = Math.max(1, g.originalStageDays + daysDelta);
 
           // Update plant's customStageDays
-          const plant = plants.find((p) => p.id === g.draggedPlantId);
+          const plant = plants.find((p) => p.id === g.draggedTimeViewPlantId);
           if (plant) {
             const newCustomStageDays = {
               ...plant.customStageDays,
               [g.resizingStage]: newDays,
             };
-            updatePlant(g.draggedPlantId, { customStageDays: newCustomStageDays }, true);
+            updatePlant(g.draggedTimeViewPlantId, { customStageDays: newCustomStageDays }, true);
           }
           return;
         }
@@ -899,9 +978,40 @@ export function useGestures(
 
     const handleMouseUp = (e: MouseEvent) => {
       const g = gestureRef.current;
+      const screenPos = getCanvasPoint(e.clientX, e.clientY);
 
-      // If we were doing space drag, don't trigger tap
-      if (g.spaceDragMode !== 'none') {
+      // If we were doing plant drag in Space View
+      if (g.spaceDragMode === 'plant-move' && g.draggedSpaceViewPlantId) {
+        if (g.moved) {
+          // Complete the move
+          const currentWorld = screenToWorld(screenPos, pan, zoom);
+          const targetSpace = findSpaceAt(currentWorld, spaces);
+
+          if (targetSpace) {
+            const cell = findCellInSpace(currentWorld, targetSpace);
+            if (cell) {
+              const canPlace = canPlacePlant(targetSpace.id, cell.gridX, cell.gridY, 1, targetSpace, plants, g.draggedSpaceViewPlantId);
+              if (canPlace) {
+                movePlantInSpaceView(g.draggedSpaceViewPlantId, targetSpace.id, cell.gridX, cell.gridY);
+              }
+            }
+          }
+        } else {
+          // No movement - this is a tap, select the plant
+          setSelection({ type: 'plant', id: g.draggedSpaceViewPlantId });
+        }
+
+        g.spaceDragMode = 'none';
+        g.draggedSpaceViewPlantId = null;
+        g.originalPlantPosition = null;
+        g.moved = false;
+        setPlantDragPreview(null);
+        updateCursor(screenPos, false, 'none', null);
+        return;
+      }
+
+      // If we were doing space drag (move/resize), don't trigger tap
+      if (g.spaceDragMode === 'move' || g.spaceDragMode === 'resize') {
         g.spaceDragMode = 'none';
         g.draggedSpaceId = null;
         g.resizeEdge = null;
@@ -913,7 +1023,7 @@ export function useGestures(
       // If we were doing Time View drag, don't trigger tap
       if (g.timeViewDragMode !== 'none') {
         g.timeViewDragMode = 'none';
-        g.draggedPlantId = null;
+        g.draggedTimeViewPlantId = null;
         g.draggedSegmentId = null;
         g.segmentHitZone = null;
         g.originalStartedAt = null;
@@ -927,7 +1037,6 @@ export function useGestures(
           { x: dragPreview.endX, y: dragPreview.endY }
         );
       } else if (!g.moved) {
-        const screenPos = getCanvasPoint(e.clientX, e.clientY);
         handleTap(screenPos);
       }
 
@@ -936,7 +1045,6 @@ export function useGestures(
       g.moved = false;
 
       // Reset cursor after drag ends
-      const screenPos = getCanvasPoint(e.clientX, e.clientY);
       updateCursor(screenPos, false, 'none', null);
     };
 
@@ -981,6 +1089,6 @@ export function useGestures(
     getCanvasPoint, handleTap, handleDragEnd, setPan, setZoom, setDragPreview, dragPreview,
     timelineOffset, timelineHorizontalOffset, setTimelineOffset, setTimelineHorizontalOffset,
     selection, spaces, plants, strains, readOnly, updateSpace, updatePlant, canResizeSpace, setSelection,
-    saveSnapshot, splitSegment, moveSegmentToSlot, shiftPlantInTime, updateCursor,
+    saveSnapshot, splitSegment, moveSegmentToSlot, shiftPlantInTime, movePlantInSpaceView, setPlantDragPreview, updateCursor,
   ]);
 }

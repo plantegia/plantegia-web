@@ -42,6 +42,7 @@ export const DEFAULT_ZOOM = 1;
 
 export const VIEWPORT_WIDTH = 390;
 export const HOTBAR_HEIGHT = 88;
+export const MOBILE_BREAKPOINT = 768;
 
 export const STAGE_DAYS: Record<Stage, number> = {
   germinating: 10,

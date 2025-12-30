@@ -199,14 +199,22 @@ export function findPlantAt(
   spaces: Space[]
 ): Plant | null {
   for (const plant of plants) {
-    const space = spaces.find(s => s.id === plant.spaceId);
-    if (!space) continue;
-
+    const space = plant.spaceId ? spaces.find(s => s.id === plant.spaceId) : null;
     const cells = getPlantCells(plant);
 
     for (const cell of cells) {
-      const cellX = space.originX + cell.gridX * CELL_SIZE;
-      const cellY = space.originY + cell.gridY * CELL_SIZE;
+      let cellX: number;
+      let cellY: number;
+
+      if (space) {
+        // Plant attached to a space
+        cellX = space.originX + cell.gridX * CELL_SIZE;
+        cellY = space.originY + cell.gridY * CELL_SIZE;
+      } else {
+        // Floating plant - gridX/gridY are world coordinates
+        cellX = cell.gridX * CELL_SIZE;
+        cellY = cell.gridY * CELL_SIZE;
+      }
 
       if (
         worldPos.x >= cellX &&
@@ -309,7 +317,7 @@ export function calculatePlantTimeline(
 // ============================================
 
 export interface SlotInfo {
-  spaceId: string;
+  spaceId: string | null;  // null = floating slot
   spaceName: string;
   gridX: number;
   gridY: number;
@@ -318,7 +326,7 @@ export interface SlotInfo {
 }
 
 // Build slot list for Y-axis (grouped by space)
-export function buildSlotList(spaces: Space[]): SlotInfo[] {
+export function buildSlotList(spaces: Space[], plants?: Plant[]): SlotInfo[] {
   const { slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
   const slots: SlotInfo[] = [];
   let yOffset = 0;
@@ -349,6 +357,55 @@ export function buildSlotList(spaces: Space[]): SlotInfo[] {
       }
     }
   });
+
+  // Add floating section for plants/segments without spaceId
+  if (plants) {
+    // Collect unique floating positions from segments
+    const floatingPositions = new Set<string>();
+    plants.forEach((plant) => {
+      plant.segments?.forEach((segment) => {
+        if (segment.spaceId === null) {
+          floatingPositions.add(`${segment.gridX},${segment.gridY}`);
+        }
+      });
+      // Also check plant's backward-compat spaceId
+      if (plant.spaceId === null) {
+        floatingPositions.add(`${plant.gridX},${plant.gridY}`);
+      }
+    });
+
+    if (floatingPositions.size > 0) {
+      // Add floating header
+      slots.push({
+        spaceId: null,
+        spaceName: '—',
+        gridX: -1,
+        gridY: -1,
+        yOffset,
+        isSpaceHeader: true,
+      });
+      yOffset += spaceHeaderHeight;
+
+      // Add floating slots
+      const sortedPositions = Array.from(floatingPositions)
+        .map((pos) => {
+          const [x, y] = pos.split(',').map(Number);
+          return { gridX: x, gridY: y };
+        })
+        .sort((a, b) => a.gridY - b.gridY || a.gridX - b.gridX);
+
+      sortedPositions.forEach(({ gridX, gridY }) => {
+        slots.push({
+          spaceId: null,
+          spaceName: '—',
+          gridX,
+          gridY,
+          yOffset,
+        });
+        yOffset += slotHeight;
+      });
+    }
+  }
 
   return slots;
 }
@@ -496,7 +553,7 @@ export function findSegmentAtHorizontal(
   today: Date = new Date()
 ): SegmentHitResult | null {
   const { topMargin, handleWidth, segmentHeight, segmentGap } = TIME_VIEW_CONSTANTS;
-  const slots = buildSlotList(spaces);
+  const slots = buildSlotList(spaces, plants);
 
   for (const plant of plants) {
     if (!plant.segments) continue;
@@ -568,7 +625,7 @@ export function findMergeButtonAt(
   today: Date = new Date()
 ): MergeButtonHitResult | null {
   const { topMargin, segmentHeight, segmentGap, mergeButtonSize } = TIME_VIEW_CONSTANTS;
-  const slots = buildSlotList(spaces);
+  const slots = buildSlotList(spaces, plants);
 
   for (const plant of plants) {
     if (!plant.segments || plant.segments.length < 2) continue;
@@ -610,10 +667,11 @@ export function findMergeButtonAt(
 export function findSlotAtY(
   screenY: number,
   panY: number,
-  spaces: Space[]
+  spaces: Space[],
+  plants?: Plant[]
 ): SlotInfo | null {
   const { topMargin, slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
-  const slots = buildSlotList(spaces);
+  const slots = buildSlotList(spaces, plants);
   const adjustedY = screenY - topMargin + panY;
 
   // Find the slot where adjustedY falls within its bounds

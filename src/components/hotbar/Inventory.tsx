@@ -4,22 +4,80 @@ import { SeedSlot } from './SeedSlot';
 import { EmptySlot } from './EmptySlot';
 import { SeedForm } from '../inspector/SeedForm';
 import { COLORS } from '../../constants';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
-const SEEDS_PER_PAGE = 4;
+const SLOTS_PER_PAGE = 4;
 
 export function Inventory() {
   const [showSeedForm, setShowSeedForm] = useState(false);
   const [page, setPage] = useState(0);
+  const isMobile = useIsMobile();
 
   const inventory = useAppStore((s) => s.inventory);
   const strains = useAppStore((s) => s.strains);
   const selectedSeedId = useAppStore((s) => s.selectedSeedId);
   const selectSeed = useAppStore((s) => s.selectSeed);
+  const expandedSection = useAppStore((s) => s.expandedHotbarSection);
+  const setExpandedSection = useAppStore((s) => s.setExpandedHotbarSection);
 
-  const totalPages = Math.ceil(inventory.length / SEEDS_PER_PAGE);
-  const startIndex = page * SEEDS_PER_PAGE;
-  const visibleSeeds = inventory.slice(startIndex, startIndex + SEEDS_PER_PAGE);
+  // On desktop always show expanded, on mobile respect expandedSection
+  const isExpanded = !isMobile || expandedSection === 'inventory';
 
+  // Calculate pages: each page has 4 slots, add extra page when current page is full
+  const filledPages = Math.ceil(inventory.length / SLOTS_PER_PAGE);
+  const needsExtraPage = inventory.length > 0 && inventory.length % SLOTS_PER_PAGE === 0;
+  const totalPages = Math.max(1, filledPages + (needsExtraPage ? 1 : 0));
+  const startIndex = page * SLOTS_PER_PAGE;
+  const visibleSeeds = inventory.slice(startIndex, startIndex + SLOTS_PER_PAGE);
+  const emptySlots = SLOTS_PER_PAGE - visibleSeeds.length;
+
+  // Get selected seed info for collapsed view
+  const selectedSeed = selectedSeedId ? inventory.find((s) => s.id === selectedSeedId) : null;
+  const selectedStrain = selectedSeed ? strains.find((s) => s.id === selectedSeed.strainId) : null;
+
+  // Collapsed view
+  if (!isExpanded) {
+    return (
+      <>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '8px 12px 12px',
+            background: COLORS.backgroundDark,
+            border: `1px solid ${COLORS.border}`,
+          }}
+        >
+          <span
+            onClick={() => setExpandedSection('inventory')}
+            style={{
+              fontSize: 10,
+              color: COLORS.textMuted,
+              textTransform: 'uppercase',
+              marginBottom: 6,
+              cursor: 'pointer',
+            }}
+          >
+            Seeds ›
+          </span>
+          {selectedSeed ? (
+            <SeedSlot
+              seed={selectedSeed}
+              strain={selectedStrain ?? undefined}
+              selected={true}
+              onClick={() => setExpandedSection('inventory')}
+            />
+          ) : (
+            <EmptySlot onClick={() => setExpandedSection('inventory')} />
+          )}
+        </div>
+        {showSeedForm && <SeedForm onClose={() => setShowSeedForm(false)} />}
+      </>
+    );
+  }
+
+  // Expanded view
   return (
     <>
       <div
@@ -43,7 +101,7 @@ export function Inventory() {
           Seeds
         </span>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
           {totalPages > 1 && (
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
@@ -57,7 +115,7 @@ export function Inventory() {
                 background: 'transparent',
                 border: 'none',
                 color: page === 0 ? COLORS.border : COLORS.textMuted,
-                fontSize: 14,
+                fontSize: 28,
                 cursor: page === 0 ? 'default' : 'pointer',
               }}
             >
@@ -72,10 +130,21 @@ export function Inventory() {
                 seed={seed}
                 strain={strains.find((s) => s.id === seed.strainId)}
                 selected={selectedSeedId === seed.id}
-                onClick={() => selectSeed(selectedSeedId === seed.id ? null : seed.id)}
+                onClick={() => {
+                  if (selectedSeedId === seed.id) {
+                    selectSeed(null);
+                  } else {
+                    selectSeed(seed.id);
+                    if (isMobile) {
+                      setExpandedSection('toolbox');
+                    }
+                  }
+                }}
               />
             ))}
-            <EmptySlot onClick={() => setShowSeedForm(true)} />
+            {Array.from({ length: emptySlots }).map((_, i) => (
+              <EmptySlot key={`empty-${i}`} onClick={() => setShowSeedForm(true)} />
+            ))}
           </div>
 
           {totalPages > 1 && (
@@ -91,7 +160,7 @@ export function Inventory() {
                 background: 'transparent',
                 border: 'none',
                 color: page >= totalPages - 1 ? COLORS.border : COLORS.textMuted,
-                fontSize: 14,
+                fontSize: 28,
                 cursor: page >= totalPages - 1 ? 'default' : 'pointer',
               }}
             >

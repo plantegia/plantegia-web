@@ -19,6 +19,7 @@ import type {
   StrainType,
   Photoperiod,
   TimeViewPlacementPreview,
+  PlantDragPreview,
 } from '../types';
 import { generateAbbreviation, generatePlantCode } from '../utils/abbreviation';
 import { DEFAULT_ZOOM, CURSORS } from '../constants';
@@ -61,8 +62,12 @@ interface AppState {
 
   timeViewPlacementPreview: TimeViewPlacementPreview | null;
 
+  plantDragPreview: PlantDragPreview | null;
+
   timelineOffset: number;
   timelineHorizontalOffset: number;
+
+  expandedHotbarSection: 'toolbox' | 'inventory';
 
   history: HistoryState;
 
@@ -74,7 +79,7 @@ interface AppState {
   deleteSpace: (id: string) => void;
 
   createPlant: (data: {
-    spaceId: string;
+    spaceId: string | null;
     strainId: string | null;
     gridX: number;
     gridY: number;
@@ -92,6 +97,7 @@ interface AppState {
   moveSegmentToSlot: (plantId: string, segmentId: string, slot: SlotId) => void;
   shiftPlantInTime: (plantId: string, daysDelta: number) => void;
   resizeSegment: (plantId: string, segmentId: string, edge: 'start' | 'end', newDate: Date) => void;
+  movePlantInSpaceView: (plantId: string, newSpaceId: string | null, newGridX: number, newGridY: number) => void;
 
   createStrain: (data: { name: string; floweringDays?: number; vegDays?: number; strainType?: StrainType; photoperiod?: Photoperiod }) => string;
   updateStrain: (id: string, updates: Partial<Omit<Strain, 'id'>>) => void;
@@ -119,8 +125,12 @@ interface AppState {
 
   setTimeViewPlacementPreview: (preview: TimeViewPlacementPreview | null) => void;
 
+  setPlantDragPreview: (preview: PlantDragPreview | null) => void;
+
   setTimelineOffset: (offset: number) => void;
   setTimelineHorizontalOffset: (offset: number) => void;
+
+  setExpandedHotbarSection: (section: 'toolbox' | 'inventory') => void;
 
   // Save current state to history (call before starting a drag operation)
   saveSnapshot: () => void;
@@ -154,8 +164,12 @@ const initialState = {
 
   timeViewPlacementPreview: null as TimeViewPlacementPreview | null,
 
+  plantDragPreview: null as PlantDragPreview | null,
+
   timelineOffset: 0,
   timelineHorizontalOffset: 0,
+
+  expandedHotbarSection: 'toolbox' as 'toolbox' | 'inventory',
 
   history: {
     past: [],
@@ -237,7 +251,18 @@ export const useAppStore = create<AppState>()(
         saveToHistory();
         set((state) => {
           state.spaces = state.spaces.filter((s) => s.id !== id);
-          state.plants = state.plants.filter((p) => p.spaceId !== id);
+          // Detach plants from deleted space instead of deleting them
+          state.plants.forEach((plant) => {
+            if (plant.spaceId === id) {
+              plant.spaceId = null;
+            }
+            // Also detach segments belonging to this space
+            plant.segments?.forEach((segment) => {
+              if (segment.spaceId === id) {
+                segment.spaceId = null;
+              }
+            });
+          });
           if (state.selection?.type === 'space' && state.selection.id === id) {
             state.selection = null;
           }
@@ -453,6 +478,60 @@ export const useAppStore = create<AppState>()(
         });
       },
 
+      movePlantInSpaceView: (plantId, newSpaceId, newGridX, newGridY) => {
+        saveToHistory();
+        set((state) => {
+          const plant = state.plants.find((p) => p.id === plantId);
+          if (!plant || !plant.segments) return;
+
+          const today = new Date();
+          const todayStr = today.toISOString().split('T')[0];
+
+          // Find current segment (the one active today)
+          const currentSegment = getCurrentSegment(plant, today);
+          if (!currentSegment) return;
+
+          // Check if already at the same position
+          if (currentSegment.spaceId === newSpaceId &&
+              currentSegment.gridX === newGridX &&
+              currentSegment.gridY === newGridY) {
+            return;
+          }
+
+          const segmentIndex = plant.segments.findIndex((s) => s.id === currentSegment.id);
+          if (segmentIndex === -1) return;
+
+          // Check if today is at the start of current segment (no need to split)
+          const segmentStartStr = currentSegment.startDate.split('T')[0];
+          if (segmentStartStr === todayStr) {
+            // Just update the current segment's location
+            currentSegment.spaceId = newSpaceId;
+            currentSegment.gridX = newGridX;
+            currentSegment.gridY = newGridY;
+          } else {
+            // Split: end current segment yesterday, create new segment starting today
+            currentSegment.endDate = todayStr;
+
+            const newSegment: PlantSegment = {
+              id: nanoid(),
+              spaceId: newSpaceId,
+              gridX: newGridX,
+              gridY: newGridY,
+              startDate: todayStr,
+              endDate: null,
+            };
+
+            // Insert new segment after current
+            plant.segments.splice(segmentIndex + 1, 0, newSegment);
+          }
+
+          // Update backward compat fields
+          plant.spaceId = newSpaceId;
+          plant.gridX = newGridX;
+          plant.gridY = newGridY;
+        });
+      },
+
       createStrain: (data) => {
         saveToHistory();
         const id = nanoid();
@@ -612,6 +691,12 @@ export const useAppStore = create<AppState>()(
         });
       },
 
+      setPlantDragPreview: (preview) => {
+        set((state) => {
+          state.plantDragPreview = preview;
+        });
+      },
+
       setTimelineOffset: (offset) => {
         set((state) => {
           state.timelineOffset = offset;
@@ -621,6 +706,12 @@ export const useAppStore = create<AppState>()(
       setTimelineHorizontalOffset: (offset) => {
         set((state) => {
           state.timelineHorizontalOffset = offset;
+        });
+      },
+
+      setExpandedHotbarSection: (section) => {
+        set((state) => {
+          state.expandedHotbarSection = section;
         });
       },
 

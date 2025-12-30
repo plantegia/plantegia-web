@@ -25,6 +25,7 @@ export function Canvas({ readOnly }: CanvasProps) {
     splitPreview,
     placementPreview,
     timeViewPlacementPreview,
+    plantDragPreview,
   } = useAppStore();
 
   useGestures(canvasRef, canvasRect, readOnly);
@@ -101,7 +102,7 @@ export function Canvas({ readOnly }: CanvasProps) {
       ctx.translate(pan.x, pan.y);
       ctx.scale(zoom, zoom);
 
-      renderSpaceView(ctx, spaces, plants, strains, selection, dragPreview, placementPreview);
+      renderSpaceView(ctx, spaces, plants, strains, selection, dragPreview, placementPreview, plantDragPreview);
 
       ctx.restore();
     } else {
@@ -121,7 +122,7 @@ export function Canvas({ readOnly }: CanvasProps) {
     }
   }, [
     canvasSize, pan, zoom, spaces, plants, strains,
-    selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, splitPreview, placementPreview, timeViewPlacementPreview,
+    selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview,
   ]);
 
   useEffect(() => {

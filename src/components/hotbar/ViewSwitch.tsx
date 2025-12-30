@@ -19,79 +19,73 @@ export function ViewSwitch() {
       <span
         style={{
           fontSize: 10,
-          color: COLORS.textMuted,
+          color: viewMode === 'space' ? COLORS.text : COLORS.muted,
           textTransform: 'uppercase',
           marginBottom: 6,
         }}
       >
-        View
+        Space
       </span>
       <div
         style={{
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          gap: 4,
+          width: 44,
+          height: 44,
+          border: `1px solid ${COLORS.muted}`,
+          boxSizing: 'border-box',
         }}
       >
-        <div
+        <button
+          onClick={() => setViewMode(viewMode === 'space' ? 'time' : 'space')}
           style={{
+            width: '100%',
+            height: '50%',
             display: 'flex',
-            height: 44,
-            border: `1px solid ${COLORS.teal}`,
-            boxSizing: 'border-box',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: viewMode === 'space' ? COLORS.teal : 'transparent',
+            border: 'none',
+            borderBottom: `1px solid ${viewMode === 'space' ? COLORS.teal : COLORS.muted}`,
+            color: viewMode === 'space' ? COLORS.backgroundDark : COLORS.muted,
+            fontSize: 12,
+            fontWeight: 'bold',
+            fontFamily: 'inherit',
+            cursor: 'pointer',
           }}
         >
-          <button
-            onClick={() => setViewMode(viewMode === 'space' ? 'time' : 'space')}
-            style={{
-              width: 42,
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: viewMode === 'space' ? COLORS.teal : 'transparent',
-              border: 'none',
-              borderRight: `1px solid ${COLORS.teal}`,
-              color: viewMode === 'space' ? COLORS.backgroundDark : COLORS.teal,
-              fontSize: 14,
-              fontWeight: 'bold',
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-            }}
-          >
-            XY
-          </button>
-          <button
-            onClick={() => setViewMode(viewMode === 'time' ? 'space' : 'time')}
-            style={{
-              width: 42,
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: viewMode === 'time' ? COLORS.teal : 'transparent',
-              border: 'none',
-              color: viewMode === 'time' ? COLORS.backgroundDark : COLORS.teal,
-              fontSize: 14,
-              fontWeight: 'bold',
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-            }}
-          >
-            XT
-          </button>
-        </div>
-        <span
+          XY
+        </button>
+        <button
+          onClick={() => setViewMode(viewMode === 'time' ? 'space' : 'time')}
           style={{
-            fontSize: 10,
-            color: COLORS.textMuted,
-            textTransform: 'uppercase',
+            width: '100%',
+            height: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: viewMode === 'time' ? COLORS.teal : 'transparent',
+            border: 'none',
+            color: viewMode === 'time' ? COLORS.backgroundDark : COLORS.muted,
+            fontSize: 12,
+            fontWeight: 'bold',
+            fontFamily: 'inherit',
+            cursor: 'pointer',
           }}
         >
-          {viewMode === 'space' ? 'Space' : 'Time'}
-        </span>
+          XT
+        </button>
       </div>
+      <span
+        style={{
+          fontSize: 10,
+          color: viewMode === 'time' ? COLORS.text : COLORS.muted,
+          textTransform: 'uppercase',
+          marginTop: 4,
+        }}
+      >
+        Time
+      </span>
     </div>
   );
 }
