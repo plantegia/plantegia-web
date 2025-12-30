@@ -19,6 +19,7 @@ export function Hotbar({ readOnly }: HotbarProps) {
   const strains = useAppStore((s) => s.strains);
   const selectedSeedId = useAppStore((s) => s.selectedSeedId);
   const selectSeed = useAppStore((s) => s.selectSeed);
+  const viewMode = useAppStore((s) => s.viewMode);
 
   if (readOnly) {
     return (
@@ -73,11 +74,20 @@ export function Hotbar({ readOnly }: HotbarProps) {
 
         {inventory.length < 4 && <EmptySlot onClick={() => setShowSeedForm(true)} />}
 
+        {viewMode === 'time' && (
+          <ToolButton
+            symbol="/"
+            active={activeTool === 'split'}
+            onClick={() => setActiveTool(activeTool === 'split' ? null : 'split')}
+            style={{ marginLeft: 'auto' }}
+          />
+        )}
+
         <ToolButton
           symbol="✕"
           active={activeTool === 'erase'}
           onClick={() => setActiveTool(activeTool === 'erase' ? null : 'erase')}
-          style={{ marginLeft: 'auto' }}
+          style={viewMode !== 'time' ? { marginLeft: 'auto' } : undefined}
         />
 
         <ToolButton symbol="⚙" onClick={() => {}} />

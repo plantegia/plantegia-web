@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import type {
   Space,
   Plant,
+  PlantSegment,
   Strain,
   Seed,
   Selection,
@@ -14,9 +15,11 @@ import type {
   PlantSize,
   Generation,
   Plantation,
+  SlotId,
 } from '../types';
 import { generateAbbreviation, generatePlantCode } from '../utils/abbreviation';
 import { DEFAULT_ZOOM } from '../constants';
+import { getCurrentSegment } from '../utils/migration';
 
 interface DataSnapshot {
   spaces: Space[];
@@ -71,6 +74,12 @@ interface AppState {
   }) => string;
   updatePlant: (id: string, updates: Partial<Omit<Plant, 'id' | 'code'>>, skipHistory?: boolean) => void;
   deletePlant: (id: string) => void;
+
+  // Segment operations
+  splitSegment: (plantId: string, segmentId: string, splitDate: Date) => void;
+  moveSegmentToSlot: (plantId: string, segmentId: string, slot: SlotId) => void;
+  shiftPlantInTime: (plantId: string, daysDelta: number) => void;
+  resizeSegment: (plantId: string, segmentId: string, edge: 'start' | 'end', newDate: Date) => void;
 
   createStrain: (data: { name: string; floweringDays?: number; vegDays?: number }) => string;
   updateStrain: (id: string, updates: Partial<Omit<Strain, 'id'>>) => void;
@@ -220,6 +229,18 @@ export const useAppStore = create<AppState>()(
         const code = generatePlantCode(abbreviation, existingCodes);
 
         const now = new Date().toISOString();
+        const startDate = data.startedAt || now;
+
+        // Create initial segment
+        const initialSegment: PlantSegment = {
+          id: nanoid(),
+          spaceId: data.spaceId,
+          gridX: data.gridX,
+          gridY: data.gridY,
+          startDate,
+          endDate: null,
+        };
+
         set((s) => {
           s.plants.push({
             id,
@@ -231,8 +252,9 @@ export const useAppStore = create<AppState>()(
             size: data.size || 1,
             stage: data.stage || 'germinating',
             generation: data.generation || 'seed',
-            startedAt: data.startedAt || now,
-            stageStartedAt: data.startedAt || now,
+            startedAt: startDate,
+            stageStartedAt: startDate,
+            segments: [initialSegment],
           });
         });
 
@@ -258,6 +280,120 @@ export const useAppStore = create<AppState>()(
           state.plants = state.plants.filter((p) => p.id !== id);
           if (state.selection?.type === 'plant' && state.selection.id === id) {
             state.selection = null;
+          }
+        });
+      },
+
+      splitSegment: (plantId, segmentId, splitDate) => {
+        saveToHistory();
+        set((state) => {
+          const plant = state.plants.find((p) => p.id === plantId);
+          if (!plant || !plant.segments) return;
+
+          const segmentIndex = plant.segments.findIndex((s) => s.id === segmentId);
+          if (segmentIndex === -1) return;
+
+          const segment = plant.segments[segmentIndex];
+          const splitDateStr = splitDate.toISOString().split('T')[0];
+
+          // Original segment ends at split point
+          const newSegment1: PlantSegment = {
+            ...segment,
+            endDate: splitDateStr,
+          };
+
+          // New segment starts at split point (same location initially)
+          const newSegment2: PlantSegment = {
+            id: nanoid(),
+            spaceId: segment.spaceId,
+            gridX: segment.gridX,
+            gridY: segment.gridY,
+            startDate: splitDateStr,
+            endDate: segment.endDate,
+          };
+
+          // Replace original with two segments
+          plant.segments.splice(segmentIndex, 1, newSegment1, newSegment2);
+        });
+      },
+
+      moveSegmentToSlot: (plantId, segmentId, slot) => {
+        set((state) => {
+          const plant = state.plants.find((p) => p.id === plantId);
+          if (!plant || !plant.segments) return;
+
+          const segment = plant.segments.find((s) => s.id === segmentId);
+          if (!segment) return;
+
+          segment.spaceId = slot.spaceId;
+          segment.gridX = slot.gridX;
+          segment.gridY = slot.gridY;
+
+          // Sync backward compat fields with current segment
+          const currentSeg = getCurrentSegment(plant);
+          if (currentSeg) {
+            plant.spaceId = currentSeg.spaceId;
+            plant.gridX = currentSeg.gridX;
+            plant.gridY = currentSeg.gridY;
+          }
+        });
+      },
+
+      shiftPlantInTime: (plantId, daysDelta) => {
+        set((state) => {
+          const plant = state.plants.find((p) => p.id === plantId);
+          if (!plant || !plant.segments) return;
+
+          const addDays = (dateStr: string, days: number): string => {
+            const date = new Date(dateStr);
+            date.setDate(date.getDate() + days);
+            return date.toISOString();
+          };
+
+          // Shift startedAt
+          plant.startedAt = addDays(plant.startedAt, daysDelta);
+          plant.stageStartedAt = addDays(plant.stageStartedAt, daysDelta);
+
+          // Shift all segment dates
+          plant.segments.forEach((segment) => {
+            segment.startDate = addDays(segment.startDate, daysDelta);
+            if (segment.endDate) {
+              segment.endDate = addDays(segment.endDate, daysDelta);
+            }
+          });
+        });
+      },
+
+      resizeSegment: (plantId, segmentId, edge, newDate) => {
+        set((state) => {
+          const plant = state.plants.find((p) => p.id === plantId);
+          if (!plant || !plant.segments) return;
+
+          const segmentIndex = plant.segments.findIndex((s) => s.id === segmentId);
+          if (segmentIndex === -1) return;
+
+          const segment = plant.segments[segmentIndex];
+          const newDateStr = newDate.toISOString().split('T')[0];
+
+          if (edge === 'start') {
+            // Moving start date
+            // If this is the first segment, also update plant.startedAt
+            if (segmentIndex === 0) {
+              plant.startedAt = newDate.toISOString();
+              plant.stageStartedAt = newDate.toISOString();
+            }
+            // Update previous segment's endDate if exists
+            if (segmentIndex > 0) {
+              plant.segments[segmentIndex - 1].endDate = newDateStr;
+            }
+            segment.startDate = newDateStr;
+          } else {
+            // Moving end date
+            segment.endDate = newDateStr;
+            // Update next segment's startDate if exists
+            if (segmentIndex < plant.segments.length - 1) {
+              plant.segments[segmentIndex + 1].startDate = newDateStr;
+            }
           }
         });
       },

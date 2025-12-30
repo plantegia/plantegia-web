@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Plantation, Space, Plant, Strain, Seed } from '../types';
+import { migratePlantation } from '../utils/migration';
 
 const PLANTATIONS = 'plantations';
 
@@ -28,7 +29,7 @@ export interface PlantationData {
 }
 
 function toPlantation(id: string, data: PlantationData): Plantation {
-  return {
+  const plantation: Plantation = {
     id,
     ownerId: data.ownerId,
     name: data.name,
@@ -40,6 +41,9 @@ function toPlantation(id: string, data: PlantationData): Plantation {
     strains: data.strains || [],
     inventory: data.inventory || [],
   };
+
+  // Migrate plants to segment-based structure
+  return migratePlantation(plantation);
 }
 
 export async function getPlantation(id: string): Promise<Plantation | null> {

@@ -1,11 +1,29 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { screenToWorld, findSpaceAt, findCellInSpace, findPlantAt, canPlacePlant, snapToGrid, findSpaceEdgeAt, SpaceEdge, findPlantAtTimeView, TIME_VIEW_CONSTANTS, buildTimeViewCells, findStageHandleAt, getTimeViewColumnAt, getStageDuration, getPlantBounds, getCanvasCssHeight } from '../utils/grid';
+import {
+  screenToWorld,
+  findSpaceAt,
+  findCellInSpace,
+  findPlantAt,
+  canPlacePlant,
+  snapToGrid,
+  findSpaceEdgeAt,
+  SpaceEdge,
+  TIME_VIEW_CONSTANTS,
+  getPlantBounds,
+  getCanvasCssHeight,
+  findSegmentAtHorizontal,
+  findSlotAtY,
+  screenXToDate,
+  buildSlotList,
+  SegmentHitZone,
+  getStageDuration,
+} from '../utils/grid';
 import { MIN_ZOOM, MAX_ZOOM, CELL_SIZE, SPACE_COLORS } from '../constants';
-import type { Point, Space, Plant, Stage } from '../types';
+import type { Point, Space, Plant, Stage, PlantSegment } from '../types';
 
 type SpaceDragMode = 'none' | 'move' | 'resize';
-type TimeViewDragMode = 'none' | 'plant-move' | 'stage-resize';
+type TimeViewDragMode = 'none' | 'segment-move-x' | 'segment-move-y' | 'stage-resize' | 'pan';
 
 interface GestureState {
   isPanning: boolean;
@@ -24,12 +42,15 @@ interface GestureState {
   draggedSpaceId: string | null;
   resizeEdge: SpaceEdge | null;
   originalSpace: Space | null;
-  // Time View drag state
+  // New Time View drag state (horizontal timeline)
   timeViewDragMode: TimeViewDragMode;
-  draggedPlant: Plant | null;
-  draggedStage: Stage | null;
-  originalStageDays: number;
-  startColumnIndex: number;
+  draggedPlantId: string | null;
+  draggedSegmentId: string | null;
+  segmentHitZone: SegmentHitZone | null;
+  originalStartedAt: string | null;
+  // Stage resize
+  resizingStage: Stage | null;
+  originalStageDays: number | null;
 }
 
 function getDistance(t1: Touch | MouseEvent, t2: Touch): number {
@@ -64,10 +85,12 @@ export function useGestures(
     resizeEdge: null,
     originalSpace: null,
     timeViewDragMode: 'none',
-    draggedPlant: null,
-    draggedStage: null,
-    originalStageDays: 0,
-    startColumnIndex: -1,
+    draggedPlantId: null,
+    draggedSegmentId: null,
+    segmentHitZone: null,
+    originalStartedAt: null,
+    resizingStage: null,
+    originalStageDays: null,
   });
 
   const {
@@ -82,6 +105,8 @@ export function useGestures(
     timelineOffset, setTimelineOffset,
     timelineHorizontalOffset, setTimelineHorizontalOffset,
     saveSnapshot,
+    // Segment operations
+    splitSegment, moveSegmentToSlot, shiftPlantInTime,
   } = useAppStore();
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number): Point => {
@@ -161,54 +186,51 @@ export function useGestures(
     }
 
     if (selectedSeedId && viewMode === 'time') {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const { dayHeight, columnWidth, leftMargin } = TIME_VIEW_CONSTANTS;
-      const canvasHeight = getCanvasCssHeight(canvas);
-      const todayY = canvasHeight / 2 - timelineOffset;
-
-      const allCells: { spaceId: string; gridX: number; gridY: number; hasPlant: boolean }[] = [];
-      spaces.forEach((space) => {
-        for (let y = 0; y < space.gridHeight; y++) {
-          for (let x = 0; x < space.gridWidth; x++) {
-            const hasPlant = plants.some(
-              (p) => p.spaceId === space.id && p.gridX === x && p.gridY === y
-            );
-            allCells.push({ spaceId: space.id, gridX: x, gridY: y, hasPlant });
-          }
-        }
-      });
-
-      const columnIndex = Math.floor((screenPos.x - leftMargin - timelineHorizontalOffset) / columnWidth);
-      if (columnIndex < 0 || columnIndex >= allCells.length) return;
-
-      const targetCell = allCells[columnIndex];
-      if (targetCell.hasPlant) return;
-
-      // daysFromToday can be negative (past) or positive (future)
-      const daysFromToday = Math.round((todayY - screenPos.y) / dayHeight);
+      // In new horizontal Time View, tapping with seed selected places a plant at that slot/date
+      const slots = buildSlotList(spaces);
+      const slot = findSlotAtY(screenPos.y, timelineOffset, spaces);
+      if (!slot || slot.isSpaceHeader) return;
 
       const seed = inventory.find(s => s.id === selectedSeedId);
       if (!seed || seed.quantity <= 0) return;
 
-      const space = spaces.find(s => s.id === targetCell.spaceId);
+      const space = spaces.find(s => s.id === slot.spaceId);
       if (!space) return;
 
-      if (!canPlacePlant(space.id, targetCell.gridX, targetCell.gridY, 1, space, plants)) return;
+      if (!canPlacePlant(space.id, slot.gridX, slot.gridY, 1, space, plants)) return;
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() + daysFromToday);
+      // Get date from X position
+      const startDate = screenXToDate(screenPos.x, timelineHorizontalOffset);
 
       createPlant({
-        spaceId: targetCell.spaceId,
+        spaceId: slot.spaceId,
         strainId: seed.strainId,
-        gridX: targetCell.gridX,
-        gridY: targetCell.gridY,
+        gridX: slot.gridX,
+        gridY: slot.gridY,
         generation: seed.isClone ? 'clone' : 'seed',
         startedAt: startDate.toISOString(),
       });
       consumeSeed(selectedSeedId);
+      return;
+    }
+
+    // Handle split tool in Time View
+    if (activeTool === 'split' && viewMode === 'time') {
+      const hitResult = findSegmentAtHorizontal(
+        screenPos.x,
+        screenPos.y,
+        plants,
+        strains,
+        spaces,
+        timelineHorizontalOffset,
+        timelineOffset
+      );
+
+      if (hitResult) {
+        const { plant, segmentId } = hitResult;
+        const splitDate = screenXToDate(screenPos.x, timelineHorizontalOffset);
+        splitSegment(plant.id, segmentId, splitDate);
+      }
       return;
     }
 
@@ -236,9 +258,9 @@ export function useGestures(
       setSelection(null);
     }
   }, [
-    canvasRef, pan, zoom, activeTool, selectedSeedId, spaces, plants, inventory, viewMode,
+    canvasRef, pan, zoom, activeTool, selectedSeedId, spaces, plants, strains, inventory, viewMode,
     deletePlant, deleteSpace, createPlant, consumeSeed, setSelection,
-    timelineOffset, timelineHorizontalOffset, readOnly,
+    timelineOffset, timelineHorizontalOffset, readOnly, splitSegment,
   ]);
 
   const handleDragEnd = useCallback((startWorld: Point, endWorld: Point) => {
@@ -392,10 +414,10 @@ export function useGestures(
       g.resizeEdge = null;
       g.originalSpace = null;
       g.timeViewDragMode = 'none';
-      g.draggedPlant = null;
-      g.draggedStage = null;
-      g.originalStageDays = 0;
-      g.startColumnIndex = -1;
+      g.draggedPlantId = null;
+      g.draggedSegmentId = null;
+      g.segmentHitZone = null;
+      g.originalStartedAt = null;
 
       // Check if clicking on selected space's edges for resize/move (Space View)
       if (!readOnly && selection?.type === 'space' && viewMode === 'space' && !activeTool && !selectedSeedId) {
@@ -417,61 +439,48 @@ export function useGestures(
         }
       }
 
-      // Check for Time View drag interactions
-      if (!readOnly && viewMode === 'time' && !activeTool && !selectedSeedId) {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
+      // Check for Time View drag interactions (new horizontal timeline)
+      if (!readOnly && viewMode === 'time' && !selectedSeedId) {
+        // Check if split tool is active - handled on tap, not drag
+        if (activeTool === 'split') {
+          // Split tool handled in handleTap
+          return;
+        }
 
-        const canvasHeight = getCanvasCssHeight(canvas);
-        const { columnWidth, leftMargin } = TIME_VIEW_CONSTANTS;
-        const allCells = buildTimeViewCells(spaces, plants);
-
-        // First, find which plant (if any) is at the click position
-        const plantAtClick = findPlantAtTimeView(
+        // Check for segment hit
+        const hitResult = findSegmentAtHorizontal(
           screenPos.x,
           screenPos.y,
-          canvasHeight,
-          timelineOffset,
-          timelineHorizontalOffset,
-          spaces,
           plants,
-          strains
+          strains,
+          spaces,
+          timelineHorizontalOffset,
+          timelineOffset
         );
 
-        if (plantAtClick) {
-          const strain = strains.find(s => s.id === plantAtClick.strainId);
-          const plantColumnIndex = allCells.findIndex(c => c.plant?.id === plantAtClick.id);
+        if (hitResult && !activeTool) {
+          const { plant, segmentId, hitZone, stage } = hitResult;
 
-          if (plantColumnIndex >= 0) {
-            const columnX = leftMargin + plantColumnIndex * columnWidth + timelineHorizontalOffset;
+          saveSnapshot(); // Save before drag starts
+          g.draggedPlantId = plant.id;
+          g.draggedSegmentId = segmentId;
+          g.segmentHitZone = hitZone;
+          g.originalStartedAt = plant.startedAt;
 
-            // Check for stage handle drag (handles are always active on any plant)
-            const stageHandle = findStageHandleAt(
-              screenPos.x,
-              screenPos.y,
-              plantAtClick,
-              columnX,
-              strain,
-              canvasHeight,
-              timelineOffset
-            );
-
-            if (stageHandle) {
-              saveSnapshot(); // Save before drag starts
-              g.timeViewDragMode = 'stage-resize';
-              g.draggedPlant = { ...plantAtClick };
-              g.draggedStage = stageHandle;
-              g.originalStageDays = getStageDuration(stageHandle, plantAtClick, strain);
-              g.startColumnIndex = plantColumnIndex;
-              return;
-            }
-
-            // Otherwise, set up plant move drag
-            saveSnapshot(); // Save before drag starts
-            g.timeViewDragMode = 'plant-move';
-            g.draggedPlant = { ...plantAtClick };
-            g.startColumnIndex = plantColumnIndex;
+          // Determine drag mode based on hit zone
+          if (hitZone === 'stage-handle' && stage) {
+            g.timeViewDragMode = 'stage-resize';
+            g.resizingStage = stage;
+            // Get strain for this plant
+            const strain = strains.find((s) => s.id === plant.strainId);
+            g.originalStageDays = getStageDuration(stage, plant, strain);
+          } else {
+            // Body - can switch to Y-move based on movement direction
+            g.timeViewDragMode = 'segment-move-x';
+            g.resizingStage = null;
+            g.originalStageDays = null;
           }
+          return;
         }
       }
     };
@@ -540,65 +549,61 @@ export function useGestures(
         return;
       }
 
-      // Handle Time View drag interactions
-      if (g.timeViewDragMode !== 'none' && g.draggedPlant) {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
+      // Handle new horizontal Time View drag interactions
+      if (g.timeViewDragMode !== 'none' && g.draggedPlantId) {
+        const { dayWidth, slotHeight } = TIME_VIEW_CONSTANTS;
 
-        const { dayHeight, weekHeight } = TIME_VIEW_CONSTANTS;
+        // Detect drag direction and lock to X or Y movement
+        // Once we've moved enough in one direction, lock to that axis
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        const moveThreshold = 10; // pixels before locking direction
 
-        if (g.timeViewDragMode === 'stage-resize' && g.draggedStage) {
-          // Calculate new stage duration based on Y delta
-          // Moving up (negative dy) = longer duration, moving down = shorter
-          const weeksDelta = Math.round(-dy / weekHeight);
-          const daysDelta = weeksDelta * 7;
-          const newDays = Math.max(7, g.originalStageDays + daysDelta); // Minimum 1 week
+        // Determine movement direction if not yet locked
+        if (g.timeViewDragMode === 'segment-move-x' && absDy > moveThreshold && absDy > absDx * 1.5) {
+          // User is dragging more vertically - switch to Y mode
+          g.timeViewDragMode = 'segment-move-y';
+        }
 
-          // Update plant's customStageDays
-          const currentPlant = plants.find(p => p.id === g.draggedPlant!.id);
-          if (currentPlant) {
-            const newCustomStageDays = {
-              ...currentPlant.customStageDays,
-              [g.draggedStage]: newDays,
-            };
-            updatePlant(g.draggedPlant.id, { customStageDays: newCustomStageDays }, true);
+        if (g.timeViewDragMode === 'segment-move-x') {
+          // Horizontal drag = shift plant in time
+          // Calculate days delta based on X movement
+          const daysDelta = Math.round(dx / dayWidth);
+
+          if (daysDelta !== 0) {
+            shiftPlantInTime(g.draggedPlantId, daysDelta);
+            // Reset dx tracking by updating start position
+            g.startScreen.x = screenPos.x;
           }
           return;
         }
 
-        if (g.timeViewDragMode === 'plant-move') {
-          // Calculate new column and time offset
-          const columnResult = getTimeViewColumnAt(screenPos.x, timelineHorizontalOffset, spaces, plants);
-          if (columnResult && columnResult.columnIndex !== g.startColumnIndex) {
-            const targetCell = columnResult.cell;
-
-            // Check if target cell is empty or is the dragged plant itself
-            if (!targetCell.plant || targetCell.plant.id === g.draggedPlant.id) {
-              const targetSpace = spaces.find(s => s.id === targetCell.spaceId);
-              if (targetSpace && canPlacePlant(targetCell.spaceId, targetCell.gridX, targetCell.gridY, g.draggedPlant.size, targetSpace, plants, g.draggedPlant.id)) {
-                updatePlant(g.draggedPlant.id, {
-                  spaceId: targetCell.spaceId,
-                  gridX: targetCell.gridX,
-                  gridY: targetCell.gridY,
-                }, true);
-                // Update start column index
-                g.startColumnIndex = columnResult.columnIndex;
-              }
-            }
+        if (g.timeViewDragMode === 'segment-move-y') {
+          // Vertical drag = move segment to different slot
+          const slot = findSlotAtY(screenPos.y, timelineOffset, spaces);
+          if (slot && !slot.isSpaceHeader && g.draggedSegmentId) {
+            moveSegmentToSlot(g.draggedPlantId, g.draggedSegmentId, {
+              spaceId: slot.spaceId,
+              gridX: slot.gridX,
+              gridY: slot.gridY,
+            });
           }
+          return;
+        }
 
-          // Calculate time shift (snap to weeks)
-          const weeksDelta = Math.round(-dy / weekHeight);
-          if (weeksDelta !== 0) {
-            const daysDelta = weeksDelta * 7;
-            const currentPlant = plants.find(p => p.id === g.draggedPlant!.id);
-            if (currentPlant) {
-              const currentStartDate = new Date(currentPlant.startedAt);
-              const newStartDate = new Date(currentStartDate.getTime() + daysDelta * 24 * 60 * 60 * 1000);
-              updatePlant(g.draggedPlant.id, { startedAt: newStartDate.toISOString() }, true);
-              // Reset dy tracking
-              g.startScreen.y = screenPos.y;
-            }
+        if (g.timeViewDragMode === 'stage-resize' && g.resizingStage && g.originalStageDays !== null) {
+          // Resize stage duration by dragging its end boundary
+          const daysDelta = Math.round(dx / dayWidth);
+          const newDays = Math.max(1, g.originalStageDays + daysDelta);
+
+          // Update plant's customStageDays
+          const plant = plants.find((p) => p.id === g.draggedPlantId);
+          if (plant) {
+            const newCustomStageDays = {
+              ...plant.customStageDays,
+              [g.resizingStage]: newDays,
+            };
+            updatePlant(g.draggedPlantId, { customStageDays: newCustomStageDays }, true);
           }
           return;
         }
@@ -642,10 +647,10 @@ export function useGestures(
       // If we were doing Time View drag, don't trigger tap
       if (g.timeViewDragMode !== 'none') {
         g.timeViewDragMode = 'none';
-        g.draggedPlant = null;
-        g.draggedStage = null;
-        g.originalStageDays = 0;
-        g.startColumnIndex = -1;
+        g.draggedPlantId = null;
+        g.draggedSegmentId = null;
+        g.segmentHitZone = null;
+        g.originalStartedAt = null;
         g.moved = false;
         return;
       }
@@ -706,6 +711,6 @@ export function useGestures(
     getCanvasPoint, handleTap, handleDragEnd, setPan, setZoom, setDragPreview, dragPreview,
     timelineOffset, timelineHorizontalOffset, setTimelineOffset, setTimelineHorizontalOffset,
     selection, spaces, plants, strains, readOnly, updateSpace, updatePlant, canResizeSpace, setSelection,
-    saveSnapshot,
+    saveSnapshot, splitSegment, moveSegmentToSlot, shiftPlantInTime,
   ]);
 }

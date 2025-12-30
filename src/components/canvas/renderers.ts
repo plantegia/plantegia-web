@@ -1,6 +1,13 @@
-import type { Space, Plant, Strain, Stage } from '../../types';
-import { COLORS, STAGE_COLORS, CELL_SIZE, SPACE_COLORS, STAGE_ABBREV, SPACE_HANDLE_SIZE, TIME_VIEW_HANDLE_HEIGHT, MIN_SEGMENT_HEIGHT_FOR_LABEL } from '../../constants';
-import { getPlantCells, buildPlantTimelineSegments, TIME_VIEW_CONSTANTS } from '../../utils/grid';
+import type { Space, Plant, Strain, Stage, PlantSegment } from '../../types';
+import { COLORS, STAGE_COLORS, CELL_SIZE, SPACE_COLORS, STAGE_ABBREV, SPACE_HANDLE_SIZE, STAGES } from '../../constants';
+import {
+  getPlantCells,
+  TIME_VIEW_CONSTANTS,
+  buildSlotList,
+  dateToScreenX,
+  getPlantEndDate,
+  getStageDuration,
+} from '../../utils/grid';
 
 export function renderSpaceView(
   ctx: CanvasRenderingContext2D,
@@ -282,6 +289,7 @@ function drawDragPreview(
   ctx.setLineDash([]);
 }
 
+// New horizontal Time View (X = dates, Y = slots)
 export function renderTimeView(
   ctx: CanvasRenderingContext2D,
   spaces: Space[],
@@ -289,196 +297,426 @@ export function renderTimeView(
   strains: Strain[],
   canvasWidth: number,
   canvasHeight: number,
-  timelineOffset: number,
-  horizontalOffset: number = 0
+  panY: number,
+  panX: number = 0
 ) {
   const today = new Date();
-  const { dayHeight, weekHeight, columnWidth, headerHeight, leftMargin } = TIME_VIEW_CONSTANTS;
+  const {
+    dayWidth,
+    weekWidth,
+    slotHeight,
+    spaceHeaderHeight,
+    leftMargin,
+    topMargin,
+    segmentHeight,
+    segmentGap,
+  } = TIME_VIEW_CONSTANTS;
 
-  const allCells: { spaceId: string; spaceName: string; gridX: number; gridY: number; plant: Plant | null }[] = [];
+  // Build slot list
+  const slots = buildSlotList(spaces);
 
-  spaces.forEach((space) => {
-    for (let y = 0; y < space.gridHeight; y++) {
-      for (let x = 0; x < space.gridWidth; x++) {
-        const plant = plants.find(
-          (p) => p.spaceId === space.id && p.gridX === x && p.gridY === y
-        );
-        allCells.push({
-          spaceId: space.id,
-          spaceName: space.name,
-          gridX: x,
-          gridY: y,
-          plant: plant || null,
-        });
-      }
-    }
-  });
+  // Calculate total height needed for all slots
+  const totalSlotsHeight = slots.length > 0
+    ? slots[slots.length - 1].yOffset + (slots[slots.length - 1].isSpaceHeader ? spaceHeaderHeight : slotHeight)
+    : 0;
 
-  const todayY = canvasHeight / 2 - timelineOffset;
+  // Draw background
+  ctx.fillStyle = COLORS.background;
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  // Draw horizontal week grid lines
+  // Draw week grid lines (vertical)
   ctx.strokeStyle = COLORS.border;
   ctx.lineWidth = 0.5;
-  ctx.globalAlpha = 0.4;
+  ctx.globalAlpha = 0.3;
 
-  // Calculate range of weeks to draw (beyond visible area for smooth scrolling)
-  const weeksAbove = Math.ceil((todayY - headerHeight) / weekHeight) + 2;
-  const weeksBelow = Math.ceil((canvasHeight - todayY) / weekHeight) + 2;
+  const weeksToShow = Math.ceil(canvasWidth / weekWidth) + 10;
+  const startWeek = Math.floor(-panX / weekWidth) - 5;
 
-  for (let w = -weeksBelow; w <= weeksAbove; w++) {
-    const y = todayY - w * weekHeight;
-    if (y > headerHeight && y < canvasHeight) {
+  for (let w = startWeek; w < startWeek + weeksToShow; w++) {
+    const x = leftMargin + panX + w * weekWidth;
+    if (x > leftMargin && x < canvasWidth) {
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvasWidth, y);
+      ctx.moveTo(x, topMargin);
+      ctx.lineTo(x, canvasHeight);
       ctx.stroke();
     }
   }
   ctx.globalAlpha = 1;
 
-  // Draw TODAY line
-  ctx.strokeStyle = COLORS.orange;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, todayY);
-  ctx.lineTo(canvasWidth, todayY);
-  ctx.stroke();
+  // Draw slot row backgrounds and labels
+  ctx.save();
+  slots.forEach((slot) => {
+    const y = topMargin + slot.yOffset - panY;
 
-  ctx.fillStyle = COLORS.orange;
-  ctx.font = '10px "Space Mono", monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('TODAY', 4, todayY - 6);
+    // Skip if off screen
+    if (y + slotHeight < topMargin || y > canvasHeight) return;
 
-  // Draw all cells with horizontal offset
-  allCells.forEach((cell, i) => {
-    const x = leftMargin + i * columnWidth + horizontalOffset;
-
-    // Skip if completely off screen
-    if (x + columnWidth < 0 || x > canvasWidth) return;
-
-    // Draw header
-    ctx.fillStyle = COLORS.text;
-    ctx.font = '10px "Space Mono", monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(
-      cell.plant ? cell.plant.code : `${cell.spaceName.slice(0, 3).toUpperCase()}`,
-      x + columnWidth / 2,
-      headerHeight / 2
-    );
-
-    if (cell.plant) {
-      const strain = strains.find((s) => s.id === cell.plant!.strainId);
-
-      // Use shared function for timeline segments
-      const segments = buildPlantTimelineSegments(cell.plant, strain, today);
-
-      // Draw segments
-      // startDay/endDay: negative = past, positive = future
-      // Y coords: todayY is baseline, above = future (smaller Y), below = past (larger Y)
-      const drawnSegments: { stage: Stage; topY: number; bottomY: number }[] = [];
-
-      segments.forEach((seg) => {
-        // Convert days to Y positions (negative days = past = below TODAY = larger Y)
-        const segTopY = todayY - seg.endDay * dayHeight;
-        const segBottomY = todayY - seg.startDay * dayHeight;
-        const segHeight = segBottomY - segTopY;
-
-        if (segHeight <= 0) return;
-
-        drawnSegments.push({ stage: seg.stage, topY: segTopY, bottomY: segBottomY });
-
-        const isFuture = seg.endDay > 0;
-        if (isFuture) {
-          ctx.fillStyle = STAGE_COLORS[seg.stage] + '80'; // 50% opacity for future
-        } else {
-          ctx.fillStyle = STAGE_COLORS[seg.stage]; // full color for past
-        }
-        ctx.fillRect(x + 2, segTopY, columnWidth - 4, segHeight);
-
-        // Draw stage label if segment is tall enough
-        if (segHeight >= MIN_SEGMENT_HEIGHT_FOR_LABEL) {
-          const centerX = x + columnWidth / 2;
-          const centerY = segTopY + segHeight / 2;
-          ctx.save();
-          ctx.fillStyle = COLORS.text;
-          ctx.globalAlpha = isFuture ? 0.6 : 0.9;
-          ctx.font = '8px "Space Mono", monospace';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(STAGE_ABBREV[seg.stage], centerX, centerY);
-          ctx.restore();
-        }
-
-        // Draw stage boundary line at transition
-        ctx.strokeStyle = COLORS.background;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x + 2, segTopY);
-        ctx.lineTo(x + columnWidth - 2, segTopY);
-        ctx.stroke();
-      });
-
-      // Draw drag handles at stage boundaries (for future stages only) - always visible
-      if (drawnSegments.length > 0) {
-        const handleWidth = columnWidth - 4;
-
-        drawnSegments.forEach((seg, idx) => {
-          // Only show handles for editable stages (not germinating or harvested)
-          // and only for future stage boundaries (above TODAY line)
-          const isEditableStage = seg.stage !== 'germinating' && seg.stage !== 'harvested';
-          if (seg.topY < todayY && idx > 0 && isEditableStage) {
-            // Draw handle at the top of this segment (boundary between stages)
-            // Background bar
-            ctx.fillStyle = COLORS.teal;
-            ctx.globalAlpha = 0.9;
-            ctx.fillRect(
-              x + 2,
-              seg.topY - TIME_VIEW_HANDLE_HEIGHT / 2,
-              handleWidth,
-              TIME_VIEW_HANDLE_HEIGHT
-            );
-            // Center grip lines for visual affordance
-            ctx.strokeStyle = COLORS.background;
-            ctx.lineWidth = 1;
-            ctx.globalAlpha = 0.5;
-            const gripY = seg.topY;
-            ctx.beginPath();
-            ctx.moveTo(x + 10, gripY - 2);
-            ctx.lineTo(x + columnWidth - 10, gripY - 2);
-            ctx.moveTo(x + 10, gripY + 2);
-            ctx.lineTo(x + columnWidth - 10, gripY + 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-          }
-        });
-      }
+    if (slot.isSpaceHeader) {
+      // Space header row
+      ctx.fillStyle = COLORS.background;
+      ctx.fillRect(0, y, canvasWidth, spaceHeaderHeight);
 
       ctx.fillStyle = COLORS.text;
-      ctx.font = '9px "Space Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(cell.plant.code, x + columnWidth / 2, todayY + 12);
-    } else {
+      ctx.font = 'bold 10px "Space Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(slot.spaceName.toUpperCase(), 8, y + spaceHeaderHeight / 2);
+
+      // Separator line
       ctx.strokeStyle = COLORS.border;
       ctx.lineWidth = 1;
-      ctx.setLineDash([2, 2]);
       ctx.beginPath();
-      ctx.moveTo(x + columnWidth / 2, headerHeight);
-      ctx.lineTo(x + columnWidth / 2, canvasHeight);
+      ctx.moveTo(0, y + spaceHeaderHeight);
+      ctx.lineTo(canvasWidth, y + spaceHeaderHeight);
       ctx.stroke();
-      ctx.setLineDash([]);
+    } else {
+      // Slot row - alternating background
+      const isEven = (slot.gridX + slot.gridY) % 2 === 0;
+      ctx.fillStyle = isEven ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.1)';
+      ctx.fillRect(leftMargin, y, canvasWidth - leftMargin, slotHeight);
+
+      // Slot label
+      ctx.fillStyle = COLORS.textMuted;
+      ctx.font = '9px "Space Mono", monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${slot.gridX},${slot.gridY}`, leftMargin - 8, y + slotHeight / 2);
+
+      // Row separator
+      ctx.strokeStyle = COLORS.border;
+      ctx.globalAlpha = 0.2;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(leftMargin, y + slotHeight);
+      ctx.lineTo(canvasWidth, y + slotHeight);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  });
+  ctx.restore();
+
+  // Draw TODAY line (vertical)
+  const todayX = dateToScreenX(today, panX, today);
+  if (todayX > leftMargin && todayX < canvasWidth) {
+    ctx.strokeStyle = COLORS.orange;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(todayX, topMargin);
+    ctx.lineTo(todayX, canvasHeight);
+    ctx.stroke();
+
+    // TODAY label
+    ctx.fillStyle = COLORS.orange;
+    ctx.font = '9px "Space Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TODAY', todayX, topMargin - 6);
+  }
+
+  // Draw date labels at top
+  ctx.fillStyle = COLORS.textMuted;
+  ctx.font = '9px "Space Mono", monospace';
+  ctx.textAlign = 'center';
+
+  const daysToShow = Math.ceil(canvasWidth / dayWidth) + 60;
+  const startDay = Math.floor(-panX / dayWidth) - 30;
+
+  for (let d = startDay; d < startDay + daysToShow; d += 7) {
+    const dateObj = new Date(today);
+    dateObj.setDate(dateObj.getDate() + d);
+    const x = dateToScreenX(dateObj, panX, today);
+
+    if (x > leftMargin && x < canvasWidth) {
+      const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
+      const day = dateObj.getDate();
+      ctx.fillText(`${month} ${day}`, x, topMargin / 2);
+    }
+  }
+
+  // Draw plant segments
+  plants.forEach((plant) => {
+    if (!plant.segments || plant.segments.length === 0) return;
+
+    const strain = strains.find((s) => s.id === plant.strainId);
+    const plantEndDate = getPlantEndDate(plant, strain);
+
+    // Draw each segment
+    plant.segments.forEach((segment, segIdx) => {
+      const slot = slots.find(
+        (s) => !s.isSpaceHeader && s.spaceId === segment.spaceId && s.gridX === segment.gridX && s.gridY === segment.gridY
+      );
+      if (!slot) return;
+
+      const segStartDate = new Date(segment.startDate);
+      const segEndDate = segment.endDate ? new Date(segment.endDate) : plantEndDate;
+
+      const x1 = dateToScreenX(segStartDate, panX, today);
+      const x2 = dateToScreenX(segEndDate, panX, today);
+      const y = topMargin + slot.yOffset - panY + segmentGap;
+
+      // Skip if off screen
+      if (x2 < leftMargin || x1 > canvasWidth) return;
+      if (y + segmentHeight < topMargin || y > canvasHeight) return;
+
+      // Draw segment with stage colors
+      drawSegmentWithStages(ctx, plant, strain, segment, x1, x2, y, segmentHeight, today, leftMargin);
+
+      // Draw plant code label
+      const segWidth = x2 - x1;
+      if (segWidth > 40) {
+        ctx.fillStyle = COLORS.text;
+        ctx.font = 'bold 9px "Space Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(plant.code, Math.max(leftMargin + 20, x1) + Math.min(segWidth, x2 - leftMargin) / 2, y + segmentHeight / 2);
+      }
+    });
+
+    // Draw Bezier connections between segments
+    if (plant.segments.length > 1) {
+      drawSegmentConnections(ctx, plant, strain, slots, panX, panY, today, plantEndDate);
     }
   });
 
-  // Draw day labels
+  // Draw left margin background (to cover segments that extend into it)
+  ctx.fillStyle = COLORS.background;
+  ctx.fillRect(0, 0, leftMargin, canvasHeight);
+
+  // Redraw slot labels on top
+  slots.forEach((slot) => {
+    const y = topMargin + slot.yOffset - panY;
+    if (y + slotHeight < topMargin || y > canvasHeight) return;
+
+    if (slot.isSpaceHeader) {
+      ctx.fillStyle = COLORS.text;
+      ctx.font = 'bold 10px "Space Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(slot.spaceName.toUpperCase(), 8, y + spaceHeaderHeight / 2);
+    } else {
+      ctx.fillStyle = COLORS.textMuted;
+      ctx.font = '9px "Space Mono", monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${slot.gridX},${slot.gridY}`, leftMargin - 8, y + slotHeight / 2);
+    }
+  });
+
+  // Draw top margin background
+  ctx.fillStyle = COLORS.background;
+  ctx.fillRect(0, 0, canvasWidth, topMargin);
+
+  // Redraw date labels
   ctx.fillStyle = COLORS.textMuted;
   ctx.font = '9px "Space Mono", monospace';
-  ctx.textAlign = 'right';
+  ctx.textAlign = 'center';
 
-  for (let d = -30; d <= 90; d += 7) {
-    const y = todayY - d * dayHeight;
-    if (y > headerHeight && y < canvasHeight) {
-      ctx.fillText(`${d > 0 ? '+' : ''}${d}d`, leftMargin - 8, y);
+  for (let d = startDay; d < startDay + daysToShow; d += 7) {
+    const dateObj = new Date(today);
+    dateObj.setDate(dateObj.getDate() + d);
+    const x = dateToScreenX(dateObj, panX, today);
+
+    if (x > leftMargin && x < canvasWidth) {
+      const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
+      const day = dateObj.getDate();
+      ctx.fillText(`${month} ${day}`, x, topMargin / 2);
     }
+  }
+
+  // Redraw TODAY label if visible
+  if (todayX > leftMargin && todayX < canvasWidth) {
+    ctx.fillStyle = COLORS.orange;
+    ctx.font = 'bold 9px "Space Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TODAY', todayX, topMargin / 2);
+  }
+}
+
+// Draw a segment bar with stage colors
+function drawSegmentWithStages(
+  ctx: CanvasRenderingContext2D,
+  plant: Plant,
+  strain: Strain | undefined,
+  segment: PlantSegment,
+  x1: number,
+  x2: number,
+  y: number,
+  height: number,
+  today: Date,
+  leftMargin: number
+) {
+  const { dayWidth } = TIME_VIEW_CONSTANTS;
+  const plantStartDate = new Date(plant.startedAt);
+
+  // Iterate through each day of the segment and color by stage
+  let currentX = Math.max(x1, leftMargin);
+  const endX = x2;
+
+  // Calculate stage boundaries within the segment
+  let dayCounter = 0;
+  for (const stage of STAGES) {
+    const stageDuration = getStageDuration(stage, plant, strain);
+    const stageStartDay = dayCounter;
+    const stageEndDay = dayCounter + stageDuration;
+    dayCounter = stageEndDay;
+
+    // Convert to dates
+    const stageStartDate = new Date(plantStartDate);
+    stageStartDate.setDate(stageStartDate.getDate() + stageStartDay);
+    const stageEndDate = new Date(plantStartDate);
+    stageEndDate.setDate(stageEndDate.getDate() + stageEndDay);
+
+    // Check if this stage overlaps with segment
+    const segStartDate = new Date(segment.startDate);
+    const segEndDate = segment.endDate ? new Date(segment.endDate) : getPlantEndDate(plant, strain);
+
+    const overlapStart = new Date(Math.max(stageStartDate.getTime(), segStartDate.getTime()));
+    const overlapEnd = new Date(Math.min(stageEndDate.getTime(), segEndDate.getTime()));
+
+    if (overlapStart >= overlapEnd) continue;
+
+    // Convert overlap to screen coordinates
+    const overlapX1 = Math.max(leftMargin, dateToScreenX(overlapStart, x1 - dateToScreenX(segStartDate, 0, today), today));
+    const overlapX2 = Math.min(endX, dateToScreenX(overlapEnd, x1 - dateToScreenX(segStartDate, 0, today), today));
+
+    if (overlapX1 >= overlapX2) continue;
+
+    // Check if in past or future
+    const isPast = overlapEnd <= today;
+    const isFuture = overlapStart >= today;
+    const isMixed = !isPast && !isFuture;
+
+    if (isMixed) {
+      // Split into past and future portions
+      const todayX = dateToScreenX(today, x1 - dateToScreenX(segStartDate, 0, today), today);
+
+      // Past portion
+      ctx.fillStyle = STAGE_COLORS[stage];
+      ctx.fillRect(overlapX1, y, Math.min(todayX, overlapX2) - overlapX1, height);
+
+      // Future portion
+      if (todayX < overlapX2) {
+        ctx.fillStyle = STAGE_COLORS[stage] + '80';
+        ctx.fillRect(Math.max(todayX, overlapX1), y, overlapX2 - Math.max(todayX, overlapX1), height);
+      }
+    } else {
+      ctx.fillStyle = isPast ? STAGE_COLORS[stage] : STAGE_COLORS[stage] + '80';
+      ctx.fillRect(overlapX1, y, overlapX2 - overlapX1, height);
+    }
+
+    // Draw stage abbreviation if wide enough
+    const stageWidth = overlapX2 - overlapX1;
+    if (stageWidth > 25) {
+      ctx.save();
+      ctx.fillStyle = COLORS.text;
+      ctx.globalAlpha = isPast ? 0.9 : 0.6;
+      ctx.font = '7px "Space Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(STAGE_ABBREV[stage], overlapX1 + stageWidth / 2, y + height / 2 + 8);
+      ctx.restore();
+    }
+  }
+
+  // Draw segment border
+  ctx.strokeStyle = COLORS.border;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(Math.max(x1, leftMargin), y, Math.min(x2, leftMargin + 1000) - Math.max(x1, leftMargin), height);
+
+  // Draw resize handles at STAGE BOUNDARIES (not segment edges)
+  // Editable stages: seedling, vegetative, flowering (germinating and harvested are fixed)
+  const handleWidth = TIME_VIEW_CONSTANTS.handleWidth;
+  const handleColor = COLORS.teal;
+  const editableStages: Stage[] = ['seedling', 'vegetative', 'flowering'];
+
+  let stageDayCounter = 0;
+  for (const stage of STAGES) {
+    const stageDuration = getStageDuration(stage, plant, strain);
+    stageDayCounter += stageDuration;
+
+    // Draw handle at the END of editable stages (which is the boundary with next stage)
+    if (editableStages.includes(stage)) {
+      const stageEndDate = new Date(plantStartDate);
+      stageEndDate.setDate(stageEndDate.getDate() + stageDayCounter);
+
+      // Check if this boundary is within the segment
+      const segStartDate = new Date(segment.startDate);
+      const segEndDate = segment.endDate ? new Date(segment.endDate) : getPlantEndDate(plant, strain);
+
+      if (stageEndDate > segStartDate && stageEndDate < segEndDate) {
+        const handleX = dateToScreenX(stageEndDate, x1 - dateToScreenX(segStartDate, 0, today), today);
+
+        if (handleX > leftMargin && handleX < leftMargin + 2000) {
+          ctx.fillStyle = handleColor;
+          ctx.fillRect(handleX - handleWidth / 2, y, handleWidth, height);
+
+          // Handle grip lines
+          ctx.strokeStyle = COLORS.background;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(handleX - 1, y + 6);
+          ctx.lineTo(handleX - 1, y + height - 6);
+          ctx.moveTo(handleX + 1, y + 6);
+          ctx.lineTo(handleX + 1, y + height - 6);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+}
+
+// Draw Bezier curve connections between segments
+function drawSegmentConnections(
+  ctx: CanvasRenderingContext2D,
+  plant: Plant,
+  strain: Strain | undefined,
+  slots: SlotInfo[],
+  panX: number,
+  panY: number,
+  today: Date,
+  plantEndDate: Date
+) {
+  const { topMargin, segmentHeight, segmentGap, slotHeight } = TIME_VIEW_CONSTANTS;
+
+  for (let i = 0; i < plant.segments.length - 1; i++) {
+    const seg1 = plant.segments[i];
+    const seg2 = plant.segments[i + 1];
+
+    const slot1 = slots.find(
+      (s) => !s.isSpaceHeader && s.spaceId === seg1.spaceId && s.gridX === seg1.gridX && s.gridY === seg1.gridY
+    );
+    const slot2 = slots.find(
+      (s) => !s.isSpaceHeader && s.spaceId === seg2.spaceId && s.gridX === seg2.gridX && s.gridY === seg2.gridY
+    );
+    if (!slot1 || !slot2) continue;
+
+    // Connection point: end of seg1
+    const connectionDate = new Date(seg2.startDate);
+    const x = dateToScreenX(connectionDate, panX, today);
+
+    const y1 = topMargin + slot1.yOffset - panY + segmentGap + segmentHeight / 2;
+    const y2 = topMargin + slot2.yOffset - panY + segmentGap + segmentHeight / 2;
+
+    // Skip if same slot
+    if (slot1.yOffset === slot2.yOffset) continue;
+
+    // Draw Bezier curve
+    const curveOffset = 30;
+    ctx.strokeStyle = COLORS.textMuted;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x, y1);
+    ctx.bezierCurveTo(x + curveOffset, y1, x + curveOffset, y2, x, y2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw small circles at connection points
+    ctx.fillStyle = COLORS.textMuted;
+    ctx.beginPath();
+    ctx.arc(x, y1, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y2, 3, 0, Math.PI * 2);
+    ctx.fill();
   }
 }

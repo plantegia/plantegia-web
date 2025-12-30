@@ -63,5 +63,3 @@ export const STAGE_ABBREV: Record<Stage, string> = {
 
 // UI sizing constants
 export const SPACE_HANDLE_SIZE = 8;
-export const TIME_VIEW_HANDLE_HEIGHT = 14;
-export const MIN_SEGMENT_HEIGHT_FOR_LABEL = 20;

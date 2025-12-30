@@ -230,286 +230,25 @@ export interface PlantTimeline {
   startDate: Date;
 }
 
-// Time View constants (must match renderers.ts)
+// Time View constants - horizontal timeline (X = dates, Y = slots)
 export const TIME_VIEW_CONSTANTS = {
-  dayHeight: 8,
-  weekHeight: 56, // 7 days
-  columnWidth: 60,
-  headerHeight: 40,
-  leftMargin: 50,
+  // X-axis (dates)
+  dayWidth: 4,            // pixels per day
+  weekWidth: 28,          // 7 * 4 = 28px per week
+
+  // Y-axis (slots)
+  slotHeight: 32,         // height per slot row
+  spaceHeaderHeight: 24,  // space name header
+
+  // Margins
+  leftMargin: 100,        // space for slot labels
+  topMargin: 40,          // space for date labels
+
+  // Segments
+  segmentHeight: 24,      // visual height of segment bar
+  segmentGap: 4,          // vertical padding within slot
+  handleWidth: 8,         // resize handle width
 };
-
-export interface TimelineSegment {
-  stage: Stage;
-  startDay: number; // negative = past, positive = future (relative to today)
-  endDay: number;
-}
-
-// Build timeline segments for a plant - single source of truth for timeline calculation
-export function buildPlantTimelineSegments(
-  plant: Plant,
-  strain: Strain | undefined,
-  today: Date = new Date()
-): TimelineSegment[] {
-  const startDate = new Date(plant.startedAt);
-  const daysFromStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  const currentStageIndex = STAGES.indexOf(plant.stage);
-  const segments: TimelineSegment[] = [];
-
-  if (daysFromStart >= 0) {
-    // Plant has started
-    const stageStartDate = new Date(plant.stageStartedAt || plant.startedAt);
-    const daysInCurrentStage = Math.max(0, Math.floor((today.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60 * 24)));
-
-    // Calculate total past days
-    let totalPastDays = 0;
-    for (let i = 0; i < currentStageIndex; i++) {
-      totalPastDays += getStageDuration(STAGES[i], plant, strain);
-    }
-    totalPastDays += daysInCurrentStage;
-
-    // Build past segments (negative days = below TODAY line)
-    let pastDayCounter = -totalPastDays;
-    for (let i = 0; i < currentStageIndex; i++) {
-      const stage = STAGES[i];
-      const stageDuration = getStageDuration(stage, plant, strain);
-      segments.push({ stage, startDay: pastDayCounter, endDay: pastDayCounter + stageDuration });
-      pastDayCounter += stageDuration;
-    }
-    // Current stage past portion (from stage start to today)
-    if (daysInCurrentStage > 0) {
-      segments.push({ stage: plant.stage, startDay: pastDayCounter, endDay: 0 });
-    }
-
-    // Future: from today onwards
-    const timeline = calculatePlantTimeline(plant, strain, today);
-    let futureDayCounter = 0;
-    const remainingInCurrentStage = timeline.daysRemainingInStage;
-    if (remainingInCurrentStage > 0 && plant.stage !== 'harvested') {
-      segments.push({ stage: plant.stage, startDay: 0, endDay: remainingInCurrentStage });
-      futureDayCounter = remainingInCurrentStage;
-    }
-    for (let i = currentStageIndex + 1; i < STAGES.length; i++) {
-      const stage = STAGES[i];
-      const stageDuration = getStageDuration(stage, plant, strain);
-      segments.push({ stage, startDay: futureDayCounter, endDay: futureDayCounter + stageDuration });
-      futureDayCounter += stageDuration;
-    }
-  } else {
-    // Plant starts in the future
-    const daysUntilStart = Math.abs(daysFromStart);
-    let dayCounter = daysUntilStart;
-    for (let i = 0; i < STAGES.length; i++) {
-      const stage = STAGES[i];
-      const stageDuration = getStageDuration(stage, plant, strain);
-      segments.push({ stage, startDay: dayCounter, endDay: dayCounter + stageDuration });
-      dayCounter += stageDuration;
-    }
-  }
-
-  return segments;
-}
-
-// Build list of all cells for Time View
-export function buildTimeViewCells(spaces: Space[], plants: Plant[]): {
-  spaceId: string;
-  spaceName: string;
-  gridX: number;
-  gridY: number;
-  plant: Plant | null;
-}[] {
-  const allCells: { spaceId: string; spaceName: string; gridX: number; gridY: number; plant: Plant | null }[] = [];
-  spaces.forEach((space) => {
-    for (let y = 0; y < space.gridHeight; y++) {
-      for (let x = 0; x < space.gridWidth; x++) {
-        const plant = plants.find(
-          (p) => p.spaceId === space.id && p.gridX === x && p.gridY === y
-        ) || null;
-        allCells.push({
-          spaceId: space.id,
-          spaceName: space.name,
-          gridX: x,
-          gridY: y,
-          plant,
-        });
-      }
-    }
-  });
-  return allCells;
-}
-
-// Find plant at screen position in Time View
-export function findPlantAtTimeView(
-  screenX: number,
-  screenY: number,
-  canvasHeight: number,
-  timelineOffset: number,
-  horizontalOffset: number,
-  spaces: Space[],
-  plants: Plant[],
-  strains: Strain[]
-): Plant | null {
-  const { dayHeight, columnWidth, headerHeight, leftMargin } = TIME_VIEW_CONSTANTS;
-  const todayY = canvasHeight / 2 - timelineOffset;
-  const today = new Date();
-
-  const allCells = buildTimeViewCells(spaces, plants);
-  const columnIndex = Math.floor((screenX - leftMargin - horizontalOffset) / columnWidth);
-
-  if (columnIndex < 0 || columnIndex >= allCells.length) return null;
-
-  const cell = allCells[columnIndex];
-  if (!cell.plant) return null;
-
-  // Calculate plant's Y range on timeline
-  const plant = cell.plant;
-  const strain = strains.find(s => s.id === plant.strainId);
-  const startDate = new Date(plant.startedAt);
-  const daysFromStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-
-  const currentStageIndex = STAGES.indexOf(plant.stage);
-
-  // Calculate total plant duration (including all stages)
-  let totalDuration = 0;
-  for (let i = 0; i < STAGES.length; i++) {
-    totalDuration += getStageDuration(STAGES[i], plant, strain);
-  }
-
-  let plantTopY: number;
-  let plantBottomY: number;
-
-  if (daysFromStart >= 0) {
-    // Plant has started
-    const stageStartDate = new Date(plant.stageStartedAt || plant.startedAt);
-    const daysInCurrentStage = Math.max(0, Math.floor((today.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60 * 24)));
-
-    // Calculate past days
-    let totalPastDays = 0;
-    for (let i = 0; i < currentStageIndex; i++) {
-      totalPastDays += getStageDuration(STAGES[i], plant, strain);
-    }
-    totalPastDays += daysInCurrentStage;
-
-    // Calculate future days
-    let totalFutureDays = 0;
-    const currentStageDays = getStageDuration(plant.stage, plant, strain);
-    const remainingInCurrentStage = Math.max(0, currentStageDays - daysInCurrentStage);
-    totalFutureDays += remainingInCurrentStage;
-    for (let i = currentStageIndex + 1; i < STAGES.length; i++) {
-      totalFutureDays += getStageDuration(STAGES[i], plant, strain);
-    }
-
-    plantTopY = todayY - totalFutureDays * dayHeight;
-    plantBottomY = todayY + totalPastDays * dayHeight;
-  } else {
-    // Plant starts in the future
-    const daysUntilStart = Math.abs(daysFromStart);
-    plantTopY = todayY - (daysUntilStart + totalDuration) * dayHeight;
-    plantBottomY = todayY - daysUntilStart * dayHeight;
-  }
-
-  // Check if click is within plant's column and Y range
-  const clickX = screenX - leftMargin - horizontalOffset - columnIndex * columnWidth;
-  if (clickX < 2 || clickX > columnWidth - 2) return null;
-  if (screenY < plantTopY || screenY > plantBottomY) return null;
-
-  return plant;
-}
-
-// Get stage boundary Y positions for a plant in Time View
-export function getPlantStageHandles(
-  plant: Plant,
-  strain: Strain | undefined,
-  canvasHeight: number,
-  timelineOffset: number
-): { stage: Stage; y: number }[] {
-  const { dayHeight } = TIME_VIEW_CONSTANTS;
-  const todayY = canvasHeight / 2 - timelineOffset;
-
-  // Use shared function to build segments
-  const segments = buildPlantTimelineSegments(plant, strain);
-
-  // Convert segments to drawn segments with Y positions
-  const drawnSegments: { stage: Stage; topY: number }[] = [];
-  segments.forEach((seg) => {
-    const segTopY = todayY - seg.endDay * dayHeight;
-    const segBottomY = todayY - seg.startDay * dayHeight;
-    const segHeight = segBottomY - segTopY;
-    if (segHeight > 0) {
-      drawnSegments.push({ stage: seg.stage, topY: segTopY });
-    }
-  });
-
-  // Handles are at topY of segments where idx > 0 and topY < todayY (future)
-  // Only for editable stages (not germinating or harvested - they are fixed at 1 week)
-  // When dragging a handle UP, we extend the stage BELOW the handle (the current segment)
-  // When dragging DOWN, we shrink the stage BELOW the handle
-  const handles: { stage: Stage; y: number }[] = [];
-  drawnSegments.forEach((seg, idx) => {
-    const isEditableStage = seg.stage !== 'germinating' && seg.stage !== 'harvested';
-    if (seg.topY < todayY && idx > 0 && isEditableStage) {
-      // The handle is at the TOP of this segment
-      // Dragging changes THIS segment's stage duration (seg.stage)
-      handles.push({ stage: seg.stage, y: seg.topY });
-    }
-  });
-
-  return handles;
-}
-
-// Check if a point is near a stage handle
-export function findStageHandleAt(
-  screenX: number,
-  screenY: number,
-  plant: Plant,
-  columnX: number,
-  strain: Strain | undefined,
-  canvasHeight: number,
-  timelineOffset: number
-): Stage | null {
-  const { columnWidth } = TIME_VIEW_CONSTANTS;
-  const handleThreshold = 15; // Generous threshold for easier clicking
-
-  // Check X is within column
-  if (screenX < columnX || screenX > columnX + columnWidth) return null;
-
-  const handles = getPlantStageHandles(plant, strain, canvasHeight, timelineOffset);
-
-  for (const handle of handles) {
-    if (Math.abs(screenY - handle.y) < handleThreshold) {
-      return handle.stage;
-    }
-  }
-
-  return null;
-}
-
-// Get column index at screen position in Time View
-export function getTimeViewColumnAt(
-  screenX: number,
-  horizontalOffset: number,
-  spaces: Space[],
-  plants: Plant[]
-): { columnIndex: number; cell: ReturnType<typeof buildTimeViewCells>[0] } | null {
-  const { columnWidth, leftMargin } = TIME_VIEW_CONSTANTS;
-  const allCells = buildTimeViewCells(spaces, plants);
-  const columnIndex = Math.floor((screenX - leftMargin - horizontalOffset) / columnWidth);
-
-  if (columnIndex < 0 || columnIndex >= allCells.length) return null;
-
-  return { columnIndex, cell: allCells[columnIndex] };
-}
-
-// Convert Y position to days from today in Time View
-export function screenYToDays(
-  screenY: number,
-  canvasHeight: number,
-  timelineOffset: number
-): number {
-  const { dayHeight } = TIME_VIEW_CONSTANTS;
-  const todayY = canvasHeight / 2 - timelineOffset;
-  return Math.round((todayY - screenY) / dayHeight);
-}
 
 export function calculatePlantTimeline(
   plant: Plant,
@@ -557,4 +296,220 @@ export function calculatePlantTimeline(
     harvestDate,
     startDate,
   };
+}
+
+// ============================================
+// New horizontal Time View utilities
+// ============================================
+
+export interface SlotInfo {
+  spaceId: string;
+  spaceName: string;
+  gridX: number;
+  gridY: number;
+  yOffset: number;  // pixel offset from top (after topMargin)
+  isSpaceHeader?: boolean;
+}
+
+// Build slot list for Y-axis (grouped by space)
+export function buildSlotList(spaces: Space[]): SlotInfo[] {
+  const { slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
+  const slots: SlotInfo[] = [];
+  let yOffset = 0;
+
+  spaces.forEach((space) => {
+    // Add space header
+    slots.push({
+      spaceId: space.id,
+      spaceName: space.name,
+      gridX: -1,
+      gridY: -1,
+      yOffset,
+      isSpaceHeader: true,
+    });
+    yOffset += spaceHeaderHeight;
+
+    // Add cell slots
+    for (let y = 0; y < space.gridHeight; y++) {
+      for (let x = 0; x < space.gridWidth; x++) {
+        slots.push({
+          spaceId: space.id,
+          spaceName: space.name,
+          gridX: x,
+          gridY: y,
+          yOffset,
+        });
+        yOffset += slotHeight;
+      }
+    }
+  });
+
+  return slots;
+}
+
+// Convert date to days from today
+export function dateToDays(date: Date, today: Date = new Date()): number {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.floor((dateStart.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+// Convert screen X to date
+export function screenXToDate(screenX: number, panX: number, today: Date = new Date()): Date {
+  const { dayWidth, leftMargin } = TIME_VIEW_CONSTANTS;
+  const daysFromToday = Math.floor((screenX - leftMargin - panX) / dayWidth);
+  const result = new Date(today);
+  result.setDate(result.getDate() + daysFromToday);
+  return result;
+}
+
+// Convert date to screen X
+export function dateToScreenX(date: Date, panX: number, today: Date = new Date()): number {
+  const { dayWidth, leftMargin } = TIME_VIEW_CONSTANTS;
+  const days = dateToDays(date, today);
+  return leftMargin + panX + days * dayWidth;
+}
+
+// Get plant's total lifecycle duration in days
+export function getPlantTotalDays(plant: Plant, strain: Strain | undefined): number {
+  let total = 0;
+  for (const stage of STAGES) {
+    total += getStageDuration(stage, plant, strain);
+  }
+  return total;
+}
+
+// Get plant end date (harvest end)
+export function getPlantEndDate(plant: Plant, strain: Strain | undefined): Date {
+  const startDate = new Date(plant.startedAt);
+  const totalDays = getPlantTotalDays(plant, strain);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + totalDays);
+  return endDate;
+}
+
+// Get stage at a specific date for a plant
+export function getStageAtDate(plant: Plant, strain: Strain | undefined, date: Date): Stage {
+  const startDate = new Date(plant.startedAt);
+  const daysFromStart = dateToDays(date, startDate);
+
+  if (daysFromStart < 0) {
+    return 'germinating'; // Before plant started
+  }
+
+  let dayCounter = 0;
+  for (const stage of STAGES) {
+    const stageDuration = getStageDuration(stage, plant, strain);
+    if (daysFromStart < dayCounter + stageDuration) {
+      return stage;
+    }
+    dayCounter += stageDuration;
+  }
+
+  return 'harvested';
+}
+
+// Editable stages (germinating and harvested are fixed)
+export const EDITABLE_STAGES: Stage[] = ['seedling', 'vegetative', 'flowering'];
+
+export type SegmentHitZone = 'stage-handle' | 'body';
+
+export interface SegmentHitResult {
+  plant: Plant;
+  segmentId: string;
+  hitZone: SegmentHitZone;
+  stage?: Stage; // Which stage's end boundary was hit (for stage-handle)
+}
+
+// Find segment at screen position in new horizontal Time View
+export function findSegmentAtHorizontal(
+  screenX: number,
+  screenY: number,
+  plants: Plant[],
+  strains: Strain[],
+  spaces: Space[],
+  panX: number,
+  panY: number,
+  today: Date = new Date()
+): SegmentHitResult | null {
+  const { topMargin, handleWidth, segmentHeight, segmentGap } = TIME_VIEW_CONSTANTS;
+  const slots = buildSlotList(spaces);
+
+  for (const plant of plants) {
+    if (!plant.segments) continue;
+    const strain = strains.find((s) => s.id === plant.strainId);
+    const plantEndDate = getPlantEndDate(plant, strain);
+    const plantStartDate = new Date(plant.startedAt);
+
+    for (const segment of plant.segments) {
+      // Find slot for this segment
+      const slot = slots.find(
+        (s) => !s.isSpaceHeader && s.spaceId === segment.spaceId && s.gridX === segment.gridX && s.gridY === segment.gridY
+      );
+      if (!slot) continue;
+
+      // Calculate segment X bounds
+      const segStartDate = new Date(segment.startDate);
+      const segEndDate = segment.endDate ? new Date(segment.endDate) : plantEndDate;
+
+      const x1 = dateToScreenX(segStartDate, panX, today);
+      const x2 = dateToScreenX(segEndDate, panX, today);
+      const y = topMargin + slot.yOffset - panY + segmentGap;
+
+      // Check if point is in segment bounds
+      if (screenX >= x1 && screenX <= x2 && screenY >= y && screenY <= y + segmentHeight) {
+        // Check for stage boundary handles first
+        let stageDayCounter = 0;
+        for (const stage of STAGES) {
+          const stageDuration = getStageDuration(stage, plant, strain);
+          stageDayCounter += stageDuration;
+
+          if (EDITABLE_STAGES.includes(stage)) {
+            const stageEndDate = new Date(plantStartDate);
+            stageEndDate.setDate(stageEndDate.getDate() + stageDayCounter);
+
+            // Check if this boundary is within the segment
+            if (stageEndDate > segStartDate && stageEndDate < segEndDate) {
+              const handleX = dateToScreenX(stageEndDate, panX, today);
+
+              // Check if click is on the handle
+              if (Math.abs(screenX - handleX) < handleWidth) {
+                return { plant, segmentId: segment.id, hitZone: 'stage-handle', stage };
+              }
+            }
+          }
+        }
+
+        // Not on a handle, return body
+        return { plant, segmentId: segment.id, hitZone: 'body' };
+      }
+    }
+  }
+
+  return null;
+}
+
+// Find slot at screen Y position
+export function findSlotAtY(
+  screenY: number,
+  panY: number,
+  spaces: Space[]
+): SlotInfo | null {
+  const { topMargin, slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
+  const slots = buildSlotList(spaces);
+  const adjustedY = screenY - topMargin + panY;
+
+  // Find the slot where adjustedY falls within its bounds
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    const height = slot.isSpaceHeader ? spaceHeaderHeight : slotHeight;
+
+    if (adjustedY >= slot.yOffset && adjustedY < slot.yOffset + height) {
+      // Found the slot, but skip if it's a header
+      if (slot.isSpaceHeader) return null;
+      return slot;
+    }
+  }
+
+  return null;
 }

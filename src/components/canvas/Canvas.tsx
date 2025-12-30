@@ -101,6 +101,7 @@ export function Canvas({ readOnly }: CanvasProps) {
 
       ctx.restore();
     } else {
+      // New horizontal timeline: panY = vertical scroll, panX = horizontal scroll (dates)
       renderTimeView(
         ctx,
         spaces,
@@ -108,8 +109,8 @@ export function Canvas({ readOnly }: CanvasProps) {
         strains,
         canvasSize.width,
         canvasSize.height,
-        timelineOffset,
-        timelineHorizontalOffset
+        timelineOffset,           // panY (vertical scroll for slots)
+        timelineHorizontalOffset  // panX (horizontal scroll for dates)
       );
     }
   }, [

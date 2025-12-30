@@ -1,9 +1,18 @@
 export type Stage = 'germinating' | 'seedling' | 'vegetative' | 'flowering' | 'harvested';
 export type Generation = 'seed' | 'clone';
 export type PlantSize = 1 | 2 | 4;
-export type Tool = 'space' | 'erase';
+export type Tool = 'space' | 'erase' | 'split';
 export type ViewMode = 'space' | 'time';
 export type LightSchedule = '18/6' | '12/12' | '20/4' | '24/0';
+
+export interface PlantSegment {
+  id: string;
+  spaceId: string;
+  gridX: number;
+  gridY: number;
+  startDate: string;  // absolute ISO date
+  endDate: string | null;  // null = until end of lifecycle
+}
 
 export interface Space {
   id: string;
@@ -20,16 +29,17 @@ export interface Plant {
   id: string;
   code: string;
   strainId: string | null;
-  spaceId: string;
-  gridX: number;
-  gridY: number;
   size: PlantSize;
   stage: Stage;
   generation: Generation;
   startedAt: string;
-  stageStartedAt: string;
-  // Custom stage durations for this plant (overrides strain defaults)
+  segments: PlantSegment[];  // ordered by startDate
   customStageDays?: Partial<Record<Stage, number>>;
+  // Backward compat - synced with current segment (last segment where startDate <= today)
+  spaceId: string;
+  gridX: number;
+  gridY: number;
+  stageStartedAt: string;
 }
 
 export interface Strain {
@@ -55,6 +65,12 @@ export interface Selection {
 export interface Point {
   x: number;
   y: number;
+}
+
+export interface SlotId {
+  spaceId: string;
+  gridX: number;
+  gridY: number;
 }
 
 export interface Plantation {

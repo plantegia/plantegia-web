@@ -88,51 +88,105 @@ Key files:
 - [firebase.ts](src/lib/firebase.ts) — Firebase config and initialization
 - [firestore.ts](src/lib/firestore.ts) — CRUD operations for plantations
 
+### Plant Segments (Rotation Planning)
+
+Plants can move between spaces over their lifecycle (e.g., VEG box → FLOWER box). This is modeled with **segments**:
+
+```typescript
+interface PlantSegment {
+  id: string;
+  spaceId: string;
+  gridX: number;
+  gridY: number;
+  startDate: string;  // absolute ISO date
+  endDate: string | null;  // null = until end of lifecycle
+}
+```
+
+Key concepts:
+- **Plant** has `segments: PlantSegment[]` array ordered by `startDate`
+- Each segment represents where the plant is located during a time period
+- **Split tool** (`/` in Hotbar, Time View only) divides a segment at a date, creating two segments
+- Bezier curves connect segments visually when plant moves between slots
+- Backward compat fields (`spaceId`, `gridX`, `gridY`) synced with current segment via `getCurrentSegment()`
+
+Migration: Old plants without segments are auto-migrated on load via `migratePlantation()` in [migration.ts](src/utils/migration.ts).
+
 ### Plant Timeline System
 
-Plants have two key date fields:
-- `startedAt`: When the plant record was created (used for future planning)
+Plants have key date fields:
+- `startedAt`: When the plant lifecycle started
 - `stageStartedAt`: When the current stage began (auto-updated on stage change)
 - `customStageDays`: Optional per-plant overrides for stage durations (partial record)
 
-Timeline calculation uses `buildPlantTimelineSegments()` in [grid.ts](src/utils/grid.ts) as single source of truth:
-- Returns array of `TimelineSegment` objects with stage, startDay, endDay (relative to today)
-- Past is calculated based on current stage - all previous stages shown with their durations
-- Future is calculated from `stageStartedAt` + remaining days in current stage + future stages
-- Uses `customStageDays` if set, otherwise falls back to `STAGE_DAYS` defaults
-- When stage changes via Inspector, `stageStartedAt` is automatically set to current date
-
 Plant lifecycle stages (in order):
-- **germinating** (GRM): Fixed 1 week, non-editable
+- **germinating** (GRM): Fixed 7 days, non-editable
 - **seedling** (SDL): Default 14 days, editable
 - **vegetative** (VEG): Default 30 days, editable
 - **flowering** (FLW): Default 60 days, editable
-- **harvested** (HRV): Fixed 1 week, non-editable
+- **harvested** (HRV): Fixed 7 days, non-editable
 
-Time View features:
-- Past segments (below TODAY line): full color, based on completed stages
-- Future segments (above TODAY line): 50% opacity, based on remaining time
-- Stage labels (GRM, SDL, VEG, FLW, HRV) displayed on each segment
-- Stage boundaries shown as draggable handles (14px thick) for editable stages
-- Tap on empty column above TODAY with seed selected to plan future plants
-
-### Time View Drag Interactions
-
-Drag modes (`TimeViewDragMode` in types):
-- **plant-move**: Drag plant column to reposition horizontally
-- **stage-resize**: Drag stage handle to adjust duration
-
-Stage handle detection in `getPlantStageHandles()`:
-- Only editable stages (seedling, vegetative, flowering) have handles
-- Handles appear at stage boundaries in the future portion
-- Uses `buildPlantTimelineSegments()` for consistent coordinate calculation
-
-Important: Canvas uses Device Pixel Ratio (DPR) scaling. Handle detection must divide `canvas.height` by DPR to get CSS coordinates.
+Stage duration calculation via `getStageDuration()` in [grid.ts](src/utils/grid.ts):
+1. Check `plant.customStageDays[stage]`
+2. Check `strain.vegDays` / `strain.floweringDays` for veg/flowering
+3. Fall back to `STAGE_DAYS` defaults
 
 ### View Modes
 
-- **Space View** (X-Y): Top-down view of all spaces and plants
-- **Time View** (Cells-Time): Gantt-style timeline showing plant lifecycles with past/future visualization
+- **Space View** (X-Y): Top-down view of all spaces and plants. Shows only current segment position.
+- **Time View** (Horizontal Timeline): Premiere Pro-style Gantt chart for rotation planning.
+
+### Time View (Horizontal Timeline)
+
+Coordinate system (see `TIME_VIEW_CONSTANTS` in grid.ts):
+- **X-axis**: Calendar dates (infinite scroll). `dayWidth: 4px` per day.
+- **Y-axis**: Slots grouped by space. Each space has header + cell rows.
+- **TODAY line**: Orange vertical line at current date.
+
+Layout constants:
+```typescript
+TIME_VIEW_CONSTANTS = {
+  dayWidth: 4,           // px per day
+  slotHeight: 32,        // px per slot row
+  spaceHeaderHeight: 24, // space name header
+  leftMargin: 100,       // space for slot labels
+  topMargin: 40,         // space for date labels
+  segmentHeight: 24,     // visual height of segment bar
+  handleWidth: 8,        // resize handle width
+}
+```
+
+Rendering in [renderers.ts](src/components/canvas/renderers.ts) `renderTimeView()`:
+1. Draw week grid lines (vertical)
+2. Draw slot rows with labels (Y-axis)
+3. Draw TODAY line
+4. Draw date labels (X-axis)
+5. Draw plant segments with stage colors
+6. Draw Bezier connections between segments
+7. Draw resize handles at stage boundaries
+
+### Time View Drag Interactions
+
+Drag modes (`TimeViewDragMode` in useGestures.ts):
+- **segment-move-x**: Drag segment body horizontally → shifts entire plant in time (`shiftPlantInTime`)
+- **segment-move-y**: Drag segment body vertically → moves segment to different slot (`moveSegmentToSlot`)
+- **stage-resize**: Drag stage boundary handle → adjusts stage duration (`customStageDays`)
+- **pan**: Drag empty area → scrolls timeline
+
+Direction detection: Starts as `segment-move-x`, switches to `segment-move-y` if vertical movement exceeds threshold.
+
+Stage handles:
+- Only editable stages (seedling, vegetative, flowering) have handles
+- Handles appear at stage boundaries (teal color with grip lines)
+- Dragging handle modifies `plant.customStageDays[stage]`
+- Hit detection in `findSegmentAtHorizontal()` returns `hitZone: 'stage-handle'` with `stage` field
+
+### Store Segment Actions
+
+In [useAppStore.ts](src/store/useAppStore.ts):
+- `splitSegment(plantId, segmentId, splitDate)`: Divide segment into two at date
+- `moveSegmentToSlot(plantId, segmentId, slot)`: Change segment's space/cell location
+- `shiftPlantInTime(plantId, daysDelta)`: Move entire plant timeline by days
 
 ## Design Constraints
 
