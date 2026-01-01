@@ -3,7 +3,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { useGestures } from '../../hooks/useGestures';
 import { renderSpaceView, renderTimeView, renderBackgroundGrid, renderLongPressIndicator } from './renderers';
 import { renderParticles, resetParticles } from './particles';
-import { COLORS, CELL_SIZE, FEATURES } from '../../constants';
+import { COLORS, FEATURES } from '../../constants';
 
 // Conditionally import bird module only when feature is enabled
 const birdModule = FEATURES.BIRD_MINIGAME
@@ -46,13 +46,15 @@ export function Canvas({ readOnly }: CanvasProps) {
     spaces, plants, strains,
     selection, dragPreview,
     viewMode, timelineOffset, timelineHorizontalOffset, timelineZoom,
-    setPan,
+    setPan, setTimelineOffset, setTimelineHorizontalOffset,
     canvasCursor,
     splitPreview,
     placementPreview,
     timeViewPlacementPreview,
     plantDragPreview,
     longPressPreview,
+    getIdealCenter,
+    currentPlantationId,
   } = useAppStore();
 
   useGestures(canvasRef, canvasRect, readOnly);
@@ -77,34 +79,53 @@ export function Canvas({ readOnly }: CanvasProps) {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // Center view on content on initial load
+  // Track plantation ID for centering reset
+  const lastPlantationId = useRef<string | null>(null);
+
+  // Center view on content - handles initial load and plantation changes
   useEffect(() => {
-    if (hasCentered.current || spaces.length === 0 || canvasSize.width === 0) return;
+    if (canvasSize.width === 0) return;
 
-    // Calculate bounds of all spaces
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    // Check if plantation changed - reset centering flag
+    const plantationChanged = currentPlantationId && lastPlantationId.current !== currentPlantationId;
+    if (plantationChanged) {
+      hasCentered.current = false;
+      lastPlantationId.current = currentPlantationId;
+    }
 
-    spaces.forEach(space => {
-      minX = Math.min(minX, space.originX);
-      minY = Math.min(minY, space.originY);
-      maxX = Math.max(maxX, space.originX + space.gridWidth * CELL_SIZE);
-      maxY = Math.max(maxY, space.originY + space.gridHeight * CELL_SIZE);
-    });
+    // Skip if already centered for this plantation
+    if (hasCentered.current) return;
 
-    if (minX === Infinity) return;
+    // For Space View, wait until we have spaces
+    if (viewMode === 'space' && spaces.length === 0) return;
 
-    const contentWidth = maxX - minX;
-    const contentHeight = maxY - minY;
-    const contentCenterX = minX + contentWidth / 2;
-    const contentCenterY = minY + contentHeight / 2;
+    const ideal = getIdealCenter(canvasSize.width, canvasSize.height);
 
-    // Center content in canvas
-    const newPanX = canvasSize.width / 2 - contentCenterX * zoom;
-    const newPanY = canvasSize.height / 2 - contentCenterY * zoom;
+    if (viewMode === 'space') {
+      setPan(ideal.pan);
+    } else {
+      setTimelineOffset(ideal.timelineOffset);
+      setTimelineHorizontalOffset(ideal.timelineHorizontalOffset);
+    }
 
-    setPan({ x: newPanX, y: newPanY });
     hasCentered.current = true;
-  }, [spaces, canvasSize, zoom, setPan]);
+  }, [spaces, plants, canvasSize, zoom, setPan, setTimelineOffset, setTimelineHorizontalOffset, viewMode, getIdealCenter, currentPlantationId]);
+
+  // Re-center when switching view modes
+  const lastViewMode = useRef(viewMode);
+  useEffect(() => {
+    if (lastViewMode.current !== viewMode && canvasSize.width > 0) {
+      const ideal = getIdealCenter(canvasSize.width, canvasSize.height);
+
+      if (viewMode === 'space') {
+        setPan(ideal.pan);
+      } else {
+        setTimelineOffset(ideal.timelineOffset);
+        setTimelineHorizontalOffset(ideal.timelineHorizontalOffset);
+      }
+    }
+    lastViewMode.current = viewMode;
+  }, [viewMode, canvasSize, getIdealCenter, setPan, setTimelineOffset, setTimelineHorizontalOffset]);
 
   // Store latest state in refs for animation loop
   const stateRef = useRef({

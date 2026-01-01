@@ -23,8 +23,9 @@ import type {
   LongPressPreview,
 } from '../types';
 import { generateAbbreviation, generatePlantCode } from '../utils/abbreviation';
-import { DEFAULT_ZOOM, DEFAULT_TIMELINE_ZOOM, CURSORS } from '../constants';
+import { DEFAULT_ZOOM, DEFAULT_TIMELINE_ZOOM, CURSORS, CELL_SIZE } from '../constants';
 import { getCurrentSegment } from '../utils/migration';
+import { TIME_VIEW_CONSTANTS, buildSlotList } from '../utils/grid';
 
 interface DataSnapshot {
   spaces: Space[];
@@ -138,6 +139,9 @@ interface AppState {
   setTimelineZoom: (zoom: number) => void;
 
   setExpandedHotbarSection: (section: 'toolbox' | 'inventory') => void;
+
+  centerView: (canvasWidth: number, canvasHeight: number) => void;
+  getIdealCenter: (canvasWidth: number, canvasHeight: number) => { pan: Point; timelineOffset: number; timelineHorizontalOffset: number };
 
   // Save current state to history (call before starting a drag operation)
   saveSnapshot: () => void;
@@ -735,6 +739,83 @@ export const useAppStore = create<AppState>()(
       setExpandedHotbarSection: (section) => {
         set((state) => {
           state.expandedHotbarSection = section;
+        });
+      },
+
+      getIdealCenter: (canvasWidth, canvasHeight) => {
+        const { spaces, plants, viewMode, zoom } = get();
+
+        if (viewMode === 'space') {
+          // Calculate bounds of all spaces
+          if (spaces.length === 0) {
+            return {
+              pan: { x: canvasWidth / 2, y: canvasHeight / 2 },
+              timelineOffset: 0,
+              timelineHorizontalOffset: 0,
+            };
+          }
+
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          spaces.forEach(space => {
+            minX = Math.min(minX, space.originX);
+            minY = Math.min(minY, space.originY);
+            maxX = Math.max(maxX, space.originX + space.gridWidth * CELL_SIZE);
+            maxY = Math.max(maxY, space.originY + space.gridHeight * CELL_SIZE);
+          });
+
+          const contentCenterX = (minX + maxX) / 2;
+          const contentCenterY = (minY + maxY) / 2;
+
+          // Center content on screen (ignoring header/hotbar - they overlay the canvas)
+          const newPanX = canvasWidth / 2 - contentCenterX * zoom;
+          const newPanY = canvasHeight / 2 - contentCenterY * zoom;
+
+          return {
+            pan: { x: newPanX, y: newPanY },
+            timelineOffset: 0,
+            timelineHorizontalOffset: 0,
+          };
+        } else {
+          // Time View: TODAY in the middle horizontally, content centered vertically
+          const { topMargin, slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
+          const headerHeight = 48; // Fixed header height from renderers.ts
+
+          // Calculate total content height
+          const slots = buildSlotList(spaces, plants);
+          let totalContentHeight = 0;
+          slots.forEach(slot => {
+            totalContentHeight += slot.isSpaceHeader ? spaceHeaderHeight : slotHeight;
+          });
+
+          // TODAY should be in the center of the screen
+          const idealHorizontalOffset = canvasWidth / 2;
+
+          // Center content vertically on screen
+          // Content renders at: headerHeight + topMargin + yOffset - timelineOffset
+          // Visual center of content = headerHeight + topMargin + totalContentHeight / 2
+          // We want this at canvasHeight / 2
+          const contentVisualCenter = headerHeight + topMargin + totalContentHeight / 2;
+          const idealVerticalOffset = contentVisualCenter - canvasHeight / 2;
+
+          return {
+            pan: { x: 0, y: 0 },
+            timelineOffset: Math.max(0, idealVerticalOffset),
+            timelineHorizontalOffset: idealHorizontalOffset,
+          };
+        }
+      },
+
+      centerView: (canvasWidth, canvasHeight) => {
+        const ideal = get().getIdealCenter(canvasWidth, canvasHeight);
+        const { viewMode } = get();
+
+        set((state) => {
+          if (viewMode === 'space') {
+            state.pan = ideal.pan;
+          } else {
+            state.timelineOffset = ideal.timelineOffset;
+            state.timelineHorizontalOffset = ideal.timelineHorizontalOffset;
+          }
         });
       },
 
