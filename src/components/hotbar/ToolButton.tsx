@@ -7,9 +7,11 @@ interface ToolButtonProps {
   active?: boolean;
   onClick: () => void;
   style?: React.CSSProperties;
+  /** Data attribute for CSS selection (e.g., "cursor", "split") */
+  dataTool?: string;
 }
 
-export function ToolButton({ symbol, icon, label, active, onClick, style }: ToolButtonProps) {
+export function ToolButton({ symbol, icon, label, active, onClick, style, dataTool }: ToolButtonProps) {
   return (
     <div
       style={{
@@ -22,6 +24,7 @@ export function ToolButton({ symbol, icon, label, active, onClick, style }: Tool
     >
       <button
         onClick={onClick}
+        data-tool={dataTool}
         style={{
           width: 44,
           height: 44,

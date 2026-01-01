@@ -3,6 +3,7 @@ import type { Stage } from '../types';
 // Feature flags for experimental/easter-egg features
 export const FEATURES = {
   BIRD_MINIGAME: false, // Easter egg bird game with leaderboard
+  TUTORIALS: true, // Interactive onboarding tutorials
 } as const;
 
 export const COLORS = {
@@ -52,6 +53,15 @@ export const DEFAULT_TIMELINE_ZOOM = 1;
 export const VIEWPORT_WIDTH = 390;
 export const HOTBAR_HEIGHT = 88;
 export const MOBILE_BREAKPOINT = 768;
+
+// Z-index layers
+export const Z_INDEX = {
+  HOTBAR: 10,
+  TUTORIAL_HIGHLIGHT: 39,
+  TUTORIAL_OVERLAY: 40,
+  INSPECTOR: 50,
+  SEED_FORM: 100,
+} as const;
 
 export const STAGE_DAYS: Record<Stage, number> = {
   germinating: 10,

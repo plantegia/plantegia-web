@@ -1,0 +1,17 @@
+/* Shared blink animation for tutorial elements */
+@keyframes tutorial-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.tutorial-highlight {
+  animation: tutorial-blink 0.8s step-end infinite;
+}
+
+.tutorial-cursor {
+  animation: tutorial-blink 1s step-end infinite;
+}

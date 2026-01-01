@@ -114,10 +114,17 @@ function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: bool
   const width = gridWidth * CELL_SIZE;
   const height = gridHeight * CELL_SIZE;
 
-  // Use space's color or fallback to palette by index
+  // Fill empty cells with dark background first
+  ctx.fillStyle = COLORS.backgroundDark;
+  ctx.fillRect(originX, originY, width, height);
+
+  // Use space's color or fallback to palette by index - will be drawn for plant cells later
   const spaceColor = color || SPACE_COLORS[spaceIndex % SPACE_COLORS.length];
   ctx.fillStyle = spaceColor;
+  // Only draw border area slightly colored to indicate space bounds
+  ctx.globalAlpha = 0.3;
   ctx.fillRect(originX, originY, width, height);
+  ctx.globalAlpha = 1;
 
   ctx.strokeStyle = COLORS.border;
   ctx.lineWidth = 1;

@@ -39,7 +39,7 @@ interface HistoryState {
   future: DataSnapshot[];
 }
 
-interface AppState {
+export interface AppState {
   currentPlantationId: string | null;
   spaces: Space[];
   plants: Plant[];
@@ -413,6 +413,7 @@ export const useAppStore = create<AppState>()(
       },
 
       moveSegmentToSlot: (plantId, segmentId, slot) => {
+        saveToHistory();
         set((state) => {
           const plant = state.plants.find((p) => p.id === plantId);
           if (!plant || !plant.segments) return;

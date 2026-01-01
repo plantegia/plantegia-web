@@ -114,6 +114,7 @@ export interface Plantation {
   ownerId: string;
   name: string;
   isPublic: boolean;
+  isTutorial?: boolean;
   createdAt: string;
   updatedAt: string;
   spaces: Space[];

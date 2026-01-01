@@ -22,6 +22,7 @@ export interface PlantationData {
   ownerId: string;
   name: string;
   isPublic: boolean;
+  isTutorial?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   spaces: Space[];
@@ -36,6 +37,7 @@ function toPlantation(id: string, data: PlantationData): Plantation {
     ownerId: data.ownerId,
     name: data.name,
     isPublic: data.isPublic,
+    isTutorial: data.isTutorial ?? false,
     createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     spaces: data.spaces || [],
@@ -110,6 +112,7 @@ export async function updatePlantation(
     plants: Plant[];
     strains: Strain[];
     inventory: Seed[];
+    isTutorial?: boolean;
   }
 ): Promise<void> {
   const docRef = doc(db, PLANTATIONS, id);

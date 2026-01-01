@@ -94,6 +94,7 @@ export function Toolbox() {
         <ToolButton
           icon={TOOL_ICONS.cursor}
           label="Cursor"
+          dataTool="cursor"
           active={(activeTool === 'cursor' || activeTool === null) && !selectedSeedId}
           onClick={() => setActiveTool('cursor')}
         />
@@ -102,12 +103,14 @@ export function Toolbox() {
             <ToolButton
               icon={TOOL_ICONS.space}
               label="Space"
+              dataTool="space"
               active={activeTool === 'space'}
               onClick={() => setActiveTool(activeTool === 'space' ? 'cursor' : 'space')}
             />
             <ToolButton
               icon={TOOL_ICONS.erase}
               label="Erase"
+              dataTool="erase"
               active={activeTool === 'erase'}
               onClick={() => setActiveTool(activeTool === 'erase' ? 'cursor' : 'erase')}
             />
@@ -117,12 +120,14 @@ export function Toolbox() {
             <ToolButton
               icon={TOOL_ICONS.split}
               label="Split"
+              dataTool="split"
               active={activeTool === 'split'}
               onClick={() => setActiveTool(activeTool === 'split' ? 'cursor' : 'split')}
             />
             <ToolButton
               icon={TOOL_ICONS.erase}
               label="Erase"
+              dataTool="erase"
               active={activeTool === 'erase'}
               onClick={() => setActiveTool(activeTool === 'erase' ? 'cursor' : 'erase')}
             />

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { getUserPlantations, createPlantation } from '../../lib/firestore';
-import { VIEWPORT_WIDTH, COLORS } from '../../constants';
+import { getUserPlantations, createPlantation, deletePlantation } from '../../lib/firestore';
+import { VIEWPORT_WIDTH, COLORS, FEATURES } from '../../constants';
 import type { Plantation } from '../../types';
 
 export function PlantationList() {
@@ -12,6 +12,8 @@ export function PlantationList() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<Plantation | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -33,6 +35,19 @@ export function PlantationList() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+
+    setDeleting(true);
+    try {
+      await deletePlantation(deleteConfirm.id);
+      setPlantations((prev) => prev.filter((p) => p.id !== deleteConfirm.id));
+      setDeleteConfirm(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={styles.container}>
@@ -49,6 +64,30 @@ export function PlantationList() {
           Sign out
         </button>
       </div>
+
+      {FEATURES.TUTORIALS && (
+        <div style={styles.tutorialSection}>
+          <div style={styles.sectionTitle}>Tutorials</div>
+          <div style={styles.tutorialGrid}>
+            <button
+              style={styles.tutorialButton}
+              onClick={() => navigate('/tutorial/basic-setup')}
+            >
+              <div style={styles.tutorialNumber}>1.</div>
+              <div style={styles.tutorialName}>Basic Setup</div>
+              <div style={styles.tutorialDesc}>Create spaces and plants</div>
+            </button>
+            <button
+              style={styles.tutorialButton}
+              onClick={() => navigate('/tutorial/timeline-rotation')}
+            >
+              <div style={styles.tutorialNumber}>2.</div>
+              <div style={styles.tutorialName}>Timeline & Rotation</div>
+              <div style={styles.tutorialDesc}>Plan growth cycles</div>
+            </button>
+          </div>
+        </div>
+      )}
 
       {plantations.length === 0 && (
         <img
@@ -80,19 +119,56 @@ export function PlantationList() {
           <div style={styles.empty}>No plantations yet. Create one above.</div>
         ) : (
           plantations.map((p) => (
-            <button
-              key={p.id}
-              style={styles.plantationItem}
-              onClick={() => navigate(`/p/${p.id}`)}
-            >
-              <div style={styles.plantationName}>{p.name}</div>
-              <div style={styles.plantationMeta}>
-                {p.plants.length} plants · {p.spaces.length} spaces
-              </div>
-            </button>
+            <div key={p.id} style={styles.plantationRow}>
+              <button
+                style={styles.plantationItem}
+                onClick={() => navigate(`/p/${p.id}`)}
+              >
+                <div style={styles.plantationName}>{p.name}</div>
+                <div style={styles.plantationMeta}>
+                  {p.plants.length} plants · {p.spaces.length} spaces
+                </div>
+              </button>
+              <button
+                style={styles.deleteButton}
+                onClick={() => setDeleteConfirm(p)}
+                title="Delete plantation"
+              >
+                ✕
+              </button>
+            </div>
           ))
         )}
       </div>
+
+      {deleteConfirm && (
+        <div style={styles.confirmOverlay}>
+          <div style={styles.confirmDialog}>
+            <div style={styles.confirmTitle}>Delete plantation?</div>
+            <div style={styles.confirmName}>"{deleteConfirm.name}"</div>
+            <div style={styles.confirmWarning}>
+              This will permanently delete {deleteConfirm.plants.length} plants
+              and {deleteConfirm.spaces.length} spaces.
+            </div>
+            <div style={styles.confirmButtons}>
+              <button
+                style={styles.cancelButton}
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                style={styles.confirmDeleteButton}
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? '...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -155,6 +231,10 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: 8,
   },
+  plantationRow: {
+    display: 'flex',
+    gap: 0,
+  },
   plantationItem: {
     display: 'flex',
     flexDirection: 'column',
@@ -165,7 +245,19 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontFamily: '"Space Mono", monospace',
     textAlign: 'left',
-    width: '100%',
+    flex: 1,
+  },
+  deleteButton: {
+    width: 48,
+    backgroundColor: COLORS.backgroundDark,
+    border: 'none',
+    cursor: 'pointer',
+    fontFamily: '"Space Mono", monospace',
+    color: COLORS.textMuted,
+    fontSize: 14,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   plantationName: {
     fontSize: 14,
@@ -193,5 +285,106 @@ const styles: Record<string, React.CSSProperties> = {
     height: 200,
     margin: '40px auto 24px',
     display: 'block',
+  },
+  tutorialSection: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    marginBottom: 12,
+  },
+  tutorialGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: 8,
+  },
+  tutorialButton: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    padding: 16,
+    backgroundColor: COLORS.backgroundLight,
+    border: `1px solid ${COLORS.border}`,
+    cursor: 'pointer',
+    fontFamily: '"Space Mono", monospace',
+    textAlign: 'left',
+  },
+  tutorialNumber: {
+    fontSize: 18,
+    color: COLORS.teal,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  tutorialName: {
+    fontSize: 12,
+    color: COLORS.text,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  tutorialDesc: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+  },
+  confirmOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  confirmDialog: {
+    width: VIEWPORT_WIDTH - 40,
+    backgroundColor: COLORS.backgroundDark,
+    padding: 20,
+    border: `1px solid ${COLORS.border}`,
+  },
+  confirmTitle: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  confirmName: {
+    fontSize: 14,
+    color: COLORS.teal,
+    marginBottom: 12,
+  },
+  confirmWarning: {
+    fontSize: 12,
+    color: COLORS.danger,
+    marginBottom: 20,
+    lineHeight: 1.4,
+  },
+  confirmButtons: {
+    display: 'flex',
+    gap: 8,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: '12px 16px',
+    fontSize: 14,
+    fontFamily: '"Space Mono", monospace',
+    backgroundColor: COLORS.background,
+    color: COLORS.text,
+    border: `1px solid ${COLORS.border}`,
+    cursor: 'pointer',
+  },
+  confirmDeleteButton: {
+    flex: 1,
+    padding: '12px 16px',
+    fontSize: 14,
+    fontFamily: '"Space Mono", monospace',
+    backgroundColor: COLORS.danger,
+    color: COLORS.background,
+    border: 'none',
+    cursor: 'pointer',
   },
 };

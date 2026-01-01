@@ -6,6 +6,7 @@ import { Inspector } from '../inspector/Inspector';
 import { useAuth } from '../../hooks/useAuth';
 import { usePlantation } from '../../hooks/usePlantation';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { useTutorial, TutorialOverlay, TutorialHighlight } from '../../tutorial';
 import { COLORS, VIEWPORT_WIDTH } from '../../constants';
 
 export function PlantationView() {
@@ -14,6 +15,7 @@ export function PlantationView() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { plantation, loading, error } = usePlantation(id || '');
+  const { currentStep, currentStepIndex, totalSteps, isCompleted, skipTutorial, nextStep, previousStep, restartTutorial } = useTutorial();
 
   const isViewOnly = searchParams.get('view') === '1';
   const isOwner = plantation && user && plantation.ownerId === user.uid;
@@ -66,6 +68,25 @@ export function PlantationView() {
       <Header plantationName={plantation.name} canEdit={canEdit} />
       <Inspector readOnly={!canEdit} />
       <Hotbar readOnly={!canEdit} />
+      {currentStep && (
+        <>
+          {currentStep.highlightSelector && (
+            <TutorialHighlight selector={currentStep.highlightSelector} />
+          )}
+          <TutorialOverlay
+            step={currentStep}
+            stepNumber={currentStepIndex + 1}
+            totalSteps={totalSteps}
+            canGoBack={currentStepIndex > 0}
+            canGoForward={currentStepIndex < totalSteps - 1}
+            isCompleted={isCompleted}
+            onSkip={skipTutorial}
+            onPrevious={previousStep}
+            onNext={nextStep}
+            onRestart={restartTutorial}
+          />
+        </>
+      )}
     </div>
   );
 }
