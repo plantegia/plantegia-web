@@ -37,6 +37,7 @@ export function SpaceInspector({ spaceId }: SpaceInspectorProps) {
       setWidth(space.gridWidth);
       setHeight(space.gridHeight);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync when grid dimensions change
   }, [space?.gridWidth, space?.gridHeight]);
 
   if (!space) return null;

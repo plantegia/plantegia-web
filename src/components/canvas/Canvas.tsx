@@ -243,7 +243,8 @@ export function Canvas({ readOnly }: CanvasProps) {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, []); // Empty deps - animation loop runs continuously, state accessed via refs
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- animation loop runs continuously, state accessed via refs
+  }, []);
 
   return (
     <div

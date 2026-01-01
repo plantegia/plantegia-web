@@ -13,17 +13,15 @@ import {
   SpaceEdge,
   TIME_VIEW_CONSTANTS,
   getPlantBounds,
-  getCanvasCssHeight,
   findSegmentAtHorizontal,
   findSlotAtY,
   screenXToDate,
-  buildSlotList,
   SegmentHitZone,
   getStageDuration,
   findMergeButtonAt,
 } from '../utils/grid';
 import { MIN_ZOOM, MAX_ZOOM, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM, CELL_SIZE, SPACE_COLORS, CURSORS, EDGE_CURSORS, LONG_PRESS_DURATION, LONG_PRESS_MOVE_THRESHOLD } from '../constants';
-import type { Point, Space, Plant, Stage, PlantSegment } from '../types';
+import type { Point, Space, Stage } from '../types';
 import { triggerHaptic } from '../utils/haptic';
 
 type SpaceDragMode = 'none' | 'move' | 'resize' | 'plant-move';
@@ -351,7 +349,7 @@ export function useGestures(
 
     // Default cursor
     setCanvasCursor(CURSORS.default);
-  }, [getToolCursor, activeTool, selectedSeedId, viewMode, pan, zoom, selection, spaces, plants, strains, inventory, timelineOffset, timelineHorizontalOffset, setCanvasCursor, setSplitPreview, setPlacementPreview, setTimeViewPlacementPreview]);
+  }, [getToolCursor, activeTool, selectedSeedId, viewMode, pan, zoom, timelineZoom, selection, spaces, plants, strains, inventory, timelineOffset, timelineHorizontalOffset, setCanvasCursor, setSplitPreview, setPlacementPreview, setTimeViewPlacementPreview]);
 
   // Update cursor when tool/seed selection changes (without mouse movement)
   useEffect(() => {
@@ -524,7 +522,7 @@ export function useGestures(
       setSelection(null);
     }
   }, [
-    canvasRef, pan, zoom, activeTool, selectedSeedId, spaces, plants, strains, inventory, viewMode,
+    pan, zoom, timelineZoom, activeTool, selectedSeedId, spaces, plants, strains, inventory, viewMode,
     deletePlant, deleteSpace, createPlant, consumeSeed, setSelection, setActiveTool,
     timelineOffset, timelineHorizontalOffset, readOnly, splitSegment, mergeSegments,
   ]);

@@ -1018,8 +1018,8 @@ function drawSegmentWithStages(
   height: number,
   today: Date,
   leftMargin: number,
-  hasSplitBefore: boolean = false,
-  hasSplitAfter: boolean = false,
+  _hasSplitBefore: boolean = false,
+  _hasSplitAfter: boolean = false,
   zoom: number = 1
 ) {
   const { maxVisibleWidth } = TIME_VIEW_CONSTANTS;
