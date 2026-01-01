@@ -1,8 +1,17 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { useGestures } from '../../hooks/useGestures';
-import { renderSpaceView, renderTimeView, renderBackgroundGrid } from './renderers';
-import { COLORS, CELL_SIZE } from '../../constants';
+import { renderSpaceView, renderTimeView, renderBackgroundGrid, renderLongPressIndicator } from './renderers';
+import { renderParticles, resetParticles } from './particles';
+import { COLORS, CELL_SIZE, FEATURES } from '../../constants';
+
+// Conditionally import bird module only when feature is enabled
+const birdModule = FEATURES.BIRD_MINIGAME
+  ? await import('./bird')
+  : null;
+const BirdOverlayComponent = FEATURES.BIRD_MINIGAME
+  ? (await import('./BirdOverlay')).BirdOverlay
+  : null;
 
 interface CanvasProps {
   readOnly?: boolean;
@@ -14,18 +23,36 @@ export function Canvas({ readOnly }: CanvasProps) {
   const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth, height: 500 });
   const [canvasRect, setCanvasRect] = useState({ top: 0, left: 0 });
   const hasCentered = useRef(false);
+  const birdSpawned = useRef(false);
+  const lastFrameTime = useRef(performance.now());
+  const birdUIRef = useRef<{ screenX: number; screenY: number; distance: number; leaderboardActive: boolean } | null>(null);
+  const [birdUI, setBirdUI] = useState<{ screenX: number; screenY: number; distance: number; leaderboardActive: boolean } | null>(null);
+
+  // Throttled bird UI update to avoid re-renders every frame
+  const updateBirdUI = useCallback((newState: typeof birdUI) => {
+    const prev = birdUIRef.current;
+    const shouldUpdate = newState === null
+      ? prev !== null
+      : prev === null || prev.leaderboardActive !== newState.leaderboardActive;
+
+    if (shouldUpdate) {
+      birdUIRef.current = newState;
+      setBirdUI(newState);
+    }
+  }, []);
 
   const {
     pan, zoom,
     spaces, plants, strains,
     selection, dragPreview,
-    viewMode, timelineOffset, timelineHorizontalOffset,
+    viewMode, timelineOffset, timelineHorizontalOffset, timelineZoom,
     setPan,
     canvasCursor,
     splitPreview,
     placementPreview,
     timeViewPlacementPreview,
     plantDragPreview,
+    longPressPreview,
   } = useAppStore();
 
   useGestures(canvasRef, canvasRect, readOnly);
@@ -79,63 +106,157 @@ export function Canvas({ readOnly }: CanvasProps) {
     hasCentered.current = true;
   }, [spaces, canvasSize, zoom, setPan]);
 
-  const render = useCallback(() => {
+  // Store latest state in refs for animation loop
+  const stateRef = useRef({
+    canvasSize, pan, zoom, spaces, plants, strains,
+    selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, timelineZoom,
+    splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview, longPressPreview,
+  });
+
+  // Update refs when state changes
+  useEffect(() => {
+    stateRef.current = {
+      canvasSize, pan, zoom, spaces, plants, strains,
+      selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, timelineZoom,
+      splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview, longPressPreview,
+    };
+  }, [
+    canvasSize, pan, zoom, spaces, plants, strains,
+    selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, timelineZoom,
+    splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview, longPressPreview,
+  ]);
+
+  // Reset particles when switching views
+  useEffect(() => {
+    if (viewMode === 'time') {
+      resetParticles();
+    }
+  }, [viewMode]);
+
+  // Animation loop for particles and bird
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    let animationId: number;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = canvasSize.width * dpr;
-    canvas.height = canvasSize.height * dpr;
-    ctx.scale(dpr, dpr);
+    const animate = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    ctx.fillStyle = COLORS.background;
-    ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+      const state = stateRef.current;
+      const dpr = window.devicePixelRatio || 1;
+      const now = performance.now();
+      const deltaMs = now - lastFrameTime.current;
+      lastFrameTime.current = now;
 
-    if (viewMode === 'space') {
-      // Draw background grid before transform (in screen coordinates)
-      renderBackgroundGrid(ctx, canvasSize.width, canvasSize.height, pan, zoom);
+      // Only resize if needed
+      if (canvas.width !== state.canvasSize.width * dpr || canvas.height !== state.canvasSize.height * dpr) {
+        canvas.width = state.canvasSize.width * dpr;
+        canvas.height = state.canvasSize.height * dpr;
+      }
 
-      ctx.save();
-      ctx.translate(pan.x, pan.y);
-      ctx.scale(zoom, zoom);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      renderSpaceView(ctx, spaces, plants, strains, selection, dragPreview, placementPreview, plantDragPreview);
+      // Clear
+      ctx.fillStyle = COLORS.background;
+      ctx.fillRect(0, 0, state.canvasSize.width, state.canvasSize.height);
 
-      ctx.restore();
-    } else {
-      // New horizontal timeline: panY = vertical scroll, panX = horizontal scroll (dates)
-      renderTimeView(
-        ctx,
-        spaces,
-        plants,
-        strains,
-        canvasSize.width,
-        canvasSize.height,
-        timelineOffset,           // panY (vertical scroll for slots)
-        timelineHorizontalOffset, // panX (horizontal scroll for dates)
-        splitPreview,
-        timeViewPlacementPreview
-      );
-    }
-  }, [
-    canvasSize, pan, zoom, spaces, plants, strains,
-    selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview,
-  ]);
+      if (state.viewMode === 'space') {
+        // Draw background grid before transform (in screen coordinates)
+        renderBackgroundGrid(ctx, state.canvasSize.width, state.canvasSize.height, state.pan, state.zoom);
 
-  useEffect(() => {
-    render();
-  }, [render]);
+        ctx.save();
+        ctx.translate(state.pan.x, state.pan.y);
+        ctx.scale(state.zoom, state.zoom);
+
+        renderSpaceView(ctx, state.spaces, state.plants, state.strains, state.selection, state.dragPreview, state.placementPreview, state.plantDragPreview);
+
+        // Draw particles on top of spaces/plants (atmospheric overlay)
+        renderParticles(
+          ctx,
+          state.spaces,
+          state.plants,
+          state.strains,
+          state.canvasSize.width,
+          state.canvasSize.height,
+          state.pan,
+          state.zoom
+        );
+
+        ctx.restore();
+
+        // Bird easter egg (only in space view, when feature is enabled)
+        if (FEATURES.BIRD_MINIGAME && birdModule) {
+          if (!birdSpawned.current && state.canvasSize.width > 0) {
+            birdModule.scheduleBirdSpawn();
+            birdSpawned.current = true;
+          }
+
+          // Check if bird should spawn, update and render
+          birdModule.checkAndSpawnBird(state.canvasSize.width, state.canvasSize.height, state.pan, state.zoom);
+          birdModule.updateBird(deltaMs);
+          birdModule.updateBirdTracking(state.canvasSize.width, state.canvasSize.height, state.pan, state.zoom);
+          birdModule.renderBird(ctx, state.canvasSize.width, state.canvasSize.height, state.pan, state.zoom);
+
+          // Update bird UI state (throttled to avoid re-renders every frame)
+          const birdPos = birdModule.getBirdScreenPosition(state.canvasSize.width, state.canvasSize.height, state.pan, state.zoom);
+          const birdState = birdModule.getBirdUIState();
+          if (birdPos && birdState && birdState.isAlive && birdState.leaderboardActive) {
+            updateBirdUI({
+              screenX: birdPos.x,
+              screenY: birdPos.y,
+              distance: birdState.distance,
+              leaderboardActive: birdState.leaderboardActive,
+            });
+          } else {
+            updateBirdUI(null);
+          }
+        }
+      } else {
+        // Time view - no particles or bird
+        renderTimeView(
+          ctx,
+          state.spaces,
+          state.plants,
+          state.strains,
+          state.canvasSize.width,
+          state.canvasSize.height,
+          state.timelineOffset,
+          state.timelineHorizontalOffset,
+          state.timelineZoom,
+          state.splitPreview,
+          state.timeViewPlacementPreview
+        );
+      }
+
+      // Draw long press indicator on top of everything
+      if (state.longPressPreview) {
+        renderLongPressIndicator(ctx, state.longPressPreview);
+      }
+
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, []); // Empty deps - animation loop runs continuously, state accessed via refs
 
   return (
     <div
       ref={containerRef}
       style={{
-        flex: 1,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
         overflow: 'hidden',
-        position: 'relative',
+        perspective: '600px',
+        pointerEvents: 'auto',
       }}
     >
       <canvas
@@ -147,6 +268,14 @@ export function Canvas({ readOnly }: CanvasProps) {
           cursor: canvasCursor,
         }}
       />
+      {/* Bird leaderboard UI overlay (only when feature is enabled) */}
+      {FEATURES.BIRD_MINIGAME && BirdOverlayComponent && birdUI && (
+        <BirdOverlayComponent
+          screenX={birdUI.screenX}
+          screenY={birdUI.screenY}
+          distance={birdUI.distance}
+        />
+      )}
     </div>
   );
 }

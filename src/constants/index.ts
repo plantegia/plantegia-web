@@ -1,5 +1,10 @@
 import type { Stage } from '../types';
 
+// Feature flags for experimental/easter-egg features
+export const FEATURES = {
+  BIRD_MINIGAME: false, // Easter egg bird game with leaderboard
+} as const;
+
 export const COLORS = {
   background: '#15472C',
   backgroundLight: '#1e5a38',
@@ -40,6 +45,10 @@ export const MIN_ZOOM = 0.3;
 export const MAX_ZOOM = 2;
 export const DEFAULT_ZOOM = 1;
 
+export const MIN_TIMELINE_ZOOM = 0.5;
+export const MAX_TIMELINE_ZOOM = 3;
+export const DEFAULT_TIMELINE_ZOOM = 1;
+
 export const VIEWPORT_WIDTH = 390;
 export const HOTBAR_HEIGHT = 88;
 export const MOBILE_BREAKPOINT = 768;
@@ -65,6 +74,10 @@ export const STAGE_ABBREV: Record<Stage, string> = {
 
 // UI sizing constants
 export const SPACE_HANDLE_SIZE = 8;
+
+// Touch interaction constants
+export const LONG_PRESS_DURATION = 400; // ms before drag activates
+export const LONG_PRESS_MOVE_THRESHOLD = 10; // px movement cancels long press
 
 // Cursor constants
 export const CURSORS = {

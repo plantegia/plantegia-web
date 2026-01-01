@@ -249,7 +249,7 @@ export const TIME_VIEW_CONSTANTS = {
   spaceHeaderHeight: 24,  // space name header
 
   // Margins
-  leftMargin: 100,        // space for slot labels
+  leftMargin: 0,          // no left margin (was for slot labels)
   topMargin: 40,          // space for date labels
 
   // Segments
@@ -326,6 +326,7 @@ export interface SlotInfo {
 }
 
 // Build slot list for Y-axis (grouped by space)
+// Includes space header rows for visual grouping
 export function buildSlotList(spaces: Space[], plants?: Plant[]): SlotInfo[] {
   const { slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
   const slots: SlotInfo[] = [];
@@ -418,8 +419,9 @@ export function dateToDays(date: Date, today: Date = new Date()): number {
 }
 
 // Convert screen X to date
-export function screenXToDate(screenX: number, panX: number, today: Date = new Date()): Date {
-  const { dayWidth, leftMargin } = TIME_VIEW_CONSTANTS;
+export function screenXToDate(screenX: number, panX: number, today: Date = new Date(), zoom: number = 1): Date {
+  const { dayWidth: baseDayWidth, leftMargin } = TIME_VIEW_CONSTANTS;
+  const dayWidth = baseDayWidth * zoom;
   const daysFromToday = Math.floor((screenX - leftMargin - panX) / dayWidth);
   const result = new Date(today);
   result.setDate(result.getDate() + daysFromToday);
@@ -427,8 +429,9 @@ export function screenXToDate(screenX: number, panX: number, today: Date = new D
 }
 
 // Convert date to screen X
-export function dateToScreenX(date: Date, panX: number, today: Date = new Date()): number {
-  const { dayWidth, leftMargin } = TIME_VIEW_CONSTANTS;
+export function dateToScreenX(date: Date, panX: number, today: Date = new Date(), zoom: number = 1): number {
+  const { dayWidth: baseDayWidth, leftMargin } = TIME_VIEW_CONSTANTS;
+  const dayWidth = baseDayWidth * zoom;
   const days = dateToDays(date, today);
   return leftMargin + panX + days * dayWidth;
 }
@@ -550,7 +553,8 @@ export function findSegmentAtHorizontal(
   spaces: Space[],
   panX: number,
   panY: number,
-  today: Date = new Date()
+  today: Date = new Date(),
+  zoom: number = 1
 ): SegmentHitResult | null {
   const { topMargin, handleWidth, segmentHeight, segmentGap } = TIME_VIEW_CONSTANTS;
   const slots = buildSlotList(spaces, plants);
@@ -572,8 +576,8 @@ export function findSegmentAtHorizontal(
       const segStartDate = new Date(segment.startDate);
       const segEndDate = segment.endDate ? new Date(segment.endDate) : plantEndDate;
 
-      const x1 = dateToScreenX(segStartDate, panX, today);
-      const x2 = dateToScreenX(segEndDate, panX, today);
+      const x1 = dateToScreenX(segStartDate, panX, today, zoom);
+      const x2 = dateToScreenX(segEndDate, panX, today, zoom);
       const y = topMargin + slot.yOffset - panY + segmentGap;
 
       // Check if point is in segment bounds
@@ -590,7 +594,7 @@ export function findSegmentAtHorizontal(
 
             // Check if this boundary is within the segment
             if (stageEndDate > segStartDate && stageEndDate < segEndDate) {
-              const handleX = dateToScreenX(stageEndDate, panX, today);
+              const handleX = dateToScreenX(stageEndDate, panX, today, zoom);
 
               // Check if click is on the handle
               if (Math.abs(screenX - handleX) < handleWidth) {
@@ -622,7 +626,8 @@ export function findMergeButtonAt(
   spaces: Space[],
   panX: number,
   panY: number,
-  today: Date = new Date()
+  today: Date = new Date(),
+  zoom: number = 1
 ): MergeButtonHitResult | null {
   const { topMargin, segmentHeight, segmentGap, mergeButtonSize } = TIME_VIEW_CONSTANTS;
   const slots = buildSlotList(spaces, plants);
@@ -645,7 +650,7 @@ export function findMergeButtonAt(
       if (!slot) continue;
 
       const splitDate = new Date(seg2.startDate);
-      const splitX = dateToScreenX(splitDate, panX, today);
+      const splitX = dateToScreenX(splitDate, panX, today, zoom);
       const y = topMargin + slot.yOffset - panY + segmentGap;
       const buttonCenterY = y + segmentHeight / 2;
 
@@ -675,12 +680,10 @@ export function findSlotAtY(
   const adjustedY = screenY - topMargin + panY;
 
   // Find the slot where adjustedY falls within its bounds
-  for (let i = 0; i < slots.length; i++) {
-    const slot = slots[i];
+  for (const slot of slots) {
     const height = slot.isSpaceHeader ? spaceHeaderHeight : slotHeight;
-
     if (adjustedY >= slot.yOffset && adjustedY < slot.yOffset + height) {
-      // Found the slot, but skip if it's a header
+      // Skip headers - they're not valid drop targets
       if (slot.isSpaceHeader) return null;
       return slot;
     }

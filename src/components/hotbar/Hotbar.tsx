@@ -12,15 +12,20 @@ export function Hotbar({ readOnly }: HotbarProps) {
     return (
       <div
         style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
           height: 88,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: '0 12px',
           background: COLORS.background,
-          flexShrink: 0,
           color: COLORS.textMuted,
           fontSize: 14,
+          zIndex: 10,
+          pointerEvents: 'auto',
         }}
       >
         View only
@@ -31,12 +36,17 @@ export function Hotbar({ readOnly }: HotbarProps) {
   return (
     <div
       style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
         gap: 8,
         padding: '0 12px 12px',
-        flexShrink: 0,
+        zIndex: 10,
+        pointerEvents: 'auto',
       }}
     >
       <Toolbox />

@@ -58,14 +58,12 @@ export function PlantationView() {
         width: '100vw',
         height: '100vh',
         background: COLORS.background,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'visible',
+        overflow: 'hidden',
         position: 'relative',
       }}
     >
-      <Header plantationName={plantation.name} canEdit={canEdit} />
       <Canvas readOnly={!canEdit} />
+      <Header plantationName={plantation.name} canEdit={canEdit} />
       <Inspector readOnly={!canEdit} />
       <Hotbar readOnly={!canEdit} />
     </div>
@@ -87,14 +85,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   message: {
     fontSize: 14,
-    color: '#8B8B8B',
+    color: COLORS.textMuted,
   },
   backButton: {
     padding: '12px 24px',
     fontSize: 14,
     fontFamily: '"Space Mono", monospace',
-    backgroundColor: '#2A2A4E',
-    color: '#fff',
+    backgroundColor: COLORS.backgroundLight,
+    color: COLORS.text,
     border: 'none',
     cursor: 'pointer',
   },

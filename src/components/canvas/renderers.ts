@@ -1,4 +1,4 @@
-import type { Space, Plant, Strain, Stage, PlantSegment, TimeViewPlacementPreview, PlantDragPreview } from '../../types';
+import type { Space, Plant, Strain, Stage, PlantSegment, TimeViewPlacementPreview, PlantDragPreview, LongPressPreview } from '../../types';
 import { COLORS, STAGE_COLORS, CELL_SIZE, SPACE_COLORS, STAGE_ABBREV, SPACE_HANDLE_SIZE, STAGES } from '../../constants';
 import {
   getPlantCells,
@@ -465,13 +465,14 @@ function drawTimeViewPlacementPreview(
   abbreviation: string,
   strain: Strain | undefined,
   panX: number,
-  today: Date
+  today: Date,
+  zoom: number = 1
 ) {
   const { segmentHeight, segmentGap } = TIME_VIEW_CONSTANTS;
   const segmentY = slotY + segmentGap;
 
   // Calculate start date from cursor position
-  const startDate = screenXToDate(screenX, panX);
+  const startDate = screenXToDate(screenX, panX, today, zoom);
 
   // Calculate total plant duration using default/strain stage durations
   let totalDays = 0;
@@ -486,7 +487,7 @@ function drawTimeViewPlacementPreview(
   // Calculate end X position
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + totalDays);
-  const endX = dateToScreenX(endDate, panX, today);
+  const endX = dateToScreenX(endDate, panX, today, zoom);
 
   // Base alpha for ghost preview
   const baseAlpha = canPlace ? 0.6 : 0.4;
@@ -498,8 +499,8 @@ function drawTimeViewPlacementPreview(
     const stageEndDate = new Date(stageStartDate);
     stageEndDate.setDate(stageEndDate.getDate() + duration);
 
-    const stageX1 = dateToScreenX(stageStartDate, panX, today);
-    const stageX2 = dateToScreenX(stageEndDate, panX, today);
+    const stageX1 = dateToScreenX(stageStartDate, panX, today, zoom);
+    const stageX2 = dateToScreenX(stageEndDate, panX, today, zoom);
 
     // Skip if completely off screen
     if (stageX2 < leftMargin || stageX1 > canvasWidth) continue;
@@ -563,13 +564,13 @@ export function renderTimeView(
   canvasHeight: number,
   panY: number,
   panX: number = 0,
+  zoom: number = 1,
   splitPreview: { x: number; plantId: string; segmentId: string } | null = null,
   timeViewPlacementPreview: TimeViewPlacementPreview | null = null
 ) {
   const today = new Date();
   const {
-    dayWidth,
-    weekWidth,
+    dayWidth: baseDayWidth,
     slotHeight,
     spaceHeaderHeight,
     leftMargin,
@@ -578,17 +579,22 @@ export function renderTimeView(
     segmentGap,
   } = TIME_VIEW_CONSTANTS;
 
+  // Apply zoom to horizontal time scale
+  const dayWidth = baseDayWidth * zoom;
+  const weekWidth = dayWidth * 7;
+
+  // Local helper that includes zoom
+  const toScreenX = (date: Date) => dateToScreenX(date, panX, today, zoom);
+
   // Build slot list
   const slots = buildSlotList(spaces, plants);
-
-  // Calculate total height needed for all slots
-  const totalSlotsHeight = slots.length > 0
-    ? slots[slots.length - 1].yOffset + (slots[slots.length - 1].isSpaceHeader ? spaceHeaderHeight : slotHeight)
-    : 0;
 
   // Draw background
   ctx.fillStyle = COLORS.background;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  // Header offset for fixed header (matches Header component height)
+  const headerHeight = 48;
 
   // Draw week grid lines (vertical)
   ctx.strokeStyle = COLORS.text;
@@ -602,20 +608,20 @@ export function renderTimeView(
     const x = leftMargin + panX + w * weekWidth;
     if (x > leftMargin && x < canvasWidth) {
       ctx.beginPath();
-      ctx.moveTo(x, topMargin);
+      ctx.moveTo(x, headerHeight + topMargin);
       ctx.lineTo(x, canvasHeight);
       ctx.stroke();
     }
   }
   ctx.globalAlpha = 1;
 
-  // Draw slot row backgrounds and labels
+  // Draw slot row backgrounds and space headers (no coordinate labels)
   ctx.save();
   slots.forEach((slot) => {
-    const y = topMargin + slot.yOffset - panY;
+    const y = headerHeight + topMargin + slot.yOffset - panY;
 
     // Skip if off screen
-    if (y + slotHeight < topMargin || y > canvasHeight) return;
+    if (y + slotHeight < headerHeight + topMargin || y > canvasHeight) return;
 
     if (slot.isSpaceHeader) {
       // Space header row
@@ -624,11 +630,11 @@ export function renderTimeView(
 
       ctx.fillStyle = COLORS.text;
       ctx.font = 'bold 10px "Space Mono", monospace';
-      ctx.textAlign = 'left';
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(slot.spaceName.toUpperCase(), 8, y + spaceHeaderHeight / 2);
+      ctx.fillText(slot.spaceName.toUpperCase(), canvasWidth / 2, y + spaceHeaderHeight / 2);
 
-      // Separator line
+      // Separator line below header
       ctx.strokeStyle = COLORS.border;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -636,24 +642,17 @@ export function renderTimeView(
       ctx.lineTo(canvasWidth, y + spaceHeaderHeight);
       ctx.stroke();
     } else {
-      // Slot row - alternating background
+      // Slot row - alternating background (no coordinate labels, no left margin)
       const isEven = (slot.gridX + slot.gridY) % 2 === 0;
       ctx.fillStyle = isEven ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.1)';
-      ctx.fillRect(leftMargin, y, canvasWidth - leftMargin, slotHeight);
-
-      // Slot label
-      ctx.fillStyle = COLORS.textMuted;
-      ctx.font = '9px "Space Mono", monospace';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${slot.gridX},${slot.gridY}`, leftMargin - 8, y + slotHeight / 2);
+      ctx.fillRect(0, y, canvasWidth, slotHeight);
 
       // Row separator
       ctx.strokeStyle = COLORS.text;
       ctx.globalAlpha = 0.1;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
-      ctx.moveTo(leftMargin, y + slotHeight);
+      ctx.moveTo(0, y + slotHeight);
       ctx.lineTo(canvasWidth, y + slotHeight);
       ctx.stroke();
       ctx.globalAlpha = 1;
@@ -662,12 +661,12 @@ export function renderTimeView(
   ctx.restore();
 
   // Draw TODAY line (vertical)
-  const todayX = dateToScreenX(today, panX, today);
+  const todayX = toScreenX(today);
   if (todayX > leftMargin && todayX < canvasWidth) {
     ctx.strokeStyle = COLORS.orange;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(todayX, topMargin);
+    ctx.moveTo(todayX, headerHeight + topMargin);
     ctx.lineTo(todayX, canvasHeight);
     ctx.stroke();
 
@@ -675,7 +674,7 @@ export function renderTimeView(
     ctx.fillStyle = COLORS.orange;
     ctx.font = '9px "Space Mono", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('TODAY', todayX, topMargin - 6);
+    ctx.fillText('TODAY', todayX, headerHeight + topMargin - 6);
   }
 
   // Draw date labels at top (smart spacing to avoid overlap)
@@ -691,14 +690,14 @@ export function renderTimeView(
   for (let d = startDay; d < startDay + daysToShow; d += 7) {
     const dateObj = new Date(today);
     dateObj.setDate(dateObj.getDate() + d);
-    const x = dateToScreenX(dateObj, panX, today);
+    const x = toScreenX(dateObj);
 
     // Skip if too close to TODAY label
     const tooCloseToToday = Math.abs(x - todayX) < minLabelSpacing;
     if (x > leftMargin && x < canvasWidth && x - lastLabelX >= minLabelSpacing && !tooCloseToToday) {
       const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
       const day = dateObj.getDate();
-      ctx.fillText(`${day} ${month}`, x, topMargin / 2);
+      ctx.fillText(`${day} ${month}`, x, headerHeight + topMargin / 2);
       lastLabelX = x;
     }
   }
@@ -727,8 +726,8 @@ export function renderTimeView(
       const hasSplitAfter = segIdx < plant.segments.length - 1 && segment.endDate !== null;
 
       // Apply gap offset for split segments
-      let x1 = dateToScreenX(segStartDate, panX, today);
-      let x2 = dateToScreenX(segEndDate, panX, today);
+      let x1 = toScreenX(segStartDate);
+      let x2 = toScreenX(segEndDate);
 
       // Add half-gap to start if there's a split before
       if (hasSplitBefore) {
@@ -746,7 +745,7 @@ export function renderTimeView(
       if (y + segmentHeight < topMargin || y > canvasHeight) return;
 
       // Draw segment with stage colors
-      drawSegmentWithStages(ctx, plant, strain, segment, x1, x2, y, segmentHeight, today, leftMargin, hasSplitBefore, hasSplitAfter);
+      drawSegmentWithStages(ctx, plant, strain, segment, x1, x2, y, segmentHeight, today, leftMargin, hasSplitBefore, hasSplitAfter, zoom);
 
       // Draw zigzag edges for split points
       if (hasSplitBefore && x1 > leftMargin) {
@@ -785,8 +784,8 @@ export function renderTimeView(
 
       const segStartDate = new Date(segment.startDate);
       const segEndDate = segment.endDate ? new Date(segment.endDate) : plantEndDate;
-      const x1 = dateToScreenX(segStartDate, panX, today);
-      const x2 = dateToScreenX(segEndDate, panX, today);
+      const x1 = toScreenX(segStartDate);
+      const x2 = toScreenX(segEndDate);
       const y = topMargin + slot.yOffset - panY + segmentGap;
 
       allSegments.push({
@@ -833,9 +832,7 @@ export function renderTimeView(
   // Draw all Bezier connections AFTER all segments (so they're on top)
   plants.forEach((plant) => {
     if (!plant.segments || plant.segments.length <= 1) return;
-    const strain = strains.find((s) => s.id === plant.strainId);
-    const plantEndDate = getPlantEndDate(plant, strain);
-    drawSegmentConnections(ctx, plant, strain, slots, panX, panY, today, plantEndDate);
+    drawSegmentConnections(ctx, plant, slots, panX, panY, today, zoom);
   });
 
   // Draw merge buttons after connections
@@ -854,7 +851,7 @@ export function renderTimeView(
         if (!slot) continue;
 
         const splitDate = new Date(seg2.startDate);
-        const splitX = dateToScreenX(splitDate, panX, today);
+        const splitX = toScreenX(splitDate);
         const y = topMargin + slot.yOffset - panY + segmentGap;
 
         if (splitX > leftMargin && splitX < canvasWidth && y > topMargin && y < canvasHeight) {
@@ -874,29 +871,6 @@ export function renderTimeView(
     ctx.stroke();
   }
 
-  // Draw left margin background (to cover segments that extend into it)
-  ctx.fillStyle = COLORS.background;
-  ctx.fillRect(0, 0, leftMargin, canvasHeight);
-
-  // Redraw slot labels on top
-  slots.forEach((slot) => {
-    const y = topMargin + slot.yOffset - panY;
-    if (y + slotHeight < topMargin || y > canvasHeight) return;
-
-    if (slot.isSpaceHeader) {
-      ctx.fillStyle = COLORS.text;
-      ctx.font = 'bold 10px "Space Mono", monospace';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(slot.spaceName.toUpperCase(), 8, y + spaceHeaderHeight / 2);
-    } else {
-      ctx.fillStyle = COLORS.textMuted;
-      ctx.font = '9px "Space Mono", monospace';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${slot.gridX},${slot.gridY}`, leftMargin - 8, y + slotHeight / 2);
-    }
-  });
 
   // Draw top margin background
   ctx.fillStyle = COLORS.background;
@@ -911,7 +885,7 @@ export function renderTimeView(
   for (let d = startDay; d < startDay + daysToShow; d += 7) {
     const dateObj = new Date(today);
     dateObj.setDate(dateObj.getDate() + d);
-    const x = dateToScreenX(dateObj, panX, today);
+    const x = toScreenX(dateObj);
 
     // Skip if too close to TODAY label
     const tooCloseToToday = Math.abs(x - todayX) < minLabelSpacing;
@@ -986,7 +960,8 @@ export function renderTimeView(
           timeViewPlacementPreview.abbreviation,
           previewStrain,
           panX,
-          today
+          today,
+          zoom
         );
       }
     }
@@ -1044,7 +1019,8 @@ function drawSegmentWithStages(
   today: Date,
   leftMargin: number,
   hasSplitBefore: boolean = false,
-  hasSplitAfter: boolean = false
+  hasSplitAfter: boolean = false,
+  zoom: number = 1
 ) {
   const { maxVisibleWidth } = TIME_VIEW_CONSTANTS;
   const plantStartDate = new Date(plant.startedAt);
@@ -1075,8 +1051,8 @@ function drawSegmentWithStages(
     if (overlapStart >= overlapEnd) continue;
 
     // Convert overlap to screen coordinates
-    const overlapX1 = Math.max(leftMargin, dateToScreenX(overlapStart, x1 - dateToScreenX(segStartDate, 0, today), today));
-    const overlapX2 = Math.min(endX, dateToScreenX(overlapEnd, x1 - dateToScreenX(segStartDate, 0, today), today));
+    const overlapX1 = Math.max(leftMargin, dateToScreenX(overlapStart, x1 - dateToScreenX(segStartDate, 0, today, zoom), today, zoom));
+    const overlapX2 = Math.min(endX, dateToScreenX(overlapEnd, x1 - dateToScreenX(segStartDate, 0, today, zoom), today, zoom));
 
     if (overlapX1 >= overlapX2) continue;
 
@@ -1175,7 +1151,7 @@ function drawSegmentWithStages(
       const segEndDate = segment.endDate ? new Date(segment.endDate) : getPlantEndDate(plant, strain);
 
       if (stageEndDate > segStartDate && stageEndDate < segEndDate) {
-        const handleX = dateToScreenX(stageEndDate, x1 - dateToScreenX(segStartDate, 0, today), today);
+        const handleX = dateToScreenX(stageEndDate, x1 - dateToScreenX(segStartDate, 0, today, zoom), today, zoom);
 
         if (handleX > leftMargin && handleX < leftMargin + maxVisibleWidth) {
           ctx.fillStyle = handleColor;
@@ -1276,14 +1252,13 @@ function drawMergeButton(
 function drawSegmentConnections(
   ctx: CanvasRenderingContext2D,
   plant: Plant,
-  strain: Strain | undefined,
   slots: SlotInfo[],
   panX: number,
   panY: number,
   today: Date,
-  plantEndDate: Date
+  zoom: number = 1
 ) {
-  const { topMargin, segmentHeight, segmentGap, slotHeight } = TIME_VIEW_CONSTANTS;
+  const { topMargin, segmentHeight, segmentGap } = TIME_VIEW_CONSTANTS;
 
   for (let i = 0; i < plant.segments.length - 1; i++) {
     const seg1 = plant.segments[i];
@@ -1299,7 +1274,7 @@ function drawSegmentConnections(
 
     // Connection point: end of seg1
     const connectionDate = new Date(seg2.startDate);
-    const x = dateToScreenX(connectionDate, panX, today);
+    const x = dateToScreenX(connectionDate, panX, today, zoom);
 
     const y1 = topMargin + slot1.yOffset - panY + segmentGap + segmentHeight / 2;
     const y2 = topMargin + slot2.yOffset - panY + segmentGap + segmentHeight / 2;
@@ -1327,4 +1302,55 @@ function drawSegmentConnections(
     ctx.arc(x, y2, 3, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+// Draw long press indicator - circular progress around touch point
+export function renderLongPressIndicator(
+  ctx: CanvasRenderingContext2D,
+  preview: LongPressPreview
+) {
+  const { screenX, screenY, progress } = preview;
+  const radius = 28;
+  const lineWidth = 3;
+
+  ctx.save();
+
+  // Outer glow effect
+  if (progress > 0.5) {
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, radius + 6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(251, 209, 159, ${(progress - 0.5) * 0.2})`;
+    ctx.fill();
+  }
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(251, 209, 159, 0.2)';
+  ctx.lineWidth = lineWidth;
+  ctx.stroke();
+
+  // Progress arc
+  ctx.beginPath();
+  ctx.arc(
+    screenX,
+    screenY,
+    radius,
+    -Math.PI / 2, // Start from top
+    -Math.PI / 2 + progress * Math.PI * 2, // Progress clockwise
+    false
+  );
+  ctx.strokeStyle = COLORS.teal;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Center dot that pulses
+  const dotRadius = 4 + progress * 2;
+  ctx.beginPath();
+  ctx.arc(screenX, screenY, dotRadius, 0, Math.PI * 2);
+  ctx.fillStyle = progress >= 1 ? COLORS.teal : COLORS.textMuted;
+  ctx.fill();
+
+  ctx.restore();
 }

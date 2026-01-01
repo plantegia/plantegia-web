@@ -7,6 +7,8 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
+  limit,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
@@ -139,4 +141,98 @@ export async function updatePlantationSettings(
 export async function deletePlantation(id: string): Promise<void> {
   const docRef = doc(db, PLANTATIONS, id);
   await deleteDoc(docRef);
+}
+
+// =============================================================================
+// Bird Leaderboard
+// =============================================================================
+
+const BIRD_LEADERBOARD = 'bird_leaderboard';
+
+export interface BirdScore {
+  id: string;
+  userId: string;
+  userName: string;
+  distance: number;
+  createdAt: string;
+}
+
+interface BirdScoreData {
+  userId: string;
+  userName: string;
+  distance: number;
+  createdAt: Timestamp;
+}
+
+export async function getBirdLeaderboard(topN: number = 10): Promise<BirdScore[]> {
+  const q = query(
+    collection(db, BIRD_LEADERBOARD),
+    orderBy('distance', 'desc'),
+    limit(topN)
+  );
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map((doc) => {
+    const data = doc.data() as BirdScoreData;
+    return {
+      id: doc.id,
+      userId: data.userId,
+      userName: data.userName,
+      distance: data.distance,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    };
+  });
+}
+
+export async function getUserBirdScore(userId: string): Promise<BirdScore | null> {
+  const q = query(
+    collection(db, BIRD_LEADERBOARD),
+    where('userId', '==', userId)
+  );
+  const querySnapshot = await getDocs(q);
+
+  if (querySnapshot.empty) {
+    return null;
+  }
+
+  const doc = querySnapshot.docs[0];
+  const data = doc.data() as BirdScoreData;
+  return {
+    id: doc.id,
+    userId: data.userId,
+    userName: data.userName,
+    distance: data.distance,
+    createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+  };
+}
+
+export async function submitBirdScore(
+  userId: string,
+  userName: string,
+  distance: number
+): Promise<void> {
+  // Check if user already has a score
+  const existing = await getUserBirdScore(userId);
+
+  if (existing) {
+    // Only update if new score is higher
+    if (distance > existing.distance) {
+      const docRef = doc(db, BIRD_LEADERBOARD, existing.id);
+      await setDoc(docRef, {
+        userId,
+        userName,
+        distance,
+        createdAt: serverTimestamp(),
+      });
+    }
+  } else {
+    // Create new score
+    const docRef = doc(collection(db, BIRD_LEADERBOARD));
+    await setDoc(docRef, {
+      userId,
+      userName,
+      distance,
+      createdAt: serverTimestamp(),
+    });
+  }
 }

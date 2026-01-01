@@ -22,8 +22,9 @@ import {
   getStageDuration,
   findMergeButtonAt,
 } from '../utils/grid';
-import { MIN_ZOOM, MAX_ZOOM, CELL_SIZE, SPACE_COLORS, CURSORS, EDGE_CURSORS } from '../constants';
+import { MIN_ZOOM, MAX_ZOOM, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM, CELL_SIZE, SPACE_COLORS, CURSORS, EDGE_CURSORS, LONG_PRESS_DURATION, LONG_PRESS_MOVE_THRESHOLD } from '../constants';
 import type { Point, Space, Plant, Stage, PlantSegment } from '../types';
+import { triggerHaptic } from '../utils/haptic';
 
 type SpaceDragMode = 'none' | 'move' | 'resize' | 'plant-move';
 type TimeViewDragMode = 'none' | 'segment-move-x' | 'segment-move-y' | 'stage-resize' | 'pan';
@@ -57,6 +58,14 @@ interface GestureState {
   // Stage resize
   resizingStage: Stage | null;
   originalStageDays: number | null;
+  // Long press for touch drag
+  longPressTimer: ReturnType<typeof setTimeout> | null;
+  longPressTriggered: boolean;
+  longPressTarget: {
+    type: 'plant' | 'space' | 'segment';
+    id: string;
+    segmentId?: string;
+  } | null;
 }
 
 function getDistance(t1: Touch | MouseEvent, t2: Touch): number {
@@ -99,6 +108,9 @@ export function useGestures(
     originalStartedAt: null,
     resizingStage: null,
     originalStageDays: null,
+    longPressTimer: null,
+    longPressTriggered: false,
+    longPressTarget: null,
   });
 
   const {
@@ -112,6 +124,7 @@ export function useGestures(
     viewMode,
     timelineOffset, setTimelineOffset,
     timelineHorizontalOffset, setTimelineHorizontalOffset,
+    timelineZoom, setTimelineZoom,
     saveSnapshot,
     // Segment operations
     splitSegment, mergeSegments, moveSegmentToSlot, shiftPlantInTime, movePlantInSpaceView,
@@ -125,6 +138,8 @@ export function useGestures(
     setTimeViewPlacementPreview,
     // Plant drag preview
     setPlantDragPreview,
+    // Long press preview
+    setLongPressPreview,
   } = useAppStore();
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number): Point => {
@@ -178,7 +193,9 @@ export function useGestures(
           strains,
           spaces,
           timelineHorizontalOffset,
-          timelineOffset
+          timelineOffset,
+          new Date(),
+          timelineZoom
         );
         if (hitResult) {
           setSplitPreview({ x: screenPos.x, plantId: hitResult.plant.id, segmentId: hitResult.segmentId });
@@ -299,7 +316,9 @@ export function useGestures(
         plants,
         spaces,
         timelineHorizontalOffset,
-        timelineOffset
+        timelineOffset,
+        new Date(),
+        timelineZoom
       );
 
       if (mergeHit) {
@@ -315,7 +334,9 @@ export function useGestures(
         strains,
         spaces,
         timelineHorizontalOffset,
-        timelineOffset
+        timelineOffset,
+        new Date(),
+        timelineZoom
       );
 
       if (hitResult) {
@@ -445,12 +466,14 @@ export function useGestures(
         strains,
         spaces,
         timelineHorizontalOffset,
-        timelineOffset
+        timelineOffset,
+        new Date(),
+        timelineZoom
       );
 
       if (hitResult) {
         const { plant, segmentId } = hitResult;
-        const splitDate = screenXToDate(screenPos.x, timelineHorizontalOffset);
+        const splitDate = screenXToDate(screenPos.x, timelineHorizontalOffset, new Date(), timelineZoom);
         splitSegment(plant.id, segmentId, splitDate);
         // Reset to cursor after splitting
         setActiveTool('cursor');
@@ -466,7 +489,9 @@ export function useGestures(
         plants,
         spaces,
         timelineHorizontalOffset,
-        timelineOffset
+        timelineOffset,
+        new Date(),
+        timelineZoom
       );
 
       if (mergeHit) {
@@ -540,9 +565,55 @@ export function useGestures(
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Helper to clear long press state
+    const clearLongPress = () => {
+      const g = gestureRef.current;
+      if (g.longPressTimer) {
+        clearTimeout(g.longPressTimer);
+        g.longPressTimer = null;
+      }
+      g.longPressTriggered = false;
+      g.longPressTarget = null;
+      setLongPressPreview(null);
+    };
+
+    // Helper to start long press animation
+    const startLongPressAnimation = (target: GestureState['longPressTarget'], screenPos: Point) => {
+      const g = gestureRef.current;
+      if (!target) return;
+
+      let progress = 0;
+      const startTime = Date.now();
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        progress = Math.min(1, elapsed / LONG_PRESS_DURATION);
+
+        if (g.longPressTarget === target) {
+          setLongPressPreview({
+            type: target.type,
+            id: target.id,
+            segmentId: target.segmentId,
+            screenX: screenPos.x,
+            screenY: screenPos.y,
+            progress,
+          });
+
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          }
+        }
+      };
+
+      requestAnimationFrame(animate);
+    };
+
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
       const g = gestureRef.current;
+
+      // Clear any existing long press
+      clearLongPress();
 
       if (e.touches.length === 1) {
         const touch = e.touches[0];
@@ -555,9 +626,116 @@ export function useGestures(
         g.moved = false;
         g.isPanning = false;
         g.isDragging = false;
+        g.spaceDragMode = 'none';
+        g.timeViewDragMode = 'none';
+
+        // Don't start long press if we have an active tool or seed selected
+        if (readOnly || activeTool === 'space' || activeTool === 'erase' || activeTool === 'split' || selectedSeedId) {
+          return;
+        }
+
+        // Detect what we're touching for potential long press drag
+        if (viewMode === 'space') {
+          // Check for plant
+          const plant = findPlantAt(g.startWorld, plants, spaces);
+          if (plant) {
+            g.longPressTarget = { type: 'plant', id: plant.id };
+            startLongPressAnimation(g.longPressTarget, screenPos);
+
+            g.longPressTimer = setTimeout(() => {
+              if (g.longPressTarget?.type === 'plant') {
+                triggerHaptic('medium');
+                g.longPressTriggered = true;
+                g.spaceDragMode = 'plant-move';
+                g.draggedSpaceViewPlantId = plant.id;
+                g.originalPlantPosition = {
+                  spaceId: plant.spaceId,
+                  gridX: plant.gridX,
+                  gridY: plant.gridY,
+                };
+                saveSnapshot();
+              }
+            }, LONG_PRESS_DURATION);
+            return;
+          }
+
+          // Check for selected space (for move/resize)
+          if (selection?.type === 'space') {
+            const space = spaces.find(s => s.id === selection.id);
+            if (space) {
+              const edge = findSpaceEdgeAt(g.startWorld, space);
+              if (edge) {
+                g.longPressTarget = { type: 'space', id: space.id };
+                startLongPressAnimation(g.longPressTarget, screenPos);
+
+                g.longPressTimer = setTimeout(() => {
+                  if (g.longPressTarget?.type === 'space') {
+                    triggerHaptic('medium');
+                    g.longPressTriggered = true;
+                    if (edge === 'body') {
+                      g.spaceDragMode = 'move';
+                    } else {
+                      g.spaceDragMode = 'resize';
+                      g.resizeEdge = edge;
+                    }
+                    g.draggedSpaceId = space.id;
+                    g.originalSpace = { ...space };
+                    saveSnapshot();
+                  }
+                }, LONG_PRESS_DURATION);
+                return;
+              }
+            }
+          }
+        } else if (viewMode === 'time') {
+          // Check for segment
+          const hitResult = findSegmentAtHorizontal(
+            screenPos.x,
+            screenPos.y,
+            plants,
+            strains,
+            spaces,
+            timelineHorizontalOffset,
+            timelineOffset,
+            new Date(),
+            timelineZoom
+          );
+
+          if (hitResult) {
+            g.longPressTarget = {
+              type: 'segment',
+              id: hitResult.plant.id,
+              segmentId: hitResult.segmentId,
+            };
+            startLongPressAnimation(g.longPressTarget, screenPos);
+
+            g.longPressTimer = setTimeout(() => {
+              if (g.longPressTarget?.type === 'segment') {
+                triggerHaptic('medium');
+                g.longPressTriggered = true;
+                g.draggedTimeViewPlantId = hitResult.plant.id;
+                g.draggedSegmentId = hitResult.segmentId;
+                g.segmentHitZone = hitResult.hitZone;
+                g.originalStartedAt = hitResult.plant.startedAt;
+
+                if (hitResult.hitZone === 'stage-handle' && hitResult.stage) {
+                  g.timeViewDragMode = 'stage-resize';
+                  g.resizingStage = hitResult.stage;
+                  const strain = strains.find((s) => s.id === hitResult.plant.strainId);
+                  g.originalStageDays = getStageDuration(hitResult.stage, hitResult.plant, strain);
+                } else {
+                  g.timeViewDragMode = 'segment-move-x';
+                }
+                saveSnapshot();
+              }
+            }, LONG_PRESS_DURATION);
+            return;
+          }
+        }
       }
 
       if (e.touches.length === 2) {
+        clearLongPress();
         const dist = getDistance(e.touches[0], e.touches[1]);
         const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - canvasRect.left;
         const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - canvasRect.top;
@@ -574,11 +752,11 @@ export function useGestures(
       const g = gestureRef.current;
 
       if (e.touches.length === 2 && viewMode === 'space') {
+        clearLongPress();
         const dist = getDistance(e.touches[0], e.touches[1]);
         const scale = dist / g.pinchStartDistance;
         const newZoom = clamp(g.pinchStartZoom * scale, MIN_ZOOM, MAX_ZOOM);
 
-        // Zoom towards pinch center
         const worldX = (g.pinchCenter.x - g.lastPan.x) / g.pinchStartZoom;
         const worldY = (g.pinchCenter.y - g.lastPan.y) / g.pinchStartZoom;
 
@@ -595,30 +773,196 @@ export function useGestures(
         const screenPos = getCanvasPoint(touch.clientX, touch.clientY);
         const dx = screenPos.x - g.startScreen.x;
         const dy = screenPos.y - g.startScreen.y;
+        const distance = Math.hypot(dx, dy);
 
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        // Cancel long press if moved too much before it triggered
+        if (!g.longPressTriggered && distance > LONG_PRESS_MOVE_THRESHOLD) {
+          clearLongPress();
           g.moved = true;
         }
 
-        if (viewMode === 'time') {
-          g.isPanning = true;
-          setTimelineOffset(g.lastTimelineOffset - dy);
-          setTimelineHorizontalOffset(g.lastTimelineHorizontalOffset + dx);
-        } else if (activeTool === 'space' && viewMode === 'space') {
-          g.isDragging = true;
-          const currentWorld = screenToWorld(screenPos, pan, zoom);
-          setDragPreview({
-            startX: g.startWorld.x,
-            startY: g.startWorld.y,
-            endX: currentWorld.x,
-            endY: currentWorld.y,
-          });
-        } else if ((!activeTool || activeTool === 'cursor') && !selectedSeedId) {
-          g.isPanning = true;
-          setPan({
-            x: g.lastPan.x + dx,
-            y: g.lastPan.y + dy,
-          });
+        // Handle drag after long press triggered
+        if (g.longPressTriggered) {
+          // Mark as moved when dragging after long press
+          if (distance > LONG_PRESS_MOVE_THRESHOLD) {
+            g.moved = true;
+          }
+
+          // Plant drag in Space View
+          if (g.spaceDragMode === 'plant-move' && g.draggedSpaceViewPlantId) {
+            const currentWorld = screenToWorld(screenPos, pan, zoom);
+            const draggedPlant = plants.find(p => p.id === g.draggedSpaceViewPlantId);
+            const strain = draggedPlant?.strainId ? strains.find(s => s.id === draggedPlant.strainId) : null;
+            const abbreviation = strain?.abbreviation || 'PLT';
+
+            const origPos = g.originalPlantPosition;
+            const sourceSpace = origPos?.spaceId ? spaces.find(s => s.id === origPos.spaceId) : null;
+            const sourceWorldX = sourceSpace && origPos ? sourceSpace.originX + origPos.gridX * CELL_SIZE : 0;
+            const sourceWorldY = sourceSpace && origPos ? sourceSpace.originY + origPos.gridY * CELL_SIZE : 0;
+
+            const targetSpace = findSpaceAt(currentWorld, spaces);
+            if (targetSpace) {
+              const cell = findCellInSpace(currentWorld, targetSpace);
+              if (cell) {
+                const canPlace = canPlacePlant(targetSpace.id, cell.gridX, cell.gridY, 1, targetSpace, plants, g.draggedSpaceViewPlantId);
+                const targetWorldX = targetSpace.originX + cell.gridX * CELL_SIZE;
+                const targetWorldY = targetSpace.originY + cell.gridY * CELL_SIZE;
+
+                setPlantDragPreview({
+                  plantId: g.draggedSpaceViewPlantId,
+                  abbreviation,
+                  sourceWorldX,
+                  sourceWorldY,
+                  targetWorldX,
+                  targetWorldY,
+                  canPlace,
+                });
+                return;
+              }
+            }
+
+            // Not over valid cell
+            const snappedX = snapToGrid(currentWorld.x);
+            const snappedY = snapToGrid(currentWorld.y);
+            setPlantDragPreview({
+              plantId: g.draggedSpaceViewPlantId,
+              abbreviation,
+              sourceWorldX,
+              sourceWorldY,
+              targetWorldX: snappedX,
+              targetWorldY: snappedY,
+              canPlace: false,
+            });
+            return;
+          }
+
+          // Space move/resize
+          if ((g.spaceDragMode === 'move' || g.spaceDragMode === 'resize') && g.originalSpace && g.draggedSpaceId) {
+            const currentWorld = screenToWorld(screenPos, pan, zoom);
+            const deltaX = currentWorld.x - g.startWorld.x;
+            const deltaY = currentWorld.y - g.startWorld.y;
+
+            if (g.spaceDragMode === 'move') {
+              const newOriginX = snapToGrid(g.originalSpace.originX + deltaX);
+              const newOriginY = snapToGrid(g.originalSpace.originY + deltaY);
+              updateSpace(g.draggedSpaceId, { originX: newOriginX, originY: newOriginY }, true);
+            } else if (g.spaceDragMode === 'resize' && g.resizeEdge) {
+              const orig = g.originalSpace;
+              let newOriginX = orig.originX;
+              let newOriginY = orig.originY;
+              let newWidth = orig.gridWidth;
+              let newHeight = orig.gridHeight;
+
+              if (g.resizeEdge.includes('e')) {
+                const newRight = orig.originX + orig.gridWidth * CELL_SIZE + deltaX;
+                newWidth = Math.max(1, Math.round((newRight - orig.originX) / CELL_SIZE));
+              }
+              if (g.resizeEdge.includes('w')) {
+                const snappedOriginX = snapToGrid(orig.originX + deltaX);
+                const rightEdge = orig.originX + orig.gridWidth * CELL_SIZE;
+                newWidth = Math.max(1, Math.round((rightEdge - snappedOriginX) / CELL_SIZE));
+                newOriginX = rightEdge - newWidth * CELL_SIZE;
+              }
+              if (g.resizeEdge.includes('s')) {
+                const newBottom = orig.originY + orig.gridHeight * CELL_SIZE + deltaY;
+                newHeight = Math.max(1, Math.round((newBottom - orig.originY) / CELL_SIZE));
+              }
+              if (g.resizeEdge.includes('n')) {
+                const snappedOriginY = snapToGrid(orig.originY + deltaY);
+                const bottomEdge = orig.originY + orig.gridHeight * CELL_SIZE;
+                newHeight = Math.max(1, Math.round((bottomEdge - snappedOriginY) / CELL_SIZE));
+                newOriginY = bottomEdge - newHeight * CELL_SIZE;
+              }
+
+              if (canResizeSpace(g.draggedSpaceId, newWidth, newHeight)) {
+                updateSpace(g.draggedSpaceId, {
+                  originX: newOriginX,
+                  originY: newOriginY,
+                  gridWidth: newWidth,
+                  gridHeight: newHeight,
+                }, true);
+              }
+            }
+            return;
+          }
+
+          // Time View segment drag
+          if (g.timeViewDragMode !== 'none' && g.draggedTimeViewPlantId) {
+            const { dayWidth: baseDayWidth } = TIME_VIEW_CONSTANTS;
+            const dayWidth = baseDayWidth * timelineZoom;
+
+            // Detect vertical vs horizontal movement
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+            const moveThreshold = 10;
+
+            if (g.timeViewDragMode === 'segment-move-x' && absDy > moveThreshold && absDy > absDx * 1.5) {
+              g.timeViewDragMode = 'segment-move-y';
+            }
+
+            if (g.timeViewDragMode === 'segment-move-x') {
+              const daysDelta = Math.round(dx / dayWidth);
+              if (daysDelta !== 0) {
+                shiftPlantInTime(g.draggedTimeViewPlantId, daysDelta);
+                g.startScreen.x = screenPos.x;
+              }
+              return;
+            }
+
+            if (g.timeViewDragMode === 'segment-move-y') {
+              const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants);
+              if (slot && !slot.isSpaceHeader && g.draggedSegmentId) {
+                moveSegmentToSlot(g.draggedTimeViewPlantId, g.draggedSegmentId, {
+                  spaceId: slot.spaceId,
+                  gridX: slot.gridX,
+                  gridY: slot.gridY,
+                });
+              }
+              return;
+            }
+
+            if (g.timeViewDragMode === 'stage-resize' && g.resizingStage && g.originalStageDays !== null) {
+              const daysDelta = Math.round(dx / dayWidth);
+              const newDays = Math.max(1, g.originalStageDays + daysDelta);
+              const plant = plants.find((p) => p.id === g.draggedTimeViewPlantId);
+              if (plant) {
+                const newCustomStageDays = {
+                  ...plant.customStageDays,
+                  [g.resizingStage]: newDays,
+                };
+                updatePlant(g.draggedTimeViewPlantId, { customStageDays: newCustomStageDays }, true);
+              }
+              return;
+            }
+          }
+        }
+
+        // Regular pan/scroll (not dragging)
+        if (distance > 5) {
+          g.moved = true;
+        }
+
+        if (!g.longPressTriggered) {
+          if (viewMode === 'time') {
+            g.isPanning = true;
+            setTimelineOffset(g.lastTimelineOffset - dy);
+            setTimelineHorizontalOffset(g.lastTimelineHorizontalOffset + dx);
+          } else if (activeTool === 'space' && viewMode === 'space') {
+            g.isDragging = true;
+            const currentWorld = screenToWorld(screenPos, pan, zoom);
+            setDragPreview({
+              startX: g.startWorld.x,
+              startY: g.startWorld.y,
+              endX: currentWorld.x,
+              endY: currentWorld.y,
+            });
+          } else if ((!activeTool || activeTool === 'cursor') && !selectedSeedId) {
+            g.isPanning = true;
+            setPan({
+              x: g.lastPan.x + dx,
+              y: g.lastPan.y + dy,
+            });
+          }
         }
       }
     };
@@ -626,6 +970,52 @@ export function useGestures(
     const handleTouchEnd = (e: TouchEvent) => {
       e.preventDefault();
       const g = gestureRef.current;
+
+      // Save long press state before clearing
+      const wasLongPressTriggered = g.longPressTriggered;
+
+      // Clear long press timer
+      clearLongPress();
+
+      // Complete plant drag in Space View
+      if (g.spaceDragMode === 'plant-move' && g.draggedSpaceViewPlantId && wasLongPressTriggered) {
+        if (g.moved) {
+          const touch = e.changedTouches[0];
+          if (touch) {
+            const screenPos = getCanvasPoint(touch.clientX, touch.clientY);
+            const currentWorld = screenToWorld(screenPos, pan, zoom);
+            const targetSpace = findSpaceAt(currentWorld, spaces);
+
+            if (targetSpace) {
+              const cell = findCellInSpace(currentWorld, targetSpace);
+              if (cell) {
+                const canPlace = canPlacePlant(targetSpace.id, cell.gridX, cell.gridY, 1, targetSpace, plants, g.draggedSpaceViewPlantId);
+                if (canPlace) {
+                  movePlantInSpaceView(g.draggedSpaceViewPlantId, targetSpace.id, cell.gridX, cell.gridY);
+                }
+              }
+            }
+          }
+        }
+        setPlantDragPreview(null);
+      }
+
+      // Reset all drag state
+      g.spaceDragMode = 'none';
+      g.draggedSpaceId = null;
+      g.resizeEdge = null;
+      g.originalSpace = null;
+      g.draggedSpaceViewPlantId = null;
+      g.originalPlantPosition = null;
+      g.timeViewDragMode = 'none';
+      g.draggedTimeViewPlantId = null;
+      g.draggedSegmentId = null;
+      g.segmentHitZone = null;
+      g.originalStartedAt = null;
+      g.resizingStage = null;
+      g.originalStageDays = null;
+      g.longPressTriggered = false;
+      g.longPressTarget = null;
 
       if (g.isDragging && dragPreview) {
         handleDragEnd(
@@ -715,7 +1105,9 @@ export function useGestures(
           plants,
           spaces,
           timelineHorizontalOffset,
-          timelineOffset
+          timelineOffset,
+          new Date(),
+          timelineZoom
         );
         if (mergeHit) {
           // Merge button click will be handled in handleTap
@@ -730,7 +1122,9 @@ export function useGestures(
           strains,
           spaces,
           timelineHorizontalOffset,
-          timelineOffset
+          timelineOffset,
+          new Date(),
+          timelineZoom
         );
 
         if (hitResult && (!activeTool || activeTool === 'cursor')) {
@@ -896,7 +1290,8 @@ export function useGestures(
 
       // Handle new horizontal Time View drag interactions
       if (g.timeViewDragMode !== 'none' && g.draggedTimeViewPlantId) {
-        const { dayWidth, slotHeight } = TIME_VIEW_CONSTANTS;
+        const { dayWidth: baseDayWidth } = TIME_VIEW_CONSTANTS;
+        const dayWidth = baseDayWidth * timelineZoom;
 
         // Detect drag direction and lock to X or Y movement
         // Once we've moved enough in one direction, lock to that axis
@@ -1050,21 +1445,36 @@ export function useGestures(
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (viewMode === 'time') return;
 
       const screenPos = getCanvasPoint(e.clientX, e.clientY);
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      const newZoom = clamp(zoom * delta, MIN_ZOOM, MAX_ZOOM);
 
-      // Zoom towards mouse position
-      const worldX = (screenPos.x - pan.x) / zoom;
-      const worldY = (screenPos.y - pan.y) / zoom;
+      if (viewMode === 'time') {
+        // Time View: zoom horizontally (time scale)
+        const { leftMargin } = TIME_VIEW_CONSTANTS;
+        const newZoom = clamp(timelineZoom * delta, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM);
 
-      const newPanX = screenPos.x - worldX * newZoom;
-      const newPanY = screenPos.y - worldY * newZoom;
+        // Zoom towards mouse X position (keeping the date under cursor stable)
+        const mouseX = screenPos.x - leftMargin;
+        const worldX = (mouseX - timelineHorizontalOffset) / timelineZoom;
+        const newOffsetX = mouseX - worldX * newZoom;
 
-      setPan({ x: newPanX, y: newPanY });
-      setZoom(newZoom);
+        setTimelineHorizontalOffset(newOffsetX);
+        setTimelineZoom(newZoom);
+      } else {
+        // Space View: zoom both axes
+        const newZoom = clamp(zoom * delta, MIN_ZOOM, MAX_ZOOM);
+
+        // Zoom towards mouse position
+        const worldX = (screenPos.x - pan.x) / zoom;
+        const worldY = (screenPos.y - pan.y) / zoom;
+
+        const newPanX = screenPos.x - worldX * newZoom;
+        const newPanY = screenPos.y - worldY * newZoom;
+
+        setPan({ x: newPanX, y: newPanY });
+        setZoom(newZoom);
+      }
     };
 
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -1088,7 +1498,9 @@ export function useGestures(
     canvasRef, pan, zoom, activeTool, selectedSeedId, viewMode,
     getCanvasPoint, handleTap, handleDragEnd, setPan, setZoom, setDragPreview, dragPreview,
     timelineOffset, timelineHorizontalOffset, setTimelineOffset, setTimelineHorizontalOffset,
+    timelineZoom, setTimelineZoom,
     selection, spaces, plants, strains, readOnly, updateSpace, updatePlant, canResizeSpace, setSelection,
     saveSnapshot, splitSegment, moveSegmentToSlot, shiftPlantInTime, movePlantInSpaceView, setPlantDragPreview, updateCursor,
+    setLongPressPreview, canvasRect, inventory,
   ]);
 }

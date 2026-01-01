@@ -50,6 +50,14 @@ export function PlantationList() {
         </button>
       </div>
 
+      {plantations.length === 0 && (
+        <img
+          src="/illustrations/heroplant.svg"
+          alt="Plantasia hero plant"
+          style={styles.heroImage}
+        />
+      )}
+
       <div style={styles.createSection}>
         <input
           style={styles.input}
@@ -179,5 +187,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     textAlign: 'center',
     marginTop: 40,
+  },
+  heroImage: {
+    width: 200,
+    height: 200,
+    margin: '40px auto 24px',
+    display: 'block',
   },
 };

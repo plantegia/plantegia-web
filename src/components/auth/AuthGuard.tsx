@@ -15,12 +15,25 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (!user) {
     return (
       <div style={styles.container}>
+        <img
+          src="/illustrations/heroplant.svg"
+          alt="Plantasia hero plant"
+          style={styles.heroImage}
+        />
         <div style={styles.title}>Plantasia</div>
-        <div style={styles.subtitle}>Plant rotation planner</div>
+        <div style={styles.subtitle}>Know when to plant, flower, harvest, and plant again...</div>
         {error && <div style={styles.error}>{error}</div>}
         <button style={styles.button} onClick={signInWithGoogle}>
           Sign in with Google
         </button>
+        <div style={styles.copyright}>
+          <div style={styles.copyrightMain}>
+            Plan and track your plants in time and space. Free for grower community under AGPL-3.0.
+          </div>
+          <div style={styles.copyrightAuthor}>
+            Created by Ivan Sokolov · 2025
+          </div>
+        </div>
       </div>
     );
   }
@@ -37,9 +50,11 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 16,
     fontFamily: '"Space Mono", monospace',
+    padding: '80px 40px 40px',
+    boxSizing: 'border-box',
   },
   title: {
     fontSize: 24,
@@ -49,7 +64,9 @@ const styles: Record<string, React.CSSProperties> = {
   subtitle: {
     fontSize: 14,
     color: COLORS.textMuted,
-    marginBottom: 32,
+    marginBottom: 16,
+    textAlign: 'center',
+    maxWidth: 320,
   },
   text: {
     fontSize: 14,
@@ -69,5 +86,29 @@ const styles: Record<string, React.CSSProperties> = {
     color: COLORS.background,
     border: 'none',
     cursor: 'pointer',
+  },
+  heroImage: {
+    width: 300,
+    height: 300,
+  },
+  copyright: {
+    position: 'absolute',
+    bottom: 16,
+    textAlign: 'center',
+    maxWidth: 340,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  copyrightMain: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    opacity: 0.7,
+    lineHeight: 1.5,
+  },
+  copyrightAuthor: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    opacity: 0.4,
   },
 };

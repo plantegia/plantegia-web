@@ -28,6 +28,10 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
   return (
     <header
       style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
         height: 48,
         display: 'flex',
         alignItems: 'center',
@@ -35,7 +39,8 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
         padding: '0 16px',
         borderBottom: `1px solid ${COLORS.border}`,
         background: COLORS.background,
-        flexShrink: 0,
+        zIndex: 10,
+        pointerEvents: 'auto',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

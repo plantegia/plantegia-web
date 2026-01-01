@@ -20,9 +20,10 @@ import type {
   Photoperiod,
   TimeViewPlacementPreview,
   PlantDragPreview,
+  LongPressPreview,
 } from '../types';
 import { generateAbbreviation, generatePlantCode } from '../utils/abbreviation';
-import { DEFAULT_ZOOM, CURSORS } from '../constants';
+import { DEFAULT_ZOOM, DEFAULT_TIMELINE_ZOOM, CURSORS } from '../constants';
 import { getCurrentSegment } from '../utils/migration';
 
 interface DataSnapshot {
@@ -64,8 +65,11 @@ interface AppState {
 
   plantDragPreview: PlantDragPreview | null;
 
+  longPressPreview: LongPressPreview | null;
+
   timelineOffset: number;
   timelineHorizontalOffset: number;
+  timelineZoom: number;
 
   expandedHotbarSection: 'toolbox' | 'inventory';
 
@@ -127,8 +131,11 @@ interface AppState {
 
   setPlantDragPreview: (preview: PlantDragPreview | null) => void;
 
+  setLongPressPreview: (preview: LongPressPreview | null) => void;
+
   setTimelineOffset: (offset: number) => void;
   setTimelineHorizontalOffset: (offset: number) => void;
+  setTimelineZoom: (zoom: number) => void;
 
   setExpandedHotbarSection: (section: 'toolbox' | 'inventory') => void;
 
@@ -166,8 +173,11 @@ const initialState = {
 
   plantDragPreview: null as PlantDragPreview | null,
 
+  longPressPreview: null as LongPressPreview | null,
+
   timelineOffset: 0,
   timelineHorizontalOffset: 0,
+  timelineZoom: DEFAULT_TIMELINE_ZOOM,
 
   expandedHotbarSection: 'toolbox' as 'toolbox' | 'inventory',
 
@@ -219,6 +229,7 @@ export const useAppStore = create<AppState>()(
           state.dragPreview = null;
           state.timelineOffset = 0;
           state.timelineHorizontalOffset = 0;
+          state.timelineZoom = DEFAULT_TIMELINE_ZOOM;
           // Clear history on plantation load
           state.history = { past: [], future: [] };
         });
@@ -697,6 +708,12 @@ export const useAppStore = create<AppState>()(
         });
       },
 
+      setLongPressPreview: (preview) => {
+        set((state) => {
+          state.longPressPreview = preview;
+        });
+      },
+
       setTimelineOffset: (offset) => {
         set((state) => {
           state.timelineOffset = offset;
@@ -706,6 +723,12 @@ export const useAppStore = create<AppState>()(
       setTimelineHorizontalOffset: (offset) => {
         set((state) => {
           state.timelineHorizontalOffset = offset;
+        });
+      },
+
+      setTimelineZoom: (zoom) => {
+        set((state) => {
+          state.timelineZoom = zoom;
         });
       },
 

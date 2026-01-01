@@ -38,6 +38,16 @@ export interface PlantDragPreview {
   canPlace: boolean;
 }
 
+// Long press preview for mobile touch drag
+export interface LongPressPreview {
+  type: 'plant' | 'space' | 'segment';
+  id: string;
+  segmentId?: string;
+  screenX: number;
+  screenY: number;
+  progress: number; // 0-1 for animation
+}
+
 export interface Space {
   id: string;
   name: string;
