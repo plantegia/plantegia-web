@@ -1,6 +1,6 @@
 import type { TutorialProgress } from './types';
 
-const STORAGE_PREFIX = 'plantasia_tutorial_progress_';
+const STORAGE_PREFIX = 'plantegia_tutorial_progress_';
 
 export function saveTutorialProgress(progress: TutorialProgress): void {
   const key = `${STORAGE_PREFIX}${progress.tutorialId}`;

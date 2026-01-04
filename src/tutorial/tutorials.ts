@@ -9,7 +9,7 @@ const basicSetupTutorial: Tutorial = {
     {
       id: 'welcome',
       title: 'WELCOME',
-      message: 'Welcome to Plantasia!\n\nThis tutorial will guide you through creating your first growing space and planting your first plant.\n\nLet\'s get started.',
+      message: 'Welcome to Plantegia!\n\nThis tutorial will guide you through creating your first growing space and planting your first plant.\n\nLet\'s get started.',
       objective: 'Read introduction',
       condition: { type: 'none' },
       autoAdvanceDelay: 20000,

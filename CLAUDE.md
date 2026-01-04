@@ -13,7 +13,7 @@ npm run preview  # Preview production build
 
 ## Architecture Overview
 
-Plantasia is a React + TypeScript plant rotation planning app built with Vite. It uses a canvas-based UI inspired by Minecraft's hotbar/tool paradigm.
+Plantegia is a React + TypeScript plant rotation planning app built with Vite. It uses a canvas-based UI inspired by Minecraft's hotbar/tool paradigm.
 
 ### Key Architectural Decisions
 

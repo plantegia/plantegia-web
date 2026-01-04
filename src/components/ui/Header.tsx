@@ -109,7 +109,7 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
             fontWeight: 'bold',
           }}
         >
-          {plantationName || 'PLANTASIA'}
+          {plantationName || 'PLANTEGIA'}
         </span>
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

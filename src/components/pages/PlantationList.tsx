@@ -59,7 +59,7 @@ export function PlantationList() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.title}>Plantasia</div>
+        <div style={styles.title}>Plantegia</div>
         <button style={styles.signOutButton} onClick={signOut}>
           Sign out
         </button>
@@ -92,7 +92,7 @@ export function PlantationList() {
       {plantations.length === 0 && (
         <img
           src="/illustrations/heroplant.svg"
-          alt="Plantasia hero plant"
+          alt="Plantegia hero plant"
           style={styles.heroImage}
         />
       )}

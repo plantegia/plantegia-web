@@ -17,10 +17,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       <div style={styles.container}>
         <img
           src="/illustrations/heroplant.svg"
-          alt="Plantasia hero plant"
+          alt="Plantegia hero plant"
           style={styles.heroImage}
         />
-        <div style={styles.title}>Plantasia</div>
+        <div style={styles.title}>Plantegia</div>
         <div style={styles.subtitle}>Know when to plant, flower, harvest, and plant again...</div>
         {error && <div style={styles.error}>{error}</div>}
         <button style={styles.button} onClick={signInWithGoogle}>
