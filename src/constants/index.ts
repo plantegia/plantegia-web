@@ -31,14 +31,14 @@ export const STAGE_COLORS: Record<Stage, string> = {
   harvested: '#3a3530',
 };
 
-// Colors for different spaces (cycling palette)
+// Colors for different spaces (cycling palette) - used for borders
 export const SPACE_COLORS = [
-  '#1e5a38', // light green
-  '#0d3820', // dark green
-  '#2a5a2a', // forest
-  '#1a4a30', // deep green
-  '#2a4a3a', // teal-green
-  '#1a3a28', // darker
+  '#51853B', // green (default)
+  '#4ECDC4', // teal
+  '#F7DC6F', // gold
+  '#E67E22', // orange
+  '#9B59B6', // purple
+  '#3498DB', // blue
 ] as const;
 
 export const CELL_SIZE = 56;

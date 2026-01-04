@@ -250,7 +250,7 @@ export const TIME_VIEW_CONSTANTS = {
 
   // Margins
   leftMargin: 0,          // no left margin (was for slot labels)
-  topMargin: 40,          // space for date labels
+  topMargin: 88,          // space for date labels (40) + header (48)
 
   // Segments
   segmentHeight: 24,      // visual height of segment bar

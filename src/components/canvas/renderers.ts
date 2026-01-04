@@ -28,8 +28,8 @@ export function renderSpaceView(
   });
 
   // Second pass: draw space labels on top (so they're not covered by other spaces)
-  spaces.forEach((space) => {
-    drawSpaceLabel(ctx, space, spaces);
+  spaces.forEach((space, index) => {
+    drawSpaceLabel(ctx, space, spaces, index);
   });
 
   const today = new Date();
@@ -114,19 +114,16 @@ function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: bool
   const width = gridWidth * CELL_SIZE;
   const height = gridHeight * CELL_SIZE;
 
-  // Fill empty cells with dark background first
+  // Get space color from selection or fallback to palette by index
+  const spaceColor = color || SPACE_COLORS[spaceIndex % SPACE_COLORS.length];
+
+  // Fill empty cells with dark background
   ctx.fillStyle = COLORS.backgroundDark;
   ctx.fillRect(originX, originY, width, height);
 
-  // Use space's color or fallback to palette by index - will be drawn for plant cells later
-  const spaceColor = color || SPACE_COLORS[spaceIndex % SPACE_COLORS.length];
-  ctx.fillStyle = spaceColor;
-  // Only draw border area slightly colored to indicate space bounds
-  ctx.globalAlpha = 0.3;
-  ctx.fillRect(originX, originY, width, height);
-  ctx.globalAlpha = 1;
-
-  ctx.strokeStyle = COLORS.border;
+  // Draw grid lines with space color (muted)
+  ctx.strokeStyle = spaceColor;
+  ctx.globalAlpha = 0.4;
   ctx.lineWidth = 1;
   for (let x = 0; x <= gridWidth; x++) {
     ctx.beginPath();
@@ -140,12 +137,14 @@ function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: bool
     ctx.lineTo(originX + width, originY + y * CELL_SIZE);
     ctx.stroke();
   }
+  ctx.globalAlpha = 1;
 
+  // Draw outer border with space color
   if (isSelected) {
     ctx.strokeStyle = COLORS.teal;
     ctx.lineWidth = 2;
   } else {
-    ctx.strokeStyle = COLORS.green;
+    ctx.strokeStyle = spaceColor;
     ctx.lineWidth = 2;
   }
   ctx.strokeRect(originX, originY, width, height);
@@ -189,8 +188,9 @@ function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: bool
   }
 }
 
-function drawSpaceLabel(ctx: CanvasRenderingContext2D, space: Space, allSpaces: Space[]) {
-  const { originX, originY, gridWidth, gridHeight, name } = space;
+function drawSpaceLabel(ctx: CanvasRenderingContext2D, space: Space, allSpaces: Space[], spaceIndex: number) {
+  const { originX, originY, gridWidth, gridHeight, name, color } = space;
+  const spaceColor = color || SPACE_COLORS[spaceIndex % SPACE_COLORS.length];
   const width = gridWidth * CELL_SIZE;
   const height = gridHeight * CELL_SIZE;
   const labelHeight = 14;
@@ -257,8 +257,8 @@ function drawSpaceLabel(ctx: CanvasRenderingContext2D, space: Space, allSpaces: 
     displayName += '…';
   }
 
-  ctx.fillStyle = COLORS.text;
-  ctx.globalAlpha = 0.7;
+  ctx.fillStyle = spaceColor;
+  ctx.globalAlpha = 0.8;
   ctx.fillText(displayName, chosenPosition.x, chosenPosition.y);
   ctx.globalAlpha = 1;
 }
@@ -596,12 +596,9 @@ export function renderTimeView(
   // Build slot list
   const slots = buildSlotList(spaces, plants);
 
-  // Draw background
-  ctx.fillStyle = COLORS.background;
+  // Draw background with dark color
+  ctx.fillStyle = COLORS.backgroundDark;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-  // Header offset for fixed header (matches Header component height)
-  const headerHeight = 48;
 
   // Draw week grid lines (vertical)
   ctx.strokeStyle = COLORS.text;
@@ -615,7 +612,7 @@ export function renderTimeView(
     const x = leftMargin + panX + w * weekWidth;
     if (x > leftMargin && x < canvasWidth) {
       ctx.beginPath();
-      ctx.moveTo(x, headerHeight + topMargin);
+      ctx.moveTo(x, topMargin);
       ctx.lineTo(x, canvasHeight);
       ctx.stroke();
     }
@@ -624,45 +621,72 @@ export function renderTimeView(
 
   // Draw slot row backgrounds and space headers (no coordinate labels)
   ctx.save();
+  let slotRowIndex = 0; // Counter for alternating slot rows within each space
   slots.forEach((slot) => {
-    const y = headerHeight + topMargin + slot.yOffset - panY;
+    const y = topMargin + slot.yOffset - panY;
 
     // Skip if off screen
-    if (y + slotHeight < headerHeight + topMargin || y > canvasHeight) return;
+    if (y + slotHeight < topMargin || y > canvasHeight) return;
 
     if (slot.isSpaceHeader) {
-      // Space header row
-      ctx.fillStyle = COLORS.background;
-      ctx.fillRect(0, y, canvasWidth, spaceHeaderHeight);
+      slotRowIndex = 0; // Reset counter for new space
+      // Find space index for color
+      const spaceIdx = spaces.findIndex(s => s.id === slot.spaceId);
+      const space = spaces[spaceIdx];
+      const spaceColor = space?.color || SPACE_COLORS[spaceIdx % SPACE_COLORS.length];
 
-      ctx.fillStyle = COLORS.text;
+      // Full-width colored background strip for space header
+      ctx.fillStyle = spaceColor;
+      ctx.globalAlpha = 0.15;
+      ctx.fillRect(0, y, canvasWidth, spaceHeaderHeight);
+      ctx.globalAlpha = 1;
+
+      // Space name in space color
+      ctx.fillStyle = spaceColor;
       ctx.font = 'bold 10px "Space Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(slot.spaceName.toUpperCase(), canvasWidth / 2, y + spaceHeaderHeight / 2);
 
-      // Separator line below header
-      ctx.strokeStyle = COLORS.border;
+      // Top border line
+      ctx.strokeStyle = spaceColor;
+      ctx.globalAlpha = 0.5;
       ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvasWidth, y);
+      ctx.stroke();
+
+      // Bottom border line
       ctx.beginPath();
       ctx.moveTo(0, y + spaceHeaderHeight);
       ctx.lineTo(canvasWidth, y + spaceHeaderHeight);
       ctx.stroke();
+      ctx.globalAlpha = 1;
     } else {
-      // Slot row - alternating background (no coordinate labels, no left margin)
-      const isEven = (slot.gridX + slot.gridY) % 2 === 0;
-      ctx.fillStyle = isEven ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.1)';
-      ctx.fillRect(0, y, canvasWidth, slotHeight);
+      // Find space color for this slot
+      const spaceIdx = spaces.findIndex(s => s.id === slot.spaceId);
+      const space = spaces[spaceIdx];
+      const slotSpaceColor = space?.color || SPACE_COLORS[spaceIdx % SPACE_COLORS.length];
 
-      // Row separator
-      ctx.strokeStyle = COLORS.text;
-      ctx.globalAlpha = 0.1;
+      // Slot row - subtle colored background (alternate by row index)
+      const isEven = slotRowIndex % 2 === 0;
+      ctx.fillStyle = slotSpaceColor;
+      ctx.globalAlpha = isEven ? 0.03 : 0.06;
+      ctx.fillRect(0, y, canvasWidth, slotHeight);
+      ctx.globalAlpha = 1;
+
+      // Row separator in space color
+      ctx.strokeStyle = slotSpaceColor;
+      ctx.globalAlpha = 0.2;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(0, y + slotHeight);
       ctx.lineTo(canvasWidth, y + slotHeight);
       ctx.stroke();
       ctx.globalAlpha = 1;
+
+      slotRowIndex++;
     }
   });
   ctx.restore();
@@ -673,7 +697,7 @@ export function renderTimeView(
     ctx.strokeStyle = COLORS.orange;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(todayX, headerHeight + topMargin);
+    ctx.moveTo(todayX, topMargin);
     ctx.lineTo(todayX, canvasHeight);
     ctx.stroke();
 
@@ -681,13 +705,15 @@ export function renderTimeView(
     ctx.fillStyle = COLORS.orange;
     ctx.font = '9px "Space Mono", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('TODAY', todayX, headerHeight + topMargin - 6);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TODAY', todayX, topMargin - 20);
   }
 
   // Draw date labels at top (smart spacing to avoid overlap)
   ctx.fillStyle = COLORS.textMuted;
   ctx.font = '9px "Space Mono", monospace';
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
 
   const daysToShow = Math.ceil(canvasWidth / dayWidth) + 60;
   const startDay = Math.floor(-panX / dayWidth) - 30;
@@ -704,7 +730,7 @@ export function renderTimeView(
     if (x > leftMargin && x < canvasWidth && x - lastLabelX >= minLabelSpacing && !tooCloseToToday) {
       const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
       const day = dateObj.getDate();
-      ctx.fillText(`${day} ${month}`, x, headerHeight + topMargin / 2);
+      ctx.fillText(`${day} ${month}`, x, topMargin - 20);
       lastLabelX = x;
     }
   }
@@ -879,14 +905,64 @@ export function renderTimeView(
   }
 
 
-  // Draw top margin background
+  // Draw date bar background (area below header, above content)
+  const headerHeight = 48;
   ctx.fillStyle = COLORS.background;
-  ctx.fillRect(0, 0, canvasWidth, topMargin);
+  ctx.fillRect(0, headerHeight, canvasWidth, topMargin - headerHeight);
+
+  // Draw bottom border line for date bar
+  ctx.strokeStyle = COLORS.border;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, topMargin);
+  ctx.lineTo(canvasWidth, topMargin);
+  ctx.stroke();
+
+  // Draw planting and harvest date markers (after border line so they're on top)
+  const boxSize = 14;
+  plants.forEach((plant) => {
+    const strain = strains.find((s) => s.id === plant.strainId);
+
+    // Planting date marker (S for Start/Seed)
+    const plantingDate = new Date(plant.startedAt);
+    const plantingX = toScreenX(plantingDate);
+
+    if (plantingX > leftMargin && plantingX < canvasWidth) {
+      // Green square background
+      ctx.fillStyle = COLORS.green;
+      ctx.fillRect(plantingX - boxSize / 2, topMargin - boxSize / 2, boxSize, boxSize);
+
+      // S letter
+      ctx.fillStyle = COLORS.background;
+      ctx.font = 'bold 10px "Space Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('S', plantingX, topMargin);
+    }
+
+    // Harvest date marker (H)
+    const harvestDate = getPlantEndDate(plant, strain);
+    const harvestX = toScreenX(harvestDate);
+
+    if (harvestX > leftMargin && harvestX < canvasWidth) {
+      // Orange square background
+      ctx.fillStyle = COLORS.orange;
+      ctx.fillRect(harvestX - boxSize / 2, topMargin - boxSize / 2, boxSize, boxSize);
+
+      // H letter
+      ctx.fillStyle = COLORS.background;
+      ctx.font = 'bold 10px "Space Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('H', harvestX, topMargin);
+    }
+  });
 
   // Redraw date labels (smart spacing to avoid overlap)
   ctx.fillStyle = COLORS.textMuted;
   ctx.font = '9px "Space Mono", monospace';
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
   lastLabelX = -Infinity;
 
   for (let d = startDay; d < startDay + daysToShow; d += 7) {
@@ -899,7 +975,7 @@ export function renderTimeView(
     if (x > leftMargin && x < canvasWidth && x - lastLabelX >= minLabelSpacing && !tooCloseToToday) {
       const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
       const day = dateObj.getDate();
-      ctx.fillText(`${day} ${month}`, x, topMargin / 2);
+      ctx.fillText(`${day} ${month}`, x, topMargin - 20);
       lastLabelX = x;
     }
   }
@@ -909,7 +985,8 @@ export function renderTimeView(
     ctx.fillStyle = COLORS.orange;
     ctx.font = 'bold 9px "Space Mono", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('TODAY', todayX, topMargin / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TODAY', todayX, topMargin - 20);
   }
 
   // Draw split preview line on hovered segment

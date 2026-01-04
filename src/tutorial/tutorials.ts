@@ -149,22 +149,22 @@ const timelineRotationTutorial: Tutorial = {
       {
         id: 'veg-space',
         name: 'VEG',
-        originX: 120,
-        originY: 80,
+        originX: 112, // 2 * CELL_SIZE (56)
+        originY: 56,  // 1 * CELL_SIZE
         gridWidth: 2,
         gridHeight: 2,
         lightSchedule: '18/6',
-        color: '#1e5a38',
+        color: '#4ECDC4', // teal
       },
       {
         id: 'flower-space',
         name: 'FLOWER',
-        originX: 120,
-        originY: 260,
+        originX: 112, // 2 * CELL_SIZE
+        originY: 224, // 4 * CELL_SIZE
         gridWidth: 2,
         gridHeight: 2,
         lightSchedule: '12/12',
-        color: '#0d3820',
+        color: '#E67E22', // orange
       },
     ],
     strains: [

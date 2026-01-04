@@ -779,7 +779,6 @@ export const useAppStore = create<AppState>()(
         } else {
           // Time View: TODAY in the middle horizontally, content centered vertically
           const { topMargin, slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
-          const headerHeight = 48; // Fixed header height from renderers.ts
 
           // Calculate total content height
           const slots = buildSlotList(spaces, plants);
@@ -792,10 +791,10 @@ export const useAppStore = create<AppState>()(
           const idealHorizontalOffset = canvasWidth / 2;
 
           // Center content vertically on screen
-          // Content renders at: headerHeight + topMargin + yOffset - timelineOffset
-          // Visual center of content = headerHeight + topMargin + totalContentHeight / 2
+          // Content renders at: topMargin + yOffset - timelineOffset
+          // Visual center of content = topMargin + totalContentHeight / 2
           // We want this at canvasHeight / 2
-          const contentVisualCenter = headerHeight + topMargin + totalContentHeight / 2;
+          const contentVisualCenter = topMargin + totalContentHeight / 2;
           const idealVerticalOffset = contentVisualCenter - canvasHeight / 2;
 
           return {

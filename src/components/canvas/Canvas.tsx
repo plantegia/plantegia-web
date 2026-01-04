@@ -179,8 +179,8 @@ export function Canvas({ readOnly }: CanvasProps) {
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // Clear
-      ctx.fillStyle = COLORS.background;
+      // Clear with dark background for empty space
+      ctx.fillStyle = COLORS.backgroundDark;
       ctx.fillRect(0, 0, state.canvasSize.width, state.canvasSize.height);
 
       if (state.viewMode === 'space') {
