@@ -247,7 +247,8 @@ export function Canvas({ readOnly }: CanvasProps) {
           state.timelineHorizontalOffset,
           state.timelineZoom,
           state.splitPreview,
-          state.timeViewPlacementPreview
+          state.timeViewPlacementPreview,
+          state.selection
         );
       }
 
