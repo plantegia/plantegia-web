@@ -573,7 +573,8 @@ export function renderTimeView(
   panX: number = 0,
   zoom: number = 1,
   splitPreview: { x: number; plantId: string; segmentId: string } | null = null,
-  timeViewPlacementPreview: TimeViewPlacementPreview | null = null
+  timeViewPlacementPreview: TimeViewPlacementPreview | null = null,
+  selection: { type: 'space' | 'plant'; id: string } | null = null
 ) {
   const today = new Date();
   const {
@@ -737,12 +738,17 @@ export function renderTimeView(
 
   const { splitGap } = TIME_VIEW_CONSTANTS;
 
+  // Check if there's a plant selection
+  const hasPlantSelection = selection?.type === 'plant';
+  const selectedPlantId = hasPlantSelection ? selection.id : null;
+
   // Draw plant segments
   plants.forEach((plant) => {
     if (!plant.segments || plant.segments.length === 0) return;
 
     const strain = strains.find((s) => s.id === plant.strainId);
     const plantEndDate = getPlantEndDate(plant, strain);
+    const isPlantSelected = plant.id === selectedPlantId;
 
     // Draw each segment
     plant.segments.forEach((segment, segIdx) => {
@@ -777,8 +783,8 @@ export function renderTimeView(
       if (x2 < leftMargin || x1 > canvasWidth) return;
       if (y + segmentHeight < topMargin || y > canvasHeight) return;
 
-      // Draw segment with stage colors
-      drawSegmentWithStages(ctx, plant, strain, segment, x1, x2, y, segmentHeight, today, leftMargin, hasSplitBefore, hasSplitAfter, zoom);
+      // Draw segment with stage colors and selection state
+      drawSegmentWithStages(ctx, plant, strain, segment, x1, x2, y, segmentHeight, today, leftMargin, hasSplitBefore, hasSplitAfter, zoom, isPlantSelected, hasPlantSelection);
 
       // Draw zigzag edges for split points
       if (hasSplitBefore && x1 > leftMargin) {
@@ -865,7 +871,8 @@ export function renderTimeView(
   // Draw all Bezier connections AFTER all segments (so they're on top)
   plants.forEach((plant) => {
     if (!plant.segments || plant.segments.length <= 1) return;
-    drawSegmentConnections(ctx, plant, slots, panX, panY, today, zoom);
+    const isPlantSelected = plant.id === selectedPlantId;
+    drawSegmentConnections(ctx, plant, slots, panX, panY, today, zoom, isPlantSelected, hasPlantSelection);
   });
 
   // Draw merge buttons after connections
@@ -918,19 +925,55 @@ export function renderTimeView(
   ctx.lineTo(canvasWidth, topMargin);
   ctx.stroke();
 
-  // Draw planting and harvest date markers (after border line so they're on top)
+  // Draw planting and harvest date markers with vertical dashed lines to segments
   const boxSize = 14;
   plants.forEach((plant) => {
-    const strain = strains.find((s) => s.id === plant.strainId);
+    if (!plant.segments || plant.segments.length === 0) return;
 
-    // Planting date marker (S for Start/Seed)
+    const strain = strains.find((s) => s.id === plant.strainId);
+    const plantEndDate = getPlantEndDate(plant, strain);
+    const isPlantSelected = plant.id === selectedPlantId;
+
+    // Find the Y position of the first segment (for start line)
+    const firstSegment = plant.segments[0];
+    const firstSlot = slots.find(
+      (s) => !s.isSpaceHeader && s.spaceId === firstSegment.spaceId && s.gridX === firstSegment.gridX && s.gridY === firstSegment.gridY
+    );
+
+    // Find the Y position of the last segment (for end line)
+    const lastSegment = plant.segments[plant.segments.length - 1];
+    const lastSlot = slots.find(
+      (s) => !s.isSpaceHeader && s.spaceId === lastSegment.spaceId && s.gridX === lastSegment.gridX && s.gridY === lastSegment.gridY
+    );
+
+    // Calculate line opacity based on selection state
+    const lineAlpha = isPlantSelected ? 0.8 : (hasPlantSelection ? 0.15 : 0.35);
+
+    // Planting date marker (S for Start/Seed) and vertical line
     const plantingDate = new Date(plant.startedAt);
     const plantingX = toScreenX(plantingDate);
 
     if (plantingX > leftMargin && plantingX < canvasWidth) {
+      // Draw vertical dashed line from S marker to first segment
+      if (firstSlot) {
+        const firstSegmentY = topMargin + firstSlot.yOffset - panY + segmentGap;
+        ctx.strokeStyle = COLORS.green;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = lineAlpha;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(plantingX, topMargin + boxSize / 2);
+        ctx.lineTo(plantingX, firstSegmentY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      }
+
       // Green square background
       ctx.fillStyle = COLORS.green;
+      ctx.globalAlpha = hasPlantSelection && !isPlantSelected ? 0.4 : 1;
       ctx.fillRect(plantingX - boxSize / 2, topMargin - boxSize / 2, boxSize, boxSize);
+      ctx.globalAlpha = 1;
 
       // S letter
       ctx.fillStyle = COLORS.background;
@@ -940,14 +983,31 @@ export function renderTimeView(
       ctx.fillText('S', plantingX, topMargin);
     }
 
-    // Harvest date marker (H)
-    const harvestDate = getPlantEndDate(plant, strain);
+    // Harvest date marker (H) and vertical line
+    const harvestDate = plantEndDate;
     const harvestX = toScreenX(harvestDate);
 
     if (harvestX > leftMargin && harvestX < canvasWidth) {
+      // Draw vertical dashed line from last segment to H marker
+      if (lastSlot) {
+        const lastSegmentY = topMargin + lastSlot.yOffset - panY + segmentGap + segmentHeight;
+        ctx.strokeStyle = COLORS.orange;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = lineAlpha;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(harvestX, lastSegmentY);
+        ctx.lineTo(harvestX, topMargin + boxSize / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      }
+
       // Orange square background
       ctx.fillStyle = COLORS.orange;
+      ctx.globalAlpha = hasPlantSelection && !isPlantSelected ? 0.4 : 1;
       ctx.fillRect(harvestX - boxSize / 2, topMargin - boxSize / 2, boxSize, boxSize);
+      ctx.globalAlpha = 1;
 
       // H letter
       ctx.fillStyle = COLORS.background;
@@ -1104,12 +1164,17 @@ function drawSegmentWithStages(
   leftMargin: number,
   _hasSplitBefore: boolean = false,
   _hasSplitAfter: boolean = false,
-  zoom: number = 1
+  zoom: number = 1,
+  isSelected: boolean = false,
+  hasSelection: boolean = false
 ) {
   const { maxVisibleWidth } = TIME_VIEW_CONSTANTS;
   const plantStartDate = new Date(plant.startedAt);
 
   const endX = x2;
+
+  // Dim non-selected plants when there's a selection
+  const baseAlpha = hasSelection && !isSelected ? 0.35 : 0.92;
 
   // Calculate stage boundaries within the segment
   let dayCounter = 0;
@@ -1143,22 +1208,29 @@ function drawSegmentWithStages(
     // Check if in past or future
     const isPast = overlapEnd <= today;
 
-    // Draw stage with slight transparency to allow lines to show through
-    ctx.globalAlpha = 0.92;
+    // Draw stage with transparency based on selection state
+    ctx.globalAlpha = baseAlpha;
     ctx.fillStyle = STAGE_COLORS[stage];
     ctx.fillRect(overlapX1, y, overlapX2 - overlapX1, height);
     ctx.globalAlpha = 1;
 
     // Draw stage label
     const stageWidth = overlapX2 - overlapX1;
-    const weeks = Math.round(stageDuration / 7);
+    const totalWeeks = Math.round(stageDuration / 7);
+
+    // Calculate current week in this stage based on today's position
+    const daysIntoStage = Math.max(0, Math.floor((today.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const currentWeek = Math.min(totalWeeks, Math.max(1, Math.ceil((daysIntoStage + 1) / 7)));
+
+    // Determine text opacity based on selection state
+    const textAlpha = hasSelection && !isSelected ? 0.5 : (isPast ? 0.9 : 0.7);
 
     if (stage === 'germinating') {
       // For germinating stage, show plant code prominently
       if (stageWidth > 20) {
         ctx.save();
         ctx.fillStyle = COLORS.backgroundDark;
-        ctx.globalAlpha = isPast ? 0.9 : 0.7;
+        ctx.globalAlpha = textAlpha;
         ctx.font = 'bold 10px "Space Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -1166,33 +1238,53 @@ function drawSegmentWithStages(
         ctx.restore();
       }
     } else if (stage === 'harvested') {
-      // For harvested stage, just show HRV without weeks
-      if (stageWidth > 20) {
+      // For harvested stage, show HRV + plant code
+      if (stageWidth > 45) {
         ctx.save();
         ctx.fillStyle = COLORS.text;
-        ctx.globalAlpha = isPast ? 0.9 : 0.7;
+        ctx.globalAlpha = textAlpha;
+        ctx.font = 'bold 9px "Space Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${STAGE_ABBREV[stage]} ${plant.code}`, overlapX1 + stageWidth / 2, y + height / 2);
+        ctx.restore();
+      } else if (stageWidth > 20) {
+        ctx.save();
+        ctx.fillStyle = COLORS.text;
+        ctx.globalAlpha = textAlpha;
         ctx.font = 'bold 9px "Space Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(STAGE_ABBREV[stage], overlapX1 + stageWidth / 2, y + height / 2);
         ctx.restore();
       }
-    } else if (stageWidth > 35) {
-      // For other stages, show abbreviation + weeks
+    } else if (stageWidth > 70) {
+      // Wide stage - show full format: "FLW 1/8W GZ1"
       ctx.save();
       ctx.fillStyle = COLORS.text;
-      ctx.globalAlpha = isPast ? 0.9 : 0.7;
+      ctx.globalAlpha = textAlpha;
       ctx.font = 'bold 9px "Space Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const label = `${STAGE_ABBREV[stage]} ${weeks}W`;
+      const label = `${STAGE_ABBREV[stage]} ${currentWeek}/${totalWeeks}W ${plant.code}`;
+      ctx.fillText(label, overlapX1 + stageWidth / 2, y + height / 2);
+      ctx.restore();
+    } else if (stageWidth > 45) {
+      // Medium stage - show "FLW 1/8W"
+      ctx.save();
+      ctx.fillStyle = COLORS.text;
+      ctx.globalAlpha = textAlpha;
+      ctx.font = 'bold 9px "Space Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const label = `${STAGE_ABBREV[stage]} ${currentWeek}/${totalWeeks}W`;
       ctx.fillText(label, overlapX1 + stageWidth / 2, y + height / 2);
       ctx.restore();
     } else if (stageWidth > 20) {
       // Narrow stage - just abbreviation
       ctx.save();
       ctx.fillStyle = COLORS.text;
-      ctx.globalAlpha = isPast ? 0.9 : 0.7;
+      ctx.globalAlpha = textAlpha;
       ctx.font = 'bold 9px "Space Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -1201,18 +1293,32 @@ function drawSegmentWithStages(
     }
   }
 
-  // Draw color overlay to distinguish plants
-  const colorIndex = getPlantColorIndex(plant.id);
-  const segX = Math.max(x1, leftMargin);
-  const segWidth = Math.min(x2, leftMargin + maxVisibleWidth) - segX;
-  drawSegmentOverlay(ctx, colorIndex, segX, y, segWidth, height);
+  // Draw color overlay to distinguish plants (skip if dimmed)
+  if (!hasSelection || isSelected) {
+    const colorIndex = getPlantColorIndex(plant.id);
+    const segX = Math.max(x1, leftMargin);
+    const segWidth = Math.min(x2, leftMargin + maxVisibleWidth) - segX;
+    drawSegmentOverlay(ctx, colorIndex, segX, y, segWidth, height);
+  }
 
-  // Draw segment border (subtle)
-  ctx.strokeStyle = COLORS.backgroundDark;
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.5;
-  ctx.strokeRect(Math.max(x1, leftMargin), y, Math.min(x2, leftMargin + maxVisibleWidth) - Math.max(x1, leftMargin), height);
-  ctx.globalAlpha = 1;
+  // Draw segment border - highlighted when selected
+  const borderX = Math.max(x1, leftMargin);
+  const borderWidth = Math.min(x2, leftMargin + maxVisibleWidth) - borderX;
+
+  if (isSelected) {
+    // Bright contrasting border for selected segment
+    ctx.strokeStyle = COLORS.teal;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 1;
+    ctx.strokeRect(borderX, y, borderWidth, height);
+  } else {
+    // Subtle border for non-selected
+    ctx.strokeStyle = COLORS.backgroundDark;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = hasSelection ? 0.3 : 0.5;
+    ctx.strokeRect(borderX, y, borderWidth, height);
+    ctx.globalAlpha = 1;
+  }
 
   // Draw resize handles at STAGE BOUNDARIES (not segment edges)
   // Editable stages: seedling, vegetative, flowering (germinating and harvested are fixed)
@@ -1340,7 +1446,9 @@ function drawSegmentConnections(
   panX: number,
   panY: number,
   today: Date,
-  zoom: number = 1
+  zoom: number = 1,
+  isSelected: boolean = false,
+  hasSelection: boolean = false
 ) {
   const { topMargin, segmentHeight, segmentGap } = TIME_VIEW_CONSTANTS;
 
@@ -1366,10 +1474,16 @@ function drawSegmentConnections(
     // Skip if same slot
     if (slot1.yOffset === slot2.yOffset) continue;
 
-    // Draw Bezier curve
+    // Draw Bezier curve - highlight in orange when selected
     const curveOffset = 30;
-    ctx.strokeStyle = COLORS.textMuted;
-    ctx.lineWidth = 2;
+    if (isSelected) {
+      ctx.strokeStyle = COLORS.orange;
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = COLORS.textMuted;
+      ctx.globalAlpha = hasSelection ? 0.3 : 1;
+    }
+    ctx.lineWidth = isSelected ? 3 : 2;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(x, y1);
@@ -1378,13 +1492,15 @@ function drawSegmentConnections(
     ctx.setLineDash([]);
 
     // Draw small circles at connection points
-    ctx.fillStyle = COLORS.textMuted;
+    ctx.fillStyle = isSelected ? COLORS.orange : COLORS.textMuted;
+    ctx.globalAlpha = hasSelection && !isSelected ? 0.3 : 1;
     ctx.beginPath();
-    ctx.arc(x, y1, 3, 0, Math.PI * 2);
+    ctx.arc(x, y1, isSelected ? 4 : 3, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x, y2, 3, 0, Math.PI * 2);
+    ctx.arc(x, y2, isSelected ? 4 : 3, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = 1;
   }
 }
 

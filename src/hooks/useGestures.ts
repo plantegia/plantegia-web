@@ -498,9 +498,26 @@ export function useGestures(
       }
     }
 
-    // In Time View, don't select plants on tap (no inspector needed)
-    // Drag interactions are handled in mouseDown/mouseMove
+    // In Time View, select plants on tap to show inspector (same as Space View)
     if ((!activeTool || activeTool === 'cursor') && !selectedSeedId && viewMode === 'time') {
+      // Check if tapping on a segment
+      const hitResult = findSegmentAtHorizontal(
+        screenPos.x,
+        screenPos.y,
+        plants,
+        strains,
+        spaces,
+        timelineHorizontalOffset,
+        timelineOffset,
+        new Date(),
+        timelineZoom
+      );
+
+      if (hitResult) {
+        setSelection({ type: 'plant', id: hitResult.plant.id });
+        return;
+      }
+
       // Clear selection on tap outside plants
       setSelection(null);
       return;
