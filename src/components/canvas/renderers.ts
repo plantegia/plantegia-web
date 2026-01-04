@@ -1259,14 +1259,14 @@ function drawSegmentWithStages(
         ctx.restore();
       }
     } else if (stageWidth > 70) {
-      // Wide stage - show full format: "FLW 1/8W GZ1"
+      // Wide stage - show full format: "FLW 8W GZ1"
       ctx.save();
       ctx.fillStyle = COLORS.text;
       ctx.globalAlpha = textAlpha;
       ctx.font = 'bold 9px "Space Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const label = `${STAGE_ABBREV[stage]} ${currentWeek}/${totalWeeks}W ${plant.code}`;
+      const label = `${STAGE_ABBREV[stage]} ${totalWeeks}W ${plant.code}`;
       ctx.fillText(label, overlapX1 + stageWidth / 2, y + height / 2);
       ctx.restore();
     } else if (stageWidth > 45) {
@@ -1277,7 +1277,7 @@ function drawSegmentWithStages(
       ctx.font = 'bold 9px "Space Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const label = `${STAGE_ABBREV[stage]} ${currentWeek}/${totalWeeks}W`;
+      const label = `${STAGE_ABBREV[stage]} ${totalWeeks}W`;
       ctx.fillText(label, overlapX1 + stageWidth / 2, y + height / 2);
       ctx.restore();
     } else if (stageWidth > 20) {
