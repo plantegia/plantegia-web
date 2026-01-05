@@ -19,7 +19,7 @@ export function PlantationView() {
 
   const isViewOnly = searchParams.get('view') === '1';
   const isOwner = plantation && user && plantation.ownerId === user.uid;
-  const canEdit = isOwner && !isViewOnly;
+  const canEdit = Boolean(isOwner && !isViewOnly);
 
   // Enable keyboard shortcuts only when user can edit
   useKeyboardShortcuts(canEdit || false);

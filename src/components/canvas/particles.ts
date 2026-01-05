@@ -60,9 +60,6 @@ interface CellInfo {
 // Cache for cell particles
 const cellParticlesCache = new Map<string, Particle[]>();
 
-// Track visible cells for cleanup (used for cache invalidation between render calls)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let visibleCellKeys = new Set<string>();
 let lastCleanupTime = 0;
 const CLEANUP_INTERVAL = 5000; // Clean up every 5 seconds
 
@@ -422,7 +419,6 @@ export function renderParticles(
       }
     }
 
-    visibleCellKeys = newVisibleKeys;
     lastCleanupTime = now;
   }
 

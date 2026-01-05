@@ -21,6 +21,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
   const [isClone, setIsClone] = useState(false);
 
   const [newStrainName, setNewStrainName] = useState('');
+  const [newAbbreviation, setNewAbbreviation] = useState('');
   const [floweringDays, setFloweringDays] = useState(60);
   const [strainType, setStrainType] = useState<StrainType>('hybrid');
   const [photoperiod, setPhotoperiod] = useState<Photoperiod>('photo');
@@ -40,6 +41,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
     setIsEditing(false);
     setSelectedStrainId(null);
     setNewStrainName('');
+    setNewAbbreviation('');
     setFloweringDays(60);
     setStrainType('hybrid');
     setPhotoperiod('photo');
@@ -50,6 +52,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
       setIsEditing(true);
       setIsCreating(false);
       setNewStrainName(selectedStrain.name);
+      setNewAbbreviation(selectedStrain.abbreviation);
       setFloweringDays(selectedStrain.floweringDays);
       setStrainType(selectedStrain.strainType || 'hybrid');
       setPhotoperiod(selectedStrain.photoperiod || 'photo');
@@ -57,9 +60,10 @@ export function SeedForm({ onClose }: SeedFormProps) {
   };
 
   const handleSaveEdit = () => {
-    if (selectedStrainId && newStrainName.trim()) {
+    if (selectedStrainId && newStrainName.trim() && newAbbreviation.trim()) {
       updateStrain(selectedStrainId, {
         name: newStrainName.trim(),
+        abbreviation: newAbbreviation.trim().toUpperCase(),
         floweringDays,
         strainType,
         photoperiod,
@@ -167,24 +171,44 @@ export function SeedForm({ onClose }: SeedFormProps) {
       {/* Strain form (create or edit) */}
       {(isCreating || isEditing) && (
         <>
-          <input
-            type="text"
-            value={newStrainName}
-            onChange={(e) => setNewStrainName(e.target.value)}
-            placeholder="Strain name"
-            autoFocus
-            style={{
-              width: '100%',
-              padding: 8,
-              marginBottom: 8,
-              background: COLORS.background,
-              border: `1px solid ${COLORS.border}`,
-              color: COLORS.text,
-              fontSize: 14,
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-            }}
-          />
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <input
+              type="text"
+              value={newStrainName}
+              onChange={(e) => setNewStrainName(e.target.value)}
+              placeholder="Strain name"
+              autoFocus
+              style={{
+                flex: 1,
+                padding: 8,
+                background: COLORS.background,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text,
+                fontSize: 14,
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+            {isEditing && (
+              <input
+                type="text"
+                value={newAbbreviation}
+                onChange={(e) => setNewAbbreviation(e.target.value.toUpperCase().slice(0, 4))}
+                placeholder="ABBR"
+                style={{
+                  width: 60,
+                  padding: 8,
+                  background: COLORS.background,
+                  border: `1px solid ${COLORS.border}`,
+                  color: COLORS.text,
+                  fontSize: 14,
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                  textAlign: 'center',
+                }}
+              />
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Flowering:</span>
             <input
@@ -251,7 +275,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
           {isEditing && (
             <button
               onClick={handleSaveEdit}
-              disabled={!newStrainName.trim()}
+              disabled={!newStrainName.trim() || !newAbbreviation.trim()}
               style={{
                 width: '100%',
                 padding: 10,
@@ -262,7 +286,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
                 fontSize: 12,
                 fontWeight: 'bold',
                 cursor: 'pointer',
-                opacity: newStrainName.trim() ? 1 : 0.5,
+                opacity: newStrainName.trim() && newAbbreviation.trim() ? 1 : 0.5,
               }}
             >
               SAVE STRAIN
