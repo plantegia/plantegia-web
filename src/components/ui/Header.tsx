@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, Crosshair, Undo2, Redo2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { updatePlantationSettings } from '../../lib/firestore';
 import { COLORS } from '../../constants';
@@ -94,13 +95,14 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
           style={{
             background: 'transparent',
             border: 'none',
-            color: COLORS.muted,
-            fontSize: 18,
+            color: COLORS.text,
             cursor: 'pointer',
             padding: 0,
+            display: 'flex',
+            alignItems: 'center',
           }}
         >
-          ←
+          <ArrowLeft size={18} />
         </button>
         <span
           style={{
@@ -119,14 +121,14 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: COLORS.muted,
+              color: COLORS.text,
               fontSize: 16,
               cursor: 'pointer',
               padding: '4px 6px',
             }}
             title="Center view"
           >
-            ⌖
+            <Crosshair size={16} />
           </button>
         )}
         {canEdit && (
@@ -137,7 +139,7 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: historyPastLength > 0 ? COLORS.muted : COLORS.border,
+                color: historyPastLength > 0 ? COLORS.text : COLORS.border,
                 fontSize: 16,
                 cursor: historyPastLength > 0 ? 'pointer' : 'default',
                 padding: '4px 6px',
@@ -145,7 +147,7 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
               }}
               title="Undo (Ctrl+Z)"
             >
-              ↶
+              <Undo2 size={16} />
             </button>
             <button
               onClick={redo}
@@ -153,7 +155,7 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: historyFutureLength > 0 ? COLORS.muted : COLORS.border,
+                color: historyFutureLength > 0 ? COLORS.text : COLORS.border,
                 fontSize: 16,
                 cursor: historyFutureLength > 0 ? 'pointer' : 'default',
                 padding: '4px 6px',
@@ -161,14 +163,14 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
               }}
               title="Redo (Ctrl+Y)"
             >
-              ↷
+              <Redo2 size={16} />
             </button>
             <button
               onClick={handleShare}
               style={{
                 background: 'transparent',
-                border: `1px solid ${COLORS.muted}`,
-                color: COLORS.muted,
+                border: `1px solid ${COLORS.text}`,
+                color: COLORS.text,
                 padding: '6px 10px',
                 fontSize: 14,
                 fontFamily: 'inherit',

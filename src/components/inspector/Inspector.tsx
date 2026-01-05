@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { PlantInspector } from './PlantInspector';
 import { SpaceInspector } from './SpaceInspector';
@@ -43,13 +44,14 @@ export function Inspector({ readOnly }: InspectorProps) {
             background: 'transparent',
             border: `1px solid ${COLORS.border}`,
             color: COLORS.textMuted,
-            fontSize: 14,
             cursor: 'pointer',
             padding: '6px 10px',
-            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          ✕
+          <X size={14} />
         </button>
       </div>
     );
@@ -78,11 +80,13 @@ export function Inspector({ readOnly }: InspectorProps) {
           background: 'transparent',
           border: 'none',
           color: COLORS.textMuted,
-          fontSize: 16,
           cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        ✕
+        <X size={16} />
       </button>
 
       <SpaceInspector spaceId={selection.id} />

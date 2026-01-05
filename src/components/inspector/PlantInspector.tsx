@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { COLORS, STAGES } from '../../constants';
 import type { Stage } from '../../types';
@@ -91,12 +92,13 @@ export function PlantInspector({ plantId, onDelete }: PlantInspectorProps) {
           background: COLORS.danger,
           border: 'none',
           color: COLORS.text,
-          fontSize: 12,
           cursor: 'pointer',
-          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        ✕
+        <X size={14} />
       </button>
     </div>
   );

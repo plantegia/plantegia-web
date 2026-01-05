@@ -195,4 +195,4 @@ From spec.md - these are intentional limitations:
 - 4-color palette: dark blue background (#1A1A2E), green, orange, teal accents
 - Monospace font only, two sizes (14px/18px)
 - No modals, tables, or sidebars - only Hotbar, Inspector popup, and Canvas
-- Text symbols (▢, ✕, ⚙) instead of SVG icons
+- Icons: lucide-react library for SVG icons

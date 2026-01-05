@@ -4,6 +4,8 @@ export type PlantSize = 1 | 2 | 4;
 export type Tool = 'cursor' | 'space' | 'erase' | 'split';
 export type ViewMode = 'space' | 'time';
 export type LightSchedule = '18/6' | '12/12' | '20/4' | '24/0';
+// 24-bit bitmask: bit N = hour N (0=midnight), 1=light ON, 0=light OFF
+export type CustomLightSchedule = number;
 export type StrainType = 'indica' | 'sativa' | 'hybrid';
 export type Photoperiod = 'auto' | 'photo';
 
@@ -55,7 +57,8 @@ export interface Space {
   originY: number;
   gridWidth: number;
   gridHeight: number;
-  lightSchedule?: LightSchedule;
+  lightSchedule?: LightSchedule;  // Legacy, kept for migration
+  customLightSchedule?: CustomLightSchedule;  // New: 24-hour bitmask
   color?: string;
 }
 

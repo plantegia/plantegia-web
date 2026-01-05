@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserPlantations, createPlantation, deletePlantation } from '../../lib/firestore';
 import { VIEWPORT_WIDTH, COLORS, FEATURES } from '../../constants';
@@ -134,7 +135,7 @@ export function PlantationList() {
                 onClick={() => setDeleteConfirm(p)}
                 title="Delete plantation"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
           ))

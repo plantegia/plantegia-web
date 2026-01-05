@@ -2,13 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { COLORS, SPACE_COLORS } from '../../constants';
 import { getPlantBounds } from '../../utils/grid';
-import type { LightSchedule } from '../../types';
+import { getEffectiveLightSchedule } from '../../utils/lightSchedule';
+import { LightScheduleEditor } from './LightScheduleEditor';
 
 interface SpaceInspectorProps {
   spaceId: string;
 }
-
-const LIGHT_SCHEDULES: LightSchedule[] = ['18/6', '12/12', '20/4', '24/0'];
 
 export function SpaceInspector({ spaceId }: SpaceInspectorProps) {
   const spaces = useAppStore((s) => s.spaces);
@@ -72,8 +71,8 @@ export function SpaceInspector({ spaceId }: SpaceInspectorProps) {
     }
   };
 
-  const handleLightChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateSpace(spaceId, { lightSchedule: e.target.value as LightSchedule });
+  const handleLightScheduleChange = (newSchedule: number) => {
+    updateSpace(spaceId, { customLightSchedule: newSchedule });
   };
 
   const handleColorChange = (color: string) => {
@@ -136,26 +135,11 @@ export function SpaceInspector({ spaceId }: SpaceInspectorProps) {
         />
       </div>
 
-      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: COLORS.textMuted }}>Light:</span>
-        <select
-          value={space.lightSchedule || '18/6'}
-          onChange={handleLightChange}
-          style={{
-            padding: 6,
-            background: COLORS.background,
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.text,
-            fontSize: 14,
-            fontFamily: 'inherit',
-          }}
-        >
-          {LIGHT_SCHEDULES.map((schedule) => (
-            <option key={schedule} value={schedule}>
-              {schedule}
-            </option>
-          ))}
-        </select>
+      <div style={{ marginBottom: 12 }}>
+        <LightScheduleEditor
+          schedule={getEffectiveLightSchedule(space)}
+          onChange={handleLightScheduleChange}
+        />
       </div>
 
       <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
