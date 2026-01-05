@@ -93,7 +93,7 @@ export interface AppState {
     generation?: Generation;
     startedAt?: string;
   }) => string;
-  updatePlant: (id: string, updates: Partial<Omit<Plant, 'id' | 'code'>>, skipHistory?: boolean) => void;
+  updatePlant: (id: string, updates: Partial<Omit<Plant, 'id'>>, skipHistory?: boolean) => void;
   deletePlant: (id: string) => void;
 
   // Segment operations
