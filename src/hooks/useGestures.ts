@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import {
   screenToWorld,
   findSpaceAt,
+  findSpaceLabelAt,
   findCellInSpace,
   findPlantAt,
   canPlacePlant,
@@ -306,8 +307,8 @@ export function useGestures(
         }
       }
 
-      // Check if hovering over any plant
-      const plant = findPlantAt(worldPos, plants, spaces);
+      // Check if hovering over any plant (time-filtered)
+      const plant = findPlantAt(worldPos, plants, spaces, strains);
       if (plant) {
         setCanvasCursor(CURSORS.pointer);
         return;
@@ -434,7 +435,7 @@ export function useGestures(
     // In read-only mode, only allow viewing (selection) but no modifications
     if (readOnly) {
       if (viewMode === 'space') {
-        const plant = findPlantAt(worldPos, plants, spaces);
+        const plant = findPlantAt(worldPos, plants, spaces, strains);
         if (plant) {
           setSelection({ type: 'plant', id: plant.id });
           return;
@@ -450,7 +451,7 @@ export function useGestures(
     }
 
     if (activeTool === 'erase') {
-      const plant = findPlantAt(worldPos, plants, spaces);
+      const plant = findPlantAt(worldPos, plants, spaces, strains);
       if (plant) {
         deletePlant(plant.id);
         return;
@@ -663,15 +664,23 @@ export function useGestures(
     }
 
     if ((!activeTool || activeTool === 'cursor') && !selectedSeedId && viewMode === 'space') {
-      const plant = findPlantAt(worldPos, plants, spaces);
+      const plant = findPlantAt(worldPos, plants, spaces, strains);
       if (plant) {
         setSelection({ type: 'plant', id: plant.id });
         return;
       }
 
+      // Check for space click (inside space bounds)
       const space = findSpaceAt(worldPos, spaces);
       if (space) {
         setSelection({ type: 'space', id: space.id });
+        return;
+      }
+
+      // Check for space label click (outside space bounds but on label)
+      const spaceByLabel = findSpaceLabelAt(worldPos, spaces);
+      if (spaceByLabel) {
+        setSelection({ type: 'space', id: spaceByLabel.id });
         return;
       }
 
@@ -792,8 +801,8 @@ export function useGestures(
 
         // Detect what we're touching for potential long press drag
         if (viewMode === 'space') {
-          // Check for plant
-          const plant = findPlantAt(g.startWorld, plants, spaces);
+          // Check for plant (time-filtered)
+          const plant = findPlantAt(g.startWorld, plants, spaces, strains);
           if (plant) {
             g.longPressTarget = { type: 'plant', id: plant.id };
             startLongPressAnimation(g.longPressTarget, screenPos);
@@ -1288,9 +1297,9 @@ export function useGestures(
         }
       }
 
-      // Check if clicking on plant for drag (Space View)
+      // Check if clicking on plant for drag (Space View, time-filtered)
       if (!readOnly && viewMode === 'space' && (!activeTool || activeTool === 'cursor') && !selectedSeedId) {
-        const plant = findPlantAt(g.startWorld, plants, spaces);
+        const plant = findPlantAt(g.startWorld, plants, spaces, strains);
         if (plant) {
           g.spaceDragMode = 'plant-move';
           g.draggedSpaceViewPlantId = plant.id;
