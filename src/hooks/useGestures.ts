@@ -67,9 +67,7 @@ interface GestureState {
 }
 
 function getDistance(t1: Touch | MouseEvent, t2: Touch): number {
-  const x1 = 'clientX' in t1 ? t1.clientX : t1.clientX;
-  const y1 = 'clientY' in t1 ? t1.clientY : t1.clientY;
-  return Math.hypot(t2.clientX - x1, t2.clientY - y1);
+  return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -1430,14 +1428,23 @@ export function useGestures(
         return;
       }
 
-      // If we were doing Time View drag, don't trigger tap
+      // If we were doing Time View drag
       if (g.timeViewDragMode !== 'none') {
+        const plantId = g.draggedTimeViewPlantId;
+        const wasMoved = g.moved;
+
+        // Reset drag state
         g.timeViewDragMode = 'none';
         g.draggedTimeViewPlantId = null;
         g.draggedSegmentId = null;
         g.segmentHitZone = null;
         g.originalStartedAt = null;
         g.moved = false;
+
+        // If no movement occurred, treat as a click to select the plant
+        if (!wasMoved && plantId) {
+          setSelection({ type: 'plant', id: plantId });
+        }
         return;
       }
 

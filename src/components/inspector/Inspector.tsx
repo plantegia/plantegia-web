@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { PlantInspector } from './PlantInspector';
+import { PlantEditPanel } from './PlantEditPanel';
 import { SpaceInspector } from './SpaceInspector';
 import { COLORS, Z_INDEX } from '../../constants';
 
@@ -11,13 +13,47 @@ interface InspectorProps {
 export function Inspector({ readOnly }: InspectorProps) {
   const selection = useAppStore((s) => s.selection);
   const setSelection = useAppStore((s) => s.setSelection);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Reset edit mode when selection changes
+  useEffect(() => {
+    setIsEditing(false);
+  }, [selection?.id]);
 
   if (!selection || readOnly) return null;
 
-  const handleClose = () => setSelection(null);
+  const handleClose = () => {
+    setSelection(null);
+    setIsEditing(false);
+  };
 
-  // Plant inspector: compact bottom bar replacing hotbar
+  // Plant inspector
   if (selection.type === 'plant') {
+    // Edit mode: show full panel
+    if (isEditing) {
+      return (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: COLORS.backgroundLight,
+            borderTop: `1px solid ${COLORS.border}`,
+            padding: 16,
+            zIndex: Z_INDEX.INSPECTOR,
+            pointerEvents: 'auto',
+          }}
+        >
+          <PlantEditPanel
+            plantId={selection.id}
+            onClose={() => setIsEditing(false)}
+          />
+        </div>
+      );
+    }
+
+    // Compact mode: bottom bar
     return (
       <div
         style={{
@@ -30,34 +66,14 @@ export function Inspector({ readOnly }: InspectorProps) {
           padding: '12px 16px',
           zIndex: Z_INDEX.INSPECTOR,
           pointerEvents: 'auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
         }}
       >
-        <div style={{ flex: 1 }}>
-          <PlantInspector plantId={selection.id} onDelete={handleClose} />
-        </div>
-        <button
-          onClick={handleClose}
-          style={{
-            background: 'transparent',
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.textMuted,
-            cursor: 'pointer',
-            padding: '6px 10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <X size={14} />
-        </button>
+        <PlantInspector plantId={selection.id} onEdit={() => setIsEditing(true)} />
       </div>
     );
   }
 
-  // Space inspector: keep the existing popup style (can be updated later)
+  // Space inspector: keep the existing popup style
   return (
     <div
       style={{

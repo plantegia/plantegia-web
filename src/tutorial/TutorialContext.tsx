@@ -38,7 +38,7 @@ export function TutorialProvider({ children }: TutorialProviderProps) {
   const isCompleted = currentStepIndex >= totalSteps - 1;
 
   // Use ref to maintain stable callback reference
-  const advanceStepRef = useRef<() => void>();
+  const advanceStepRef = useRef<(() => void) | undefined>(undefined);
 
   useEffect(() => {
     advanceStepRef.current = () => {

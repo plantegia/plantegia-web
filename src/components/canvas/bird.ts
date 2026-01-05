@@ -132,7 +132,7 @@ export function checkAndSpawnBird(
 
 // Actually spawn the bird
 function doSpawnBird(
-  viewportWidth: number,
+  _viewportWidth: number,
   viewportHeight: number,
   pan: { x: number; y: number },
   zoom: number

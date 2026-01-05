@@ -1291,10 +1291,6 @@ function drawSegmentWithStages(
     const stageWidth = overlapX2 - overlapX1;
     const totalWeeks = Math.round(stageDuration / 7);
 
-    // Calculate current week in this stage based on today's position
-    const daysIntoStage = Math.max(0, Math.floor((today.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60 * 24)));
-    const currentWeek = Math.min(totalWeeks, Math.max(1, Math.ceil((daysIntoStage + 1) / 7)));
-
     // Determine text opacity based on selection state
     const textAlpha = hasSelection && !isSelected ? 0.5 : (isPast ? 0.9 : 0.7);
 

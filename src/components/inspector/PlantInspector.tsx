@@ -1,20 +1,15 @@
-import { X } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, STAGES } from '../../constants';
-import type { Stage } from '../../types';
+import { COLORS } from '../../constants';
 
 interface PlantInspectorProps {
   plantId: string;
-  onDelete: () => void;
+  onEdit: () => void;
 }
 
-export function PlantInspector({ plantId, onDelete }: PlantInspectorProps) {
+export function PlantInspector({ plantId, onEdit }: PlantInspectorProps) {
   const plant = useAppStore((s) => s.plants.find((p) => p.id === plantId));
   const strains = useAppStore((s) => s.strains);
-  const viewMode = useAppStore((s) => s.viewMode);
-  const updatePlant = useAppStore((s) => s.updatePlant);
-  const deletePlant = useAppStore((s) => s.deletePlant);
-  const setSelection = useAppStore((s) => s.setSelection);
 
   if (!plant) return null;
 
@@ -29,14 +24,7 @@ export function PlantInspector({ plantId, onDelete }: PlantInspectorProps) {
   const totalDays = (strain?.vegDays || 30) + (strain?.floweringDays || 60);
   const daysRemaining = Math.max(0, totalDays - daysSinceStart);
 
-  const handleDelete = () => {
-    deletePlant(plantId);
-    setSelection(null);
-    onDelete();
-  };
-
-  // In timeline view, stage is changed by dragging, so the dropdown is read-only
-  const isTimelineView = viewMode === 'time';
+  const stageName = plant.stage.charAt(0).toUpperCase() + plant.stage.slice(1);
 
   return (
     <div
@@ -57,48 +45,27 @@ export function PlantInspector({ plantId, onDelete }: PlantInspectorProps) {
           </span>
         </div>
         <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }}>
-          Day {daysSinceStart} · ~{daysRemaining}d to harvest
+          Day {daysSinceStart} · {stageName} · ~{daysRemaining}d
         </div>
       </div>
 
-      {/* Stage selector */}
-      <select
-        value={plant.stage}
-        onChange={(e) => updatePlant(plantId, { stage: e.target.value as Stage })}
-        disabled={isTimelineView}
+      {/* Edit button */}
+      <button
+        onClick={onEdit}
         style={{
-          padding: '6px 8px',
+          padding: '8px 12px',
           background: COLORS.background,
           border: `1px solid ${COLORS.border}`,
           color: COLORS.text,
           fontSize: 12,
-          fontFamily: 'inherit',
-          opacity: isTimelineView ? 0.6 : 1,
-          cursor: isTimelineView ? 'not-allowed' : 'pointer',
-        }}
-      >
-        {STAGES.map((stage) => (
-          <option key={stage} value={stage}>
-            {stage.charAt(0).toUpperCase() + stage.slice(1)}
-          </option>
-        ))}
-      </select>
-
-      {/* Compact delete button */}
-      <button
-        onClick={handleDelete}
-        style={{
-          padding: '6px 12px',
-          background: COLORS.danger,
-          border: 'none',
-          color: COLORS.text,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          gap: 6,
         }}
       >
-        <X size={14} />
+        <Pencil size={14} />
+        Edit
       </button>
     </div>
   );

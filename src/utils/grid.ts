@@ -472,7 +472,7 @@ export function getPlantDurationFromStrain(strain: Strain | undefined): number {
 // Check if a new plant can be placed at a slot/time without conflicts
 // Unlike canPlacePlant, this checks segment time overlaps for Time View placement
 export function canPlacePlantAtTime(
-  spaceId: string,
+  spaceId: string | null,
   gridX: number,
   gridY: number,
   startDate: Date,
