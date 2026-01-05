@@ -19,6 +19,7 @@ import {
   SegmentHitZone,
   getStageDuration,
   findMergeButtonAt,
+  calculateSpaceReorderTargetIndex,
 } from '../utils/grid';
 import { MIN_ZOOM, MAX_ZOOM, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM, CELL_SIZE, SPACE_COLORS, CURSORS, EDGE_CURSORS, LONG_PRESS_DURATION, LONG_PRESS_MOVE_THRESHOLD } from '../constants';
 import type { Point, Space, Stage } from '../types';
@@ -60,10 +61,14 @@ interface GestureState {
   longPressTimer: ReturnType<typeof setTimeout> | null;
   longPressTriggered: boolean;
   longPressTarget: {
-    type: 'plant' | 'space' | 'segment';
+    type: 'plant' | 'space' | 'segment' | 'space-header';
     id: string;
     segmentId?: string;
+    spaceIndex?: number;
   } | null;
+  // Time View space reorder drag state (for long press drag mode)
+  timeViewSpaceReorderDrag: boolean;
+  draggedSpaceOriginalIndex: number;
 }
 
 function getDistance(t1: Touch | MouseEvent, t2: Touch): number {
@@ -107,6 +112,8 @@ export function useGestures(
     longPressTimer: null,
     longPressTriggered: false,
     longPressTarget: null,
+    timeViewSpaceReorderDrag: false,
+    draggedSpaceOriginalIndex: -1,
   });
 
   const {
@@ -136,6 +143,13 @@ export function useGestures(
     setPlantDragPreview,
     // Long press preview
     setLongPressPreview,
+    // Space collapse/reorder
+    collapsedSpaces,
+    toggleSpaceCollapsed,
+    reorderSpaces,
+    setSpaceReorderPreview,
+    spaceReorderActive,
+    setSpaceReorderActive,
   } = useAppStore();
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number): Point => {
@@ -191,7 +205,8 @@ export function useGestures(
           timelineHorizontalOffset,
           timelineOffset,
           new Date(),
-          timelineZoom
+          timelineZoom,
+          collapsedSpaces
         );
         if (hitResult) {
           setSplitPreview({ x: screenPos.x, plantId: hitResult.plant.id, segmentId: hitResult.segmentId });
@@ -229,7 +244,7 @@ export function useGestures(
         setSplitPreview(null);
         setPlacementPreview(null);
 
-        const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants);
+        const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants, collapsedSpaces);
         if (slot && !slot.isSpaceHeader) {
           const seed = inventory.find(s => s.id === selectedSeedId);
           const strain = seed ? strains.find(st => st.id === seed.strainId) : undefined;
@@ -314,7 +329,8 @@ export function useGestures(
         timelineHorizontalOffset,
         timelineOffset,
         new Date(),
-        timelineZoom
+        timelineZoom,
+        collapsedSpaces
       );
 
       if (mergeHit) {
@@ -332,7 +348,8 @@ export function useGestures(
         timelineHorizontalOffset,
         timelineOffset,
         new Date(),
-        timelineZoom
+        timelineZoom,
+        collapsedSpaces
       );
 
       if (hitResult) {
@@ -363,6 +380,53 @@ export function useGestures(
       return endX > newWidth || endY > newHeight;
     });
   }, [plants]);
+
+  // Find space header hit zone in Time View
+  // Layout matches renderers.ts: dragX=12, chevronX=canvasWidth-36, editX=canvasWidth-12
+  // Hit zones are centered on icon positions with ~12px radius
+  type HeaderHitZone = 'drag' | 'name' | 'chevron' | 'edit';
+  const findSpaceHeaderHit = useCallback((screenX: number, screenY: number, canvasWidth: number): {
+    spaceId: string;
+    zone: HeaderHitZone;
+    spaceIndex: number
+  } | null => {
+    const { topMargin, spaceHeaderHeight, slotHeight } = TIME_VIEW_CONSTANTS;
+    const adjustedY = screenY - topMargin + timelineOffset;
+
+    // Icon positions (from renderers.ts)
+    const dragX = 12;
+    const chevronX = canvasWidth - 36;
+    const editX = canvasWidth - 12;
+    const hitRadius = 12;
+
+    let yOffset = 0;
+    for (let i = 0; i < spaces.length; i++) {
+      const space = spaces[i];
+      const headerStart = yOffset;
+      const headerEnd = yOffset + spaceHeaderHeight;
+
+      if (adjustedY >= headerStart && adjustedY < headerEnd) {
+        // Determine hit zone based on X position (centered on icons)
+        let zone: HeaderHitZone;
+        if (Math.abs(screenX - dragX) < hitRadius) {
+          zone = 'drag';
+        } else if (Math.abs(screenX - editX) < hitRadius) {
+          zone = 'edit';
+        } else if (Math.abs(screenX - chevronX) < hitRadius) {
+          zone = 'chevron';
+        } else {
+          zone = 'name';
+        }
+        return { spaceId: space.id, zone, spaceIndex: i };
+      }
+
+      yOffset += spaceHeaderHeight;
+      if (!collapsedSpaces.has(space.id)) {
+        yOffset += space.gridWidth * space.gridHeight * slotHeight;
+      }
+    }
+    return null;
+  }, [spaces, timelineOffset, collapsedSpaces]);
 
   const handleTap = useCallback((screenPos: Point) => {
     const worldPos = screenToWorld(screenPos, pan, zoom);
@@ -398,6 +462,24 @@ export function useGestures(
       return;
     }
 
+    // Space tool in Time View - create default 2x2 space at end of list
+    if (activeTool === 'space' && viewMode === 'time') {
+      const randomColor = SPACE_COLORS[Math.floor(Math.random() * SPACE_COLORS.length)];
+      const newSpaceId = createSpace({
+        name: `Space ${spaces.length + 1}`,
+        originX: 0,
+        originY: 0,
+        gridWidth: 2,
+        gridHeight: 2,
+        color: randomColor,
+      });
+      // Select the new space for editing
+      setSelection({ type: 'space', id: newSpaceId });
+      // Reset to cursor tool
+      setActiveTool('cursor');
+      return;
+    }
+
     if (selectedSeedId && viewMode === 'space') {
       const space = findSpaceAt(worldPos, spaces);
       if (space) {
@@ -423,7 +505,7 @@ export function useGestures(
 
     if (selectedSeedId && viewMode === 'time') {
       // In new horizontal Time View, tapping with seed selected places a plant at that slot/date
-      const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants);
+      const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants, collapsedSpaces);
       if (!slot || slot.isSpaceHeader) return;
 
       const seed = inventory.find(s => s.id === selectedSeedId);
@@ -464,7 +546,8 @@ export function useGestures(
         timelineHorizontalOffset,
         timelineOffset,
         new Date(),
-        timelineZoom
+        timelineZoom,
+        collapsedSpaces
       );
 
       if (hitResult) {
@@ -487,11 +570,68 @@ export function useGestures(
         timelineHorizontalOffset,
         timelineOffset,
         new Date(),
-        timelineZoom
+        timelineZoom,
+        collapsedSpaces
       );
 
       if (mergeHit) {
         mergeSegments(mergeHit.plantId, mergeHit.segmentIndex);
+        return;
+      }
+    }
+
+    // Handle space header interactions in Time View
+    // Layout: [drag 24px] ... [name] ... [chevron 24px] [edit 24px]
+    if ((!activeTool || activeTool === 'cursor') && !selectedSeedId && viewMode === 'time') {
+      const canvasWidth = canvasRef.current?.clientWidth || 390;
+      const headerHit = findSpaceHeaderHit(screenPos.x, screenPos.y, canvasWidth);
+
+      if (headerHit) {
+        const { spaceId, zone, spaceIndex } = headerHit;
+
+        // If we're in active drag mode, this tap drops the space
+        if (spaceReorderActive) {
+          let targetIndex = calculateSpaceReorderTargetIndex(screenPos.y, timelineOffset, spaces, collapsedSpaces);
+          const currentIndex = spaces.findIndex(s => s.id === spaceReorderActive);
+          if (targetIndex > currentIndex) targetIndex--;
+
+          if (targetIndex !== currentIndex) {
+            reorderSpaces(spaceReorderActive, targetIndex);
+          }
+          setSpaceReorderActive(null);
+          setSpaceReorderPreview(null);
+          return;
+        }
+
+        // Handle different zones
+        if (zone === 'drag') {
+          // Start drag mode (tap-to-start)
+          saveSnapshot();
+          setSpaceReorderActive(spaceId);
+          setSpaceReorderPreview({ spaceId, targetIndex: spaceIndex });
+          return;
+        }
+
+        if (zone === 'chevron') {
+          toggleSpaceCollapsed(spaceId);
+          return;
+        }
+
+        if (zone === 'edit' || zone === 'name') {
+          // Toggle selection - if already selected, deselect
+          if (selection?.type === 'space' && selection.id === spaceId) {
+            setSelection(null);
+          } else {
+            setSelection({ type: 'space', id: spaceId });
+          }
+          return;
+        }
+      }
+
+      // If in drag mode and tapped outside headers, cancel drag
+      if (spaceReorderActive) {
+        setSpaceReorderActive(null);
+        setSpaceReorderPreview(null);
         return;
       }
     }
@@ -508,7 +648,8 @@ export function useGestures(
         timelineHorizontalOffset,
         timelineOffset,
         new Date(),
-        timelineZoom
+        timelineZoom,
+        collapsedSpaces
       );
 
       if (hitResult) {
@@ -540,6 +681,8 @@ export function useGestures(
     pan, zoom, timelineZoom, activeTool, selectedSeedId, spaces, plants, strains, inventory, viewMode,
     deletePlant, deleteSpace, createPlant, consumeSeed, setSelection, setActiveTool,
     timelineOffset, timelineHorizontalOffset, readOnly, splitSegment, mergeSegments,
+    findSpaceHeaderHit, toggleSpaceCollapsed, canvasRef, spaceReorderActive, setSpaceReorderActive,
+    setSpaceReorderPreview, reorderSpaces, collapsedSpaces, saveSnapshot, createSpace,
   ]);
 
   const handleDragEnd = useCallback((startWorld: Point, endWorld: Point) => {
@@ -711,7 +854,8 @@ export function useGestures(
             timelineHorizontalOffset,
             timelineOffset,
             new Date(),
-            timelineZoom
+            timelineZoom,
+            collapsedSpaces
           );
 
           if (hitResult) {
@@ -740,6 +884,31 @@ export function useGestures(
                   g.timeViewDragMode = 'segment-move-x';
                 }
                 saveSnapshot();
+              }
+            }, LONG_PRESS_DURATION);
+            return;
+          }
+
+          // Check for space header (drag icon or name area) for long press drag
+          const canvasWidth = canvasRef.current?.clientWidth || 390;
+          const headerHit = findSpaceHeaderHit(screenPos.x, screenPos.y, canvasWidth);
+          if (headerHit && (headerHit.zone === 'drag' || headerHit.zone === 'name')) {
+            g.longPressTarget = {
+              type: 'space-header',
+              id: headerHit.spaceId,
+              spaceIndex: headerHit.spaceIndex,
+            };
+            startLongPressAnimation(g.longPressTarget, screenPos);
+
+            g.longPressTimer = setTimeout(() => {
+              if (g.longPressTarget?.type === 'space-header') {
+                triggerHaptic('medium');
+                g.longPressTriggered = true;
+                g.timeViewSpaceReorderDrag = true;
+                g.draggedSpaceOriginalIndex = headerHit.spaceIndex;
+                saveSnapshot();
+                setSpaceReorderActive(headerHit.spaceId);
+                setSpaceReorderPreview({ spaceId: headerHit.spaceId, targetIndex: headerHit.spaceIndex });
               }
             }, LONG_PRESS_DURATION);
             return;
@@ -787,6 +956,13 @@ export function useGestures(
         const dx = screenPos.x - g.startScreen.x;
         const dy = screenPos.y - g.startScreen.y;
         const distance = Math.hypot(dx, dy);
+
+        // Handle tap-to-drag mode for space reordering (update preview on move)
+        if (spaceReorderActive && viewMode === 'time') {
+          const targetIndex = calculateSpaceReorderTargetIndex(screenPos.y, timelineOffset, spaces, collapsedSpaces);
+          setSpaceReorderPreview({ spaceId: spaceReorderActive, targetIndex });
+          return;
+        }
 
         // Cancel long press if moved too much before it triggered
         if (!g.longPressTriggered && distance > LONG_PRESS_MOVE_THRESHOLD) {
@@ -923,7 +1099,7 @@ export function useGestures(
             }
 
             if (g.timeViewDragMode === 'segment-move-y') {
-              const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants);
+              const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants, collapsedSpaces);
               if (slot && !slot.isSpaceHeader && g.draggedSegmentId) {
                 moveSegmentToSlot(g.draggedTimeViewPlantId, g.draggedSegmentId, {
                   spaceId: slot.spaceId,
@@ -951,11 +1127,13 @@ export function useGestures(
         }
 
         // Regular pan/scroll (not dragging)
-        if (distance > 5) {
+        // Use a threshold to distinguish tap from pan
+        const panThreshold = 8;
+        if (distance > panThreshold) {
           g.moved = true;
         }
 
-        if (!g.longPressTriggered) {
+        if (!g.longPressTriggered && distance > panThreshold) {
           if (viewMode === 'time') {
             g.isPanning = true;
             setTimelineOffset(g.lastTimelineOffset - dy);
@@ -1013,6 +1191,25 @@ export function useGestures(
         setPlantDragPreview(null);
       }
 
+      // Complete space reorder drag (long press mode)
+      if (g.timeViewSpaceReorderDrag && spaceReorderActive && wasLongPressTriggered) {
+        const touch = e.changedTouches[0];
+        if (touch) {
+          const screenPos = getCanvasPoint(touch.clientX, touch.clientY);
+          let targetIndex = calculateSpaceReorderTargetIndex(screenPos.y, timelineOffset, spaces, collapsedSpaces);
+          const currentIndex = g.draggedSpaceOriginalIndex;
+          if (targetIndex > currentIndex) targetIndex--;
+
+          if (targetIndex !== currentIndex) {
+            reorderSpaces(spaceReorderActive, targetIndex);
+          }
+        }
+        setSpaceReorderActive(null);
+        setSpaceReorderPreview(null);
+        g.timeViewSpaceReorderDrag = false;
+        g.draggedSpaceOriginalIndex = -1;
+      }
+
       // Reset all drag state
       g.spaceDragMode = 'none';
       g.draggedSpaceId = null;
@@ -1029,6 +1226,8 @@ export function useGestures(
       g.originalStageDays = null;
       g.longPressTriggered = false;
       g.longPressTarget = null;
+      g.timeViewSpaceReorderDrag = false;
+      g.draggedSpaceOriginalIndex = -1;
 
       if (g.isDragging && dragPreview) {
         handleDragEnd(
@@ -1120,11 +1319,27 @@ export function useGestures(
           timelineHorizontalOffset,
           timelineOffset,
           new Date(),
-          timelineZoom
+          timelineZoom,
+          collapsedSpaces
         );
         if (mergeHit) {
           // Merge button click will be handled in handleTap
           return;
+        }
+
+        // Check for space header drag (desktop drag-n-drop on drag icon)
+        if (!activeTool || activeTool === 'cursor') {
+          const canvasWidth = canvasRef.current?.clientWidth || 390;
+          const headerHit = findSpaceHeaderHit(screenPos.x, screenPos.y, canvasWidth);
+          if (headerHit && headerHit.zone === 'drag') {
+            // Start drag mode immediately on desktop (no long press needed)
+            saveSnapshot();
+            g.timeViewSpaceReorderDrag = true;
+            g.draggedSpaceOriginalIndex = headerHit.spaceIndex;
+            setSpaceReorderActive(headerHit.spaceId);
+            setSpaceReorderPreview({ spaceId: headerHit.spaceId, targetIndex: headerHit.spaceIndex });
+            return;
+          }
         }
 
         // Check for segment hit
@@ -1137,7 +1352,8 @@ export function useGestures(
           timelineHorizontalOffset,
           timelineOffset,
           new Date(),
-          timelineZoom
+          timelineZoom,
+          collapsedSpaces
         );
 
         if (hitResult && (!activeTool || activeTool === 'cursor')) {
@@ -1173,6 +1389,13 @@ export function useGestures(
 
       // Handle hover (no button pressed)
       if (e.buttons === 0) {
+        // In tap-to-drag mode, update preview on hover
+        if (spaceReorderActive && viewMode === 'time') {
+          setCanvasCursor(CURSORS.grabbing);
+          const targetIndex = calculateSpaceReorderTargetIndex(screenPos.y, timelineOffset, spaces, collapsedSpaces);
+          setSpaceReorderPreview({ spaceId: spaceReorderActive, targetIndex });
+          return;
+        }
         updateCursor(screenPos, false, 'none', null);
         return;
       }
@@ -1194,6 +1417,14 @@ export function useGestures(
 
       if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
         g.moved = true;
+      }
+
+      // Handle space reorder drag (desktop)
+      if (g.timeViewSpaceReorderDrag && spaceReorderActive) {
+        setCanvasCursor(CURSORS.grabbing);
+        const targetIndex = calculateSpaceReorderTargetIndex(screenPos.y, timelineOffset, spaces, collapsedSpaces);
+        setSpaceReorderPreview({ spaceId: spaceReorderActive, targetIndex });
+        return;
       }
 
       // Handle space move/resize
@@ -1333,7 +1564,7 @@ export function useGestures(
 
         if (g.timeViewDragMode === 'segment-move-y') {
           // Vertical drag = move segment to different slot
-          const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants);
+          const slot = findSlotAtY(screenPos.y, timelineOffset, spaces, plants, collapsedSpaces);
           if (slot && !slot.isSpaceHeader && g.draggedSegmentId) {
             moveSegmentToSlot(g.draggedTimeViewPlantId, g.draggedSegmentId, {
               spaceId: slot.spaceId,
@@ -1418,6 +1649,25 @@ export function useGestures(
         return;
       }
 
+      // Complete space reorder drag (desktop drag mode)
+      if (g.timeViewSpaceReorderDrag && spaceReorderActive) {
+        let targetIndex = calculateSpaceReorderTargetIndex(screenPos.y, timelineOffset, spaces, collapsedSpaces);
+        const currentIndex = g.draggedSpaceOriginalIndex;
+        if (targetIndex > currentIndex) targetIndex--;
+
+        if (targetIndex !== currentIndex && g.moved) {
+          reorderSpaces(spaceReorderActive, targetIndex);
+        }
+
+        setSpaceReorderActive(null);
+        setSpaceReorderPreview(null);
+        g.timeViewSpaceReorderDrag = false;
+        g.draggedSpaceOriginalIndex = -1;
+        g.moved = false;
+        updateCursor(screenPos, false, 'none', null);
+        return;
+      }
+
       // If we were doing space drag (move/resize), don't trigger tap
       if (g.spaceDragMode === 'move' || g.spaceDragMode === 'resize') {
         g.spaceDragMode = 'none';
@@ -1468,34 +1718,47 @@ export function useGestures(
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
 
-      const screenPos = getCanvasPoint(e.clientX, e.clientY);
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      // Check if this is a pinch-to-zoom gesture (ctrlKey is true for trackpad pinch)
+      if (e.ctrlKey) {
+        // Pinch-to-zoom on trackpad
+        const screenPos = getCanvasPoint(e.clientX, e.clientY);
+        const delta = e.deltaY > 0 ? 0.95 : 1.05;
 
-      if (viewMode === 'time') {
-        // Time View: zoom horizontally (time scale)
-        const { leftMargin } = TIME_VIEW_CONSTANTS;
-        const newZoom = clamp(timelineZoom * delta, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM);
+        if (viewMode === 'time') {
+          const { leftMargin } = TIME_VIEW_CONSTANTS;
+          const newZoom = clamp(timelineZoom * delta, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM);
 
-        // Zoom towards mouse X position (keeping the date under cursor stable)
-        const mouseX = screenPos.x - leftMargin;
-        const worldX = (mouseX - timelineHorizontalOffset) / timelineZoom;
-        const newOffsetX = mouseX - worldX * newZoom;
+          const mouseX = screenPos.x - leftMargin;
+          const worldX = (mouseX - timelineHorizontalOffset) / timelineZoom;
+          const newOffsetX = mouseX - worldX * newZoom;
 
-        setTimelineHorizontalOffset(newOffsetX);
-        setTimelineZoom(newZoom);
+          setTimelineHorizontalOffset(newOffsetX);
+          setTimelineZoom(newZoom);
+        } else {
+          const newZoom = clamp(zoom * delta, MIN_ZOOM, MAX_ZOOM);
+
+          const worldX = (screenPos.x - pan.x) / zoom;
+          const worldY = (screenPos.y - pan.y) / zoom;
+
+          const newPanX = screenPos.x - worldX * newZoom;
+          const newPanY = screenPos.y - worldY * newZoom;
+
+          setPan({ x: newPanX, y: newPanY });
+          setZoom(newZoom);
+        }
       } else {
-        // Space View: zoom both axes
-        const newZoom = clamp(zoom * delta, MIN_ZOOM, MAX_ZOOM);
-
-        // Zoom towards mouse position
-        const worldX = (screenPos.x - pan.x) / zoom;
-        const worldY = (screenPos.y - pan.y) / zoom;
-
-        const newPanX = screenPos.x - worldX * newZoom;
-        const newPanY = screenPos.y - worldY * newZoom;
-
-        setPan({ x: newPanX, y: newPanY });
-        setZoom(newZoom);
+        // Regular scroll (mouse wheel or two-finger scroll on trackpad)
+        if (viewMode === 'time') {
+          // Time View: scroll both directions
+          setTimelineOffset(timelineOffset + e.deltaY);
+          setTimelineHorizontalOffset(timelineHorizontalOffset - e.deltaX);
+        } else {
+          // Space View: pan in both directions
+          setPan({
+            x: pan.x - e.deltaX,
+            y: pan.y - e.deltaY,
+          });
+        }
       }
     };
 
@@ -1524,5 +1787,6 @@ export function useGestures(
     selection, spaces, plants, strains, readOnly, updateSpace, updatePlant, canResizeSpace, setSelection,
     saveSnapshot, splitSegment, moveSegmentToSlot, shiftPlantInTime, movePlantInSpaceView, setPlantDragPreview, updateCursor,
     setLongPressPreview, canvasRect, inventory,
+    collapsedSpaces, setCanvasCursor, setSpaceReorderPreview, spaceReorderActive,
   ]);
 }

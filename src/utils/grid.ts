@@ -327,12 +327,15 @@ export interface SlotInfo {
 
 // Build slot list for Y-axis (grouped by space)
 // Includes space header rows for visual grouping
-export function buildSlotList(spaces: Space[], plants?: Plant[]): SlotInfo[] {
+// collapsedSpaces: Set of space IDs that should show only headers (no cell slots)
+export function buildSlotList(spaces: Space[], plants?: Plant[], collapsedSpaces?: Set<string>): SlotInfo[] {
   const { slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
   const slots: SlotInfo[] = [];
   let yOffset = 0;
 
   spaces.forEach((space) => {
+    const isCollapsed = collapsedSpaces?.has(space.id) ?? false;
+
     // Add space header
     slots.push({
       spaceId: space.id,
@@ -344,17 +347,19 @@ export function buildSlotList(spaces: Space[], plants?: Plant[]): SlotInfo[] {
     });
     yOffset += spaceHeaderHeight;
 
-    // Add cell slots
-    for (let y = 0; y < space.gridHeight; y++) {
-      for (let x = 0; x < space.gridWidth; x++) {
-        slots.push({
-          spaceId: space.id,
-          spaceName: space.name,
-          gridX: x,
-          gridY: y,
-          yOffset,
-        });
-        yOffset += slotHeight;
+    // Add cell slots only if not collapsed
+    if (!isCollapsed) {
+      for (let y = 0; y < space.gridHeight; y++) {
+        for (let x = 0; x < space.gridWidth; x++) {
+          slots.push({
+            spaceId: space.id,
+            spaceName: space.name,
+            gridX: x,
+            gridY: y,
+            yOffset,
+          });
+          yOffset += slotHeight;
+        }
       }
     }
   });
@@ -554,10 +559,11 @@ export function findSegmentAtHorizontal(
   panX: number,
   panY: number,
   today: Date = new Date(),
-  zoom: number = 1
+  zoom: number = 1,
+  collapsedSpaces?: Set<string>
 ): SegmentHitResult | null {
   const { topMargin, handleWidth, segmentHeight, segmentGap } = TIME_VIEW_CONSTANTS;
-  const slots = buildSlotList(spaces, plants);
+  const slots = buildSlotList(spaces, plants, collapsedSpaces);
 
   for (const plant of plants) {
     if (!plant.segments) continue;
@@ -627,10 +633,11 @@ export function findMergeButtonAt(
   panX: number,
   panY: number,
   today: Date = new Date(),
-  zoom: number = 1
+  zoom: number = 1,
+  collapsedSpaces?: Set<string>
 ): MergeButtonHitResult | null {
   const { topMargin, segmentHeight, segmentGap, mergeButtonSize } = TIME_VIEW_CONSTANTS;
-  const slots = buildSlotList(spaces, plants);
+  const slots = buildSlotList(spaces, plants, collapsedSpaces);
 
   for (const plant of plants) {
     if (!plant.segments || plant.segments.length < 2) continue;
@@ -673,10 +680,11 @@ export function findSlotAtY(
   screenY: number,
   panY: number,
   spaces: Space[],
-  plants?: Plant[]
+  plants?: Plant[],
+  collapsedSpaces?: Set<string>
 ): SlotInfo | null {
   const { topMargin, slotHeight, spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
-  const slots = buildSlotList(spaces, plants);
+  const slots = buildSlotList(spaces, plants, collapsedSpaces);
   const adjustedY = screenY - topMargin + panY;
 
   // Find the slot where adjustedY falls within its bounds
@@ -690,4 +698,30 @@ export function findSlotAtY(
   }
 
   return null;
+}
+
+// Calculate target index for space reordering based on Y position
+export function calculateSpaceReorderTargetIndex(
+  screenY: number,
+  panY: number,
+  spaces: Space[],
+  collapsedSpaces: Set<string>
+): number {
+  const { topMargin, spaceHeaderHeight, slotHeight } = TIME_VIEW_CONSTANTS;
+  const adjustedY = screenY - topMargin + panY;
+
+  let yOffset = 0;
+  let targetIndex = 0;
+
+  for (let i = 0; i < spaces.length; i++) {
+    const space = spaces[i];
+    const spaceHeight = spaceHeaderHeight + (collapsedSpaces.has(space.id) ? 0 : space.gridWidth * space.gridHeight * slotHeight);
+    const spaceMidpoint = yOffset + spaceHeight / 2;
+    if (adjustedY > spaceMidpoint) {
+      targetIndex = i + 1;
+    }
+    yOffset += spaceHeight;
+  }
+
+  return targetIndex;
 }

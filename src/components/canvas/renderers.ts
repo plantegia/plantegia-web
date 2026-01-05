@@ -647,7 +647,10 @@ export function renderTimeView(
   zoom: number = 1,
   splitPreview: { x: number; plantId: string; segmentId: string } | null = null,
   timeViewPlacementPreview: TimeViewPlacementPreview | null = null,
-  selection: { type: 'space' | 'plant'; id: string } | null = null
+  selection: { type: 'space' | 'plant'; id: string } | null = null,
+  collapsedSpaces: Set<string> = new Set(),
+  spaceReorderPreview: { spaceId: string; targetIndex: number } | null = null,
+  spaceReorderActive: string | null = null
 ) {
   const today = new Date();
   const {
@@ -667,8 +670,8 @@ export function renderTimeView(
   // Local helper that includes zoom
   const toScreenX = (date: Date) => dateToScreenX(date, panX, today, zoom);
 
-  // Build slot list
-  const slots = buildSlotList(spaces, plants);
+  // Build slot list (respecting collapsed spaces)
+  const slots = buildSlotList(spaces, plants, collapsedSpaces);
 
   // Draw background with dark color
   ctx.fillStyle = COLORS.backgroundDark;
@@ -708,35 +711,10 @@ export function renderTimeView(
       const spaceIdx = spaces.findIndex(s => s.id === slot.spaceId);
       const space = spaces[spaceIdx];
       const spaceColor = space?.color || SPACE_COLORS[spaceIdx % SPACE_COLORS.length];
+      const isCollapsed = slot.spaceId ? collapsedSpaces.has(slot.spaceId) : false;
+      const isDragging = spaceReorderActive === slot.spaceId;
 
-      // Full-width colored background strip for space header
-      ctx.fillStyle = spaceColor;
-      ctx.globalAlpha = 0.15;
-      ctx.fillRect(0, y, canvasWidth, spaceHeaderHeight);
-      ctx.globalAlpha = 1;
-
-      // Space name in space color
-      ctx.fillStyle = spaceColor;
-      ctx.font = 'bold 10px "Space Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(slot.spaceName.toUpperCase(), canvasWidth / 2, y + spaceHeaderHeight / 2);
-
-      // Top border line
-      ctx.strokeStyle = spaceColor;
-      ctx.globalAlpha = 0.5;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvasWidth, y);
-      ctx.stroke();
-
-      // Bottom border line
-      ctx.beginPath();
-      ctx.moveTo(0, y + spaceHeaderHeight);
-      ctx.lineTo(canvasWidth, y + spaceHeaderHeight);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      drawSpaceHeader(ctx, slot.spaceName, spaceColor, y, canvasWidth, isCollapsed, isDragging, plants, slot.spaceId);
     } else {
       // Find space color for this slot
       const spaceIdx = spaces.findIndex(s => s.id === slot.spaceId);
@@ -764,6 +742,46 @@ export function renderTimeView(
     }
   });
   ctx.restore();
+
+  // Draw space reorder preview (insertion indicator line)
+  if (spaceReorderPreview) {
+    const { targetIndex } = spaceReorderPreview;
+    // Calculate Y position for target insertion point
+    let insertY = topMargin;
+    for (let i = 0; i < targetIndex && i < spaces.length; i++) {
+      const space = spaces[i];
+      const isSpaceCollapsed = collapsedSpaces.has(space.id);
+      insertY += spaceHeaderHeight;
+      if (!isSpaceCollapsed) {
+        insertY += space.gridWidth * space.gridHeight * slotHeight;
+      }
+    }
+    insertY -= panY;
+
+    // Draw thick colored insertion line
+    ctx.strokeStyle = COLORS.teal;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, insertY);
+    ctx.lineTo(canvasWidth, insertY);
+    ctx.stroke();
+
+    // Draw small triangles at the ends
+    ctx.fillStyle = COLORS.teal;
+    ctx.beginPath();
+    ctx.moveTo(0, insertY - 6);
+    ctx.lineTo(10, insertY);
+    ctx.lineTo(0, insertY + 6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(canvasWidth, insertY - 6);
+    ctx.lineTo(canvasWidth - 10, insertY);
+    ctx.lineTo(canvasWidth, insertY + 6);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   // Draw TODAY line (vertical)
   const todayX = toScreenX(today);
@@ -1571,6 +1589,117 @@ function drawSegmentConnections(
     ctx.fill();
     ctx.globalAlpha = 1;
   }
+}
+
+// Draw space header row in Time View
+function drawSpaceHeader(
+  ctx: CanvasRenderingContext2D,
+  spaceName: string,
+  spaceColor: string,
+  y: number,
+  canvasWidth: number,
+  isCollapsed: boolean,
+  isDragging: boolean,
+  plants: Plant[],
+  spaceId: string | null
+) {
+  const { spaceHeaderHeight } = TIME_VIEW_CONSTANTS;
+  const centerY = y + spaceHeaderHeight / 2;
+
+  // Full-width colored background strip for space header
+  ctx.fillStyle = spaceColor;
+  ctx.globalAlpha = isDragging ? 0.3 : 0.15;
+  ctx.fillRect(0, y, canvasWidth, spaceHeaderHeight);
+  ctx.globalAlpha = 1;
+
+  // Icon positions
+  const dragX = 12;
+  const chevronX = canvasWidth - 36;
+  const editX = canvasWidth - 12;
+
+  // Draw drag handle icon (left side) - 3 horizontal lines
+  ctx.strokeStyle = spaceColor;
+  ctx.globalAlpha = 0.6;
+  ctx.lineWidth = 1.5;
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.moveTo(dragX - 5, centerY + i * 4);
+    ctx.lineTo(dragX + 5, centerY + i * 4);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Space name - centered
+  ctx.fillStyle = spaceColor;
+  ctx.font = 'bold 10px "Space Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // If collapsed, show name + badges
+  if (isCollapsed && spaceId) {
+    const spacePlants = plants.filter(p => {
+      return p.segments?.some(seg => seg.spaceId === spaceId);
+    });
+
+    // Build text with badge indicators
+    let displayText = spaceName.toUpperCase();
+    if (spacePlants.length > 0) {
+      const startedCount = spacePlants.filter(p => p.stage !== 'harvested').length;
+      const harvestedCount = spacePlants.filter(p => p.stage === 'harvested').length;
+      const badges: string[] = [];
+      if (startedCount > 0) badges.push(`${startedCount}S`);
+      if (harvestedCount > 0) badges.push(`${harvestedCount}H`);
+      displayText += `  [${badges.join(' ')}]`;
+    }
+    ctx.fillText(displayText, canvasWidth / 2, centerY);
+  } else {
+    ctx.fillText(spaceName.toUpperCase(), canvasWidth / 2, centerY);
+  }
+
+  // Draw chevron (right side) - collapse/expand indicator
+  ctx.fillStyle = spaceColor;
+  ctx.beginPath();
+  if (isCollapsed) {
+    // ▶ pointing right (collapsed)
+    ctx.moveTo(chevronX - 3, centerY - 4);
+    ctx.lineTo(chevronX + 4, centerY);
+    ctx.lineTo(chevronX - 3, centerY + 4);
+  } else {
+    // ▼ pointing down (expanded)
+    ctx.moveTo(chevronX - 4, centerY - 2);
+    ctx.lineTo(chevronX + 4, centerY - 2);
+    ctx.lineTo(chevronX, centerY + 4);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Draw edit/pencil icon (right side)
+  ctx.strokeStyle = spaceColor;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  // Pencil body (diagonal line)
+  ctx.moveTo(editX - 4, centerY + 4);
+  ctx.lineTo(editX + 3, centerY - 3);
+  // Pencil tip
+  ctx.moveTo(editX - 5, centerY + 5);
+  ctx.lineTo(editX - 4, centerY + 4);
+  ctx.stroke();
+
+  // Top border line
+  ctx.strokeStyle = spaceColor;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, y);
+  ctx.lineTo(canvasWidth, y);
+  ctx.stroke();
+
+  // Bottom border line
+  ctx.beginPath();
+  ctx.moveTo(0, y + spaceHeaderHeight);
+  ctx.lineTo(canvasWidth, y + spaceHeaderHeight);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 // Draw long press indicator - circular progress around touch point

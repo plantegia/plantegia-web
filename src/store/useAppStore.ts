@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { enableMapSet } from 'immer';
 import { nanoid } from 'nanoid';
+
+// Enable Immer plugin for Set/Map support (used by collapsedSpaces)
+enableMapSet();
 import type {
   Space,
   Plant,
@@ -75,6 +79,14 @@ export interface AppState {
 
   expandedHotbarSection: 'toolbox' | 'inventory';
 
+  // Time View space collapse state
+  collapsedSpaces: Set<string>;
+
+  // Space reorder drag state (tap-to-start, tap-to-drop mode)
+  spaceReorderPreview: { spaceId: string; targetIndex: number } | null;
+  // Active drag mode - space is "picked up" and following cursor/touch
+  spaceReorderActive: string | null; // spaceId being dragged
+
   history: HistoryState;
 
   loadPlantation: (plantation: Plantation) => void;
@@ -141,6 +153,14 @@ export interface AppState {
 
   setExpandedHotbarSection: (section: 'toolbox' | 'inventory') => void;
 
+  // Time View space collapse
+  toggleSpaceCollapsed: (spaceId: string) => void;
+
+  // Space reordering
+  reorderSpaces: (spaceId: string, newIndex: number) => void;
+  setSpaceReorderPreview: (preview: { spaceId: string; targetIndex: number } | null) => void;
+  setSpaceReorderActive: (spaceId: string | null) => void;
+
   centerView: (canvasWidth: number, canvasHeight: number) => void;
   getIdealCenter: (canvasWidth: number, canvasHeight: number) => { pan: Point; timelineOffset: number; timelineHorizontalOffset: number };
 
@@ -185,6 +205,11 @@ const initialState = {
   timelineZoom: DEFAULT_TIMELINE_ZOOM,
 
   expandedHotbarSection: 'toolbox' as 'toolbox' | 'inventory',
+
+  collapsedSpaces: new Set<string>(),
+
+  spaceReorderPreview: null as { spaceId: string; targetIndex: number } | null,
+  spaceReorderActive: null as string | null,
 
   history: {
     past: [],
@@ -746,6 +771,42 @@ export const useAppStore = create<AppState>()(
       setExpandedHotbarSection: (section) => {
         set((state) => {
           state.expandedHotbarSection = section;
+        });
+      },
+
+      toggleSpaceCollapsed: (spaceId) => {
+        set((state) => {
+          const newSet = new Set(state.collapsedSpaces);
+          if (newSet.has(spaceId)) {
+            newSet.delete(spaceId);
+          } else {
+            newSet.add(spaceId);
+          }
+          state.collapsedSpaces = newSet;
+        });
+      },
+
+      reorderSpaces: (spaceId, newIndex) => {
+        saveToHistory();
+        set((state) => {
+          const currentIndex = state.spaces.findIndex(s => s.id === spaceId);
+          if (currentIndex === -1 || currentIndex === newIndex) return;
+
+          const [space] = state.spaces.splice(currentIndex, 1);
+          state.spaces.splice(newIndex, 0, space);
+          state.spaceReorderPreview = null;
+        });
+      },
+
+      setSpaceReorderPreview: (preview) => {
+        set((state) => {
+          state.spaceReorderPreview = preview;
+        });
+      },
+
+      setSpaceReorderActive: (spaceId) => {
+        set((state) => {
+          state.spaceReorderActive = spaceId;
         });
       },
 

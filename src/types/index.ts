@@ -42,7 +42,7 @@ export interface PlantDragPreview {
 
 // Long press preview for mobile touch drag
 export interface LongPressPreview {
-  type: 'plant' | 'space' | 'segment';
+  type: 'plant' | 'space' | 'segment' | 'space-header';
   id: string;
   segmentId?: string;
   screenX: number;

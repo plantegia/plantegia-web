@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Crosshair, Undo2, Redo2 } from 'lucide-react';
+import { ArrowLeft, Crosshair, Undo2, Redo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { updatePlantationSettings } from '../../lib/firestore';
-import { COLORS } from '../../constants';
+import { COLORS, MIN_ZOOM, MAX_ZOOM, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM } from '../../constants';
+import { TIME_VIEW_CONSTANTS } from '../../utils/grid';
 
 interface HeaderProps {
   plantationName?: string;
@@ -22,8 +23,14 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
   const historyFutureLength = useAppStore((s) => s.history.future.length);
 
   const pan = useAppStore((s) => s.pan);
+  const zoom = useAppStore((s) => s.zoom);
+  const setZoom = useAppStore((s) => s.setZoom);
+  const setPan = useAppStore((s) => s.setPan);
   const timelineOffset = useAppStore((s) => s.timelineOffset);
   const timelineHorizontalOffset = useAppStore((s) => s.timelineHorizontalOffset);
+  const setTimelineHorizontalOffset = useAppStore((s) => s.setTimelineHorizontalOffset);
+  const timelineZoom = useAppStore((s) => s.timelineZoom);
+  const setTimelineZoom = useAppStore((s) => s.setTimelineZoom);
   const viewMode = useAppStore((s) => s.viewMode);
   const centerView = useAppStore((s) => s.centerView);
   const getIdealCenter = useAppStore((s) => s.getIdealCenter);
@@ -61,6 +68,40 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
   const handleCenter = useCallback(() => {
     centerView(canvasSize.width, canvasSize.height);
   }, [centerView, canvasSize]);
+
+  const handleZoom = useCallback((direction: 'in' | 'out') => {
+    const factor = direction === 'in' ? 1.25 : 1 / 1.25;
+    const clampFn = direction === 'in' ? Math.min : Math.max;
+    const limit = direction === 'in'
+      ? (viewMode === 'time' ? MAX_TIMELINE_ZOOM : MAX_ZOOM)
+      : (viewMode === 'time' ? MIN_TIMELINE_ZOOM : MIN_ZOOM);
+
+    if (viewMode === 'time') {
+      const newZoom = clampFn(timelineZoom * factor, limit);
+      const { leftMargin } = TIME_VIEW_CONSTANTS;
+      const centerX = canvasSize.width / 2 - leftMargin;
+      const worldX = (centerX - timelineHorizontalOffset) / timelineZoom;
+      const newOffsetX = centerX - worldX * newZoom;
+      setTimelineHorizontalOffset(newOffsetX);
+      setTimelineZoom(newZoom);
+    } else {
+      const newZoom = clampFn(zoom * factor, limit);
+      const centerX = canvasSize.width / 2;
+      const centerY = canvasSize.height / 2;
+      const worldX = (centerX - pan.x) / zoom;
+      const worldY = (centerY - pan.y) / zoom;
+      const newPanX = centerX - worldX * newZoom;
+      const newPanY = centerY - worldY * newZoom;
+      setPan({ x: newPanX, y: newPanY });
+      setZoom(newZoom);
+    }
+  }, [viewMode, timelineZoom, timelineHorizontalOffset, setTimelineHorizontalOffset, setTimelineZoom, zoom, pan, setPan, setZoom, canvasSize]);
+
+  const handleZoomIn = useCallback(() => handleZoom('in'), [handleZoom]);
+  const handleZoomOut = useCallback(() => handleZoom('out'), [handleZoom]);
+
+  const canZoomIn = viewMode === 'time' ? timelineZoom < MAX_TIMELINE_ZOOM : zoom < MAX_ZOOM;
+  const canZoomOut = viewMode === 'time' ? timelineZoom > MIN_TIMELINE_ZOOM : zoom > MIN_ZOOM;
 
   const handleShare = async () => {
     if (!currentPlantationId) return;
@@ -115,6 +156,38 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
         </span>
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          onClick={handleZoomOut}
+          disabled={!canZoomOut}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: canZoomOut ? COLORS.text : COLORS.border,
+            fontSize: 16,
+            cursor: canZoomOut ? 'pointer' : 'default',
+            padding: '4px 6px',
+            opacity: canZoomOut ? 1 : 0.5,
+          }}
+          title="Zoom out"
+        >
+          <ZoomOut size={16} />
+        </button>
+        <button
+          onClick={handleZoomIn}
+          disabled={!canZoomIn}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: canZoomIn ? COLORS.text : COLORS.border,
+            fontSize: 16,
+            cursor: canZoomIn ? 'pointer' : 'default',
+            padding: '4px 6px',
+            opacity: canZoomIn ? 1 : 0.5,
+          }}
+          title="Zoom in"
+        >
+          <ZoomIn size={16} />
+        </button>
         {showCenterButton && (
           <button
             onClick={handleCenter}

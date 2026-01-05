@@ -57,6 +57,9 @@ export function Canvas({ readOnly }: CanvasProps) {
     longPressPreview,
     getIdealCenter,
     currentPlantationId,
+    collapsedSpaces,
+    spaceReorderPreview,
+    spaceReorderActive,
   } = useAppStore();
 
   useGestures(canvasRef, canvasRect, readOnly);
@@ -134,6 +137,7 @@ export function Canvas({ readOnly }: CanvasProps) {
     canvasSize, pan, zoom, spaces, plants, strains,
     selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, timelineZoom,
     splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview, longPressPreview,
+    collapsedSpaces, spaceReorderPreview, spaceReorderActive,
   });
 
   // Update refs when state changes
@@ -142,11 +146,13 @@ export function Canvas({ readOnly }: CanvasProps) {
       canvasSize, pan, zoom, spaces, plants, strains,
       selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, timelineZoom,
       splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview, longPressPreview,
+      collapsedSpaces, spaceReorderPreview, spaceReorderActive,
     };
   }, [
     canvasSize, pan, zoom, spaces, plants, strains,
     selection, dragPreview, viewMode, timelineOffset, timelineHorizontalOffset, timelineZoom,
     splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview, longPressPreview,
+    collapsedSpaces, spaceReorderPreview, spaceReorderActive,
   ]);
 
   // Reset particles and sleep animation when switching views
@@ -257,7 +263,10 @@ export function Canvas({ readOnly }: CanvasProps) {
           state.timelineZoom,
           state.splitPreview,
           state.timeViewPlacementPreview,
-          state.selection
+          state.selection,
+          state.collapsedSpaces,
+          state.spaceReorderPreview,
+          state.spaceReorderActive
         );
       }
 
