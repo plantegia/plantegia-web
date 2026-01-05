@@ -1,13 +1,21 @@
 import { Toolbox } from './Toolbox';
 import { Inventory } from './Inventory';
 import { ViewSwitch } from './ViewSwitch';
-import { COLORS } from '../../constants';
+import { COLORS, Z_INDEX } from '../../constants';
+import { useAppStore } from '../../store/useAppStore';
 
 interface HotbarProps {
   readOnly?: boolean;
 }
 
 export function Hotbar({ readOnly }: HotbarProps) {
+  const selection = useAppStore((s) => s.selection);
+
+  // Hide hotbar when a plant is selected (plant inspector replaces it)
+  if (selection?.type === 'plant' && !readOnly) {
+    return null;
+  }
+
   if (readOnly) {
     return (
       <div
@@ -24,7 +32,7 @@ export function Hotbar({ readOnly }: HotbarProps) {
           background: COLORS.background,
           color: COLORS.textMuted,
           fontSize: 14,
-          zIndex: 10,
+          zIndex: Z_INDEX.HOTBAR,
           pointerEvents: 'auto',
         }}
       >
@@ -45,7 +53,7 @@ export function Hotbar({ readOnly }: HotbarProps) {
         justifyContent: 'center',
         gap: 8,
         padding: '0 12px 12px',
-        zIndex: 10,
+        zIndex: Z_INDEX.HOTBAR,
         pointerEvents: 'auto',
       }}
     >
