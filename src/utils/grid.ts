@@ -73,6 +73,53 @@ export function findSpaceAt(worldPos: Point, spaces: Space[]): Space | null {
   }) || null;
 }
 
+// Find a space by clicking on its label (rendered outside the space bounds)
+// This mirrors the label positioning logic in drawSpaceLabel()
+export function findSpaceLabelAt(worldPos: Point, spaces: Space[]): Space | null {
+  const labelHeight = 14;
+  const padding = 4;
+
+  // Check if point overlaps with another space
+  const checkOverlap = (x: number, y: number, w: number, h: number, excludeSpaceId: string): boolean => {
+    return spaces.some(other => {
+      if (other.id === excludeSpaceId) return false;
+      const otherX = other.originX;
+      const otherY = other.originY;
+      const otherW = other.gridWidth * CELL_SIZE;
+      const otherH = other.gridHeight * CELL_SIZE;
+      return !(x + w <= otherX || x >= otherX + otherW || y + h <= otherY || y >= otherY + otherH);
+    });
+  };
+
+  for (const space of spaces) {
+    const { originX, originY, gridWidth, gridHeight } = space;
+    const width = gridWidth * CELL_SIZE;
+    const height = gridHeight * CELL_SIZE;
+
+    // Label areas: top, bottom, left, right (same as drawSpaceLabel)
+    const labelAreas = [
+      { x: originX, y: originY - labelHeight - padding, w: width, h: labelHeight + padding }, // top
+      { x: originX, y: originY + height, w: width, h: labelHeight + padding }, // bottom
+      { x: originX - 100 - padding, y: originY, w: 100 + padding, h: labelHeight }, // left
+      { x: originX + width, y: originY, w: 100 + padding, h: labelHeight }, // right
+    ];
+
+    // Find first free position (where label would be rendered)
+    for (const area of labelAreas) {
+      if (!checkOverlap(area.x, area.y, area.w, area.h, space.id)) {
+        // Check if click is in this label area
+        if (worldPos.x >= area.x && worldPos.x <= area.x + area.w &&
+            worldPos.y >= area.y && worldPos.y <= area.y + area.h) {
+          return space;
+        }
+        break; // Only first free position is used for label
+      }
+    }
+  }
+
+  return null;
+}
+
 export type SpaceEdge = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se' | 'body';
 
 export function findSpaceEdgeAt(
@@ -193,14 +240,67 @@ export function canPlacePlant(
   });
 }
 
+// Helper function to get current segment for a plant at a given date
+// Inlined to avoid circular dependency with migration.ts
+function getCurrentSegmentInternal(plant: Plant, date: Date): { spaceId: string | null; gridX: number; gridY: number } | null {
+  if (!plant.segments || plant.segments.length === 0) {
+    // Fallback to plant's base position if no segments
+    return { spaceId: plant.spaceId, gridX: plant.gridX, gridY: plant.gridY };
+  }
+
+  const dateStr = date.toISOString().split('T')[0];
+
+  // Find segment where startDate <= date and (endDate is null or endDate > date)
+  for (let i = plant.segments.length - 1; i >= 0; i--) {
+    const seg = plant.segments[i];
+    const segStart = seg.startDate.split('T')[0];
+    const segEnd = seg.endDate ? seg.endDate.split('T')[0] : null;
+
+    if (segStart <= dateStr && (segEnd === null || segEnd > dateStr)) {
+      return { spaceId: seg.spaceId, gridX: seg.gridX, gridY: seg.gridY };
+    }
+  }
+
+  // If date is before first segment, return null (plant not active yet)
+  const firstSegStart = plant.segments[0].startDate.split('T')[0];
+  if (dateStr < firstSegStart) {
+    return null;
+  }
+
+  // Fallback to last segment position
+  const lastSeg = plant.segments[plant.segments.length - 1];
+  return { spaceId: lastSeg.spaceId, gridX: lastSeg.gridX, gridY: lastSeg.gridY };
+}
+
 export function findPlantAt(
   worldPos: Point,
   plants: Plant[],
-  spaces: Space[]
+  spaces: Space[],
+  strains?: Strain[]
 ): Plant | null {
+  const today = new Date();
+
   for (const plant of plants) {
-    const space = plant.spaceId ? spaces.find(s => s.id === plant.spaceId) : null;
-    const cells = getPlantCells(plant);
+    // Time-based filtering: skip plants not yet started
+    const plantStartDate = new Date(plant.startedAt);
+    if (today < plantStartDate) continue;
+
+    // Time-based filtering: skip plants that have ended (past harvest)
+    if (strains) {
+      const strain = strains.find(s => s.id === plant.strainId);
+      const plantEndDate = getPlantEndDate(plant, strain);
+      if (today > plantEndDate) continue;
+    }
+
+    // Get the current segment position at today's date
+    const currentPos = getCurrentSegmentInternal(plant, today);
+    if (!currentPos) continue;
+
+    // Find the space for the current segment
+    const space = currentPos.spaceId ? spaces.find(s => s.id === currentPos.spaceId) : null;
+
+    // Get cells using current segment position
+    const cells = getPlantCells({ ...plant, gridX: currentPos.gridX, gridY: currentPos.gridY });
 
     for (const cell of cells) {
       let cellX: number;
@@ -210,10 +310,13 @@ export function findPlantAt(
         // Plant attached to a space
         cellX = space.originX + cell.gridX * CELL_SIZE;
         cellY = space.originY + cell.gridY * CELL_SIZE;
-      } else {
+      } else if (currentPos.spaceId === null) {
         // Floating plant - gridX/gridY are world coordinates
         cellX = cell.gridX * CELL_SIZE;
         cellY = cell.gridY * CELL_SIZE;
+      } else {
+        // Space not found, skip
+        continue;
       }
 
       if (
