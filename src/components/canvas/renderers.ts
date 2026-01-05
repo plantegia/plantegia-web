@@ -20,8 +20,10 @@ export function renderSpaceView(
   selection: { type: 'space' | 'plant'; id: string } | null,
   dragPreview: { startX: number; startY: number; endX: number; endY: number } | null,
   placementPreview: { worldX: number; worldY: number; canPlace: boolean; abbreviation: string } | null,
-  plantDragPreview: PlantDragPreview | null
+  plantDragPreview: PlantDragPreview | null,
+  darkSpaces: Map<string, boolean>
 ) {
+
   // First pass: draw space backgrounds and grids
   spaces.forEach((space, index) => {
     drawSpace(ctx, space, selection?.type === 'space' && selection.id === space.id, index);
@@ -29,7 +31,8 @@ export function renderSpaceView(
 
   // Second pass: draw space labels on top (so they're not covered by other spaces)
   spaces.forEach((space, index) => {
-    drawSpaceLabel(ctx, space, spaces, index);
+    const isDark = darkSpaces.get(space.id) ?? false;
+    drawSpaceLabel(ctx, space, spaces, index, isDark);
   });
 
   const today = new Date();
@@ -52,10 +55,11 @@ export function renderSpaceView(
     // Find the space for the current segment
     const space = currentSegment.spaceId ? spaces.find((s) => s.id === currentSegment.spaceId) : null;
     if (space) {
-      drawPlant(ctx, plant, space, isSelected, currentSegment);
+      const isSleeping = darkSpaces.get(space.id) ?? false;
+      drawPlant(ctx, plant, space, isSelected, isSleeping, currentSegment);
     } else if (currentSegment.spaceId === null) {
-      // Draw floating plant (not attached to any space)
-      drawFloatingPlant(ctx, plant, isSelected, currentSegment);
+      // Draw floating plant (not attached to any space) - never sleeping
+      drawFloatingPlant(ctx, plant, isSelected, false, currentSegment);
     }
   });
 
@@ -188,7 +192,7 @@ function drawSpace(ctx: CanvasRenderingContext2D, space: Space, isSelected: bool
   }
 }
 
-function drawSpaceLabel(ctx: CanvasRenderingContext2D, space: Space, allSpaces: Space[], spaceIndex: number) {
+function drawSpaceLabel(ctx: CanvasRenderingContext2D, space: Space, allSpaces: Space[], spaceIndex: number, isDark: boolean) {
   const { originX, originY, gridWidth, gridHeight, name, color } = space;
   const spaceColor = color || SPACE_COLORS[spaceIndex % SPACE_COLORS.length];
   const width = gridWidth * CELL_SIZE;
@@ -259,7 +263,53 @@ function drawSpaceLabel(ctx: CanvasRenderingContext2D, space: Space, allSpaces: 
 
   ctx.fillStyle = spaceColor;
   ctx.globalAlpha = 0.8;
-  ctx.fillText(displayName, chosenPosition.x, chosenPosition.y);
+
+  // Add moon icon if space is dark (using Lucide moon path)
+  if (isDark) {
+    const iconSize = 10;
+    const scale = iconSize / 24; // Lucide icons are 24x24
+
+    // Calculate icon position based on text alignment
+    let iconX: number;
+    let iconY: number;
+
+    if (chosenPosition.align === 'left') {
+      iconX = chosenPosition.x;
+      iconY = chosenPosition.baseline === 'bottom'
+        ? chosenPosition.y - iconSize
+        : chosenPosition.y;
+    } else {
+      // For right-aligned text, place icon before text
+      const fullTextWidth = ctx.measureText(displayName).width;
+      iconX = chosenPosition.x - fullTextWidth - iconSize - 4;
+      iconY = chosenPosition.baseline === 'bottom'
+        ? chosenPosition.y - iconSize
+        : chosenPosition.y;
+    }
+
+    ctx.save();
+    ctx.translate(iconX, iconY);
+    ctx.scale(scale, scale);
+    ctx.strokeStyle = spaceColor;
+    ctx.lineWidth = 2 / scale; // Keep stroke width consistent
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Lucide moon path
+    const moonPath = new Path2D('M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401');
+    ctx.stroke(moonPath);
+    ctx.restore();
+
+    // Offset text to make room for icon
+    if (chosenPosition.align === 'left') {
+      ctx.fillText(displayName, chosenPosition.x + iconSize + 4, chosenPosition.y);
+    } else {
+      ctx.fillText(displayName, chosenPosition.x, chosenPosition.y);
+    }
+  } else {
+    ctx.fillText(displayName, chosenPosition.x, chosenPosition.y);
+  }
+
   ctx.globalAlpha = 1;
 }
 
@@ -272,34 +322,55 @@ function drawPlantBox(
   width: number,
   height: number,
   isSelected: boolean,
-  isFloating: boolean
+  isFloating: boolean,
+  isSleeping: boolean
 ) {
-  // Dark semi-transparent backdrop for depth effect
-  ctx.fillStyle = COLORS.background;
-  ctx.globalAlpha = 0.8;
-  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
-  ctx.globalAlpha = 1;
+  const stageColor = STAGE_COLORS[plant.stage];
+  const borderWidth = isSleeping ? 4 : 2;
+  const inset = 1;
 
-  // Plant color on top
-  ctx.fillStyle = STAGE_COLORS[plant.stage];
-  ctx.fillRect(x + 1, y + 1, width - 2, height - 2);
+  if (isSleeping) {
+    // Sleeping: no fill, thick inside border in stage color
+    // Draw only the thick border (no background fill)
+    ctx.strokeStyle = stageColor;
+    ctx.lineWidth = borderWidth;
+    // Offset by half lineWidth inward for "inside" stroke
+    const halfBorder = borderWidth / 2;
+    ctx.strokeRect(
+      x + inset + halfBorder,
+      y + inset + halfBorder,
+      width - 2 * inset - borderWidth,
+      height - 2 * inset - borderWidth
+    );
+  } else {
+    // Normal: filled background
+    // Dark semi-transparent backdrop for depth effect
+    ctx.fillStyle = COLORS.background;
+    ctx.globalAlpha = 0.8;
+    ctx.fillRect(x + inset, y + inset, width - 2 * inset, height - 2 * inset);
+    ctx.globalAlpha = 1;
 
-  // Border
+    // Plant color on top
+    ctx.fillStyle = stageColor;
+    ctx.fillRect(x + inset, y + inset, width - 2 * inset, height - 2 * inset);
+  }
+
+  // Selection/floating border (on top of everything)
   if (isFloating) {
     // Dashed border for floating plants
     ctx.strokeStyle = isSelected ? COLORS.teal : COLORS.textMuted;
     ctx.lineWidth = 2;
     ctx.setLineDash([4, 4]);
-    ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
+    ctx.strokeRect(x + inset, y + inset, width - 2 * inset, height - 2 * inset);
     ctx.setLineDash([]);
   } else if (isSelected) {
     ctx.strokeStyle = COLORS.teal;
     ctx.lineWidth = 2;
-    ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
+    ctx.strokeRect(x + inset, y + inset, width - 2 * inset, height - 2 * inset);
   }
 
   // Plant code label
-  ctx.fillStyle = COLORS.text;
+  ctx.fillStyle = isSleeping ? stageColor : COLORS.text;
   ctx.font = 'bold 12px "Space Mono", monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -311,6 +382,7 @@ function drawPlant(
   plant: Plant,
   space: Space,
   isSelected: boolean,
+  isSleeping: boolean,
   segment?: PlantSegment
 ) {
   const gridX = segment?.gridX ?? plant.gridX;
@@ -326,7 +398,7 @@ function drawPlant(
   const width = (maxGridX - minGridX + 1) * CELL_SIZE;
   const height = (maxGridY - minGridY + 1) * CELL_SIZE;
 
-  drawPlantBox(ctx, plant, x, y, width, height, isSelected, false);
+  drawPlantBox(ctx, plant, x, y, width, height, isSelected, false, isSleeping);
 }
 
 // Draw a floating plant (not attached to any space) using world coordinates
@@ -334,6 +406,7 @@ function drawFloatingPlant(
   ctx: CanvasRenderingContext2D,
   plant: Plant,
   isSelected: boolean,
+  isSleeping: boolean,
   segment: PlantSegment
 ) {
   const cells = getPlantCells({ ...plant, gridX: segment.gridX, gridY: segment.gridY });
@@ -347,7 +420,7 @@ function drawFloatingPlant(
   const width = (maxGridX - minGridX + 1) * CELL_SIZE;
   const height = (maxGridY - minGridY + 1) * CELL_SIZE;
 
-  drawPlantBox(ctx, plant, x, y, width, height, isSelected, true);
+  drawPlantBox(ctx, plant, x, y, width, height, isSelected, true, isSleeping);
 }
 
 function drawDragPreview(

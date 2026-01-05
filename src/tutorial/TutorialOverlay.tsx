@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { COLORS, Z_INDEX } from '../constants';
 import type { TutorialStep } from './types';
 import './TutorialHighlight.css';
@@ -98,7 +99,7 @@ export function TutorialOverlay({
           <span style={styles.prefix}>&gt;</span> TUTORIAL [{stepNumber}/{totalSteps}]
         </div>
         <button onClick={onSkip} style={styles.closeButton} aria-label="Skip tutorial">
-          ✕
+          <X size={16} />
         </button>
       </div>
 

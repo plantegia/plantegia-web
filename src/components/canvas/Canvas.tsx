@@ -3,6 +3,8 @@ import { useAppStore } from '../../store/useAppStore';
 import { useGestures } from '../../hooks/useGestures';
 import { renderSpaceView, renderTimeView, renderBackgroundGrid, renderLongPressIndicator } from './renderers';
 import { renderParticles, resetParticles } from './particles';
+import { renderSleepAnimation, resetSleepAnimation } from './sleepAnimation';
+import { buildDarkSpaceMap } from '../../utils/lightSchedule';
 import { COLORS, FEATURES } from '../../constants';
 
 // Conditionally import bird module only when feature is enabled
@@ -147,10 +149,11 @@ export function Canvas({ readOnly }: CanvasProps) {
     splitPreview, placementPreview, timeViewPlacementPreview, plantDragPreview, longPressPreview,
   ]);
 
-  // Reset particles when switching views
+  // Reset particles and sleep animation when switching views
   useEffect(() => {
     if (viewMode === 'time') {
       resetParticles();
+      resetSleepAnimation();
     }
   }, [viewMode]);
 
@@ -191,7 +194,10 @@ export function Canvas({ readOnly }: CanvasProps) {
         ctx.translate(state.pan.x, state.pan.y);
         ctx.scale(state.zoom, state.zoom);
 
-        renderSpaceView(ctx, state.spaces, state.plants, state.strains, state.selection, state.dragPreview, state.placementPreview, state.plantDragPreview);
+        // Build dark spaces map once for both renderSpaceView and renderSleepAnimation
+        const darkSpaces = buildDarkSpaceMap(state.spaces);
+
+        renderSpaceView(ctx, state.spaces, state.plants, state.strains, state.selection, state.dragPreview, state.placementPreview, state.plantDragPreview, darkSpaces);
 
         // Draw particles on top of spaces/plants (atmospheric overlay)
         renderParticles(
@@ -204,6 +210,9 @@ export function Canvas({ readOnly }: CanvasProps) {
           state.pan,
           state.zoom
         );
+
+        // Draw Zzz animation for plants in dark spaces
+        renderSleepAnimation(ctx, state.spaces, state.plants, darkSpaces);
 
         ctx.restore();
 

@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
-import type { Plant, PlantSegment, Plantation } from '../types';
+import type { Plant, PlantSegment, Plantation, Space, LightSchedule } from '../types';
+import { DEFAULT_SCHEDULES } from './lightSchedule';
 
 interface LegacyPlant {
   id: string;
@@ -39,10 +40,35 @@ export function migratePlantToSegments(plant: LegacyPlant): Plant {
   } as Plant;
 }
 
+/**
+ * Migrate space light schedule from old string format to new bitmask
+ * Removes legacy lightSchedule field after migration
+ */
+export function migrateSpaceLightSchedule(space: Space): Space {
+  // Skip if already has custom schedule and no legacy field
+  if (space.customLightSchedule !== undefined && space.lightSchedule === undefined) {
+    return space;
+  }
+
+  // Convert old format to new bitmask if needed
+  const bitmask = space.customLightSchedule !== undefined
+    ? space.customLightSchedule
+    : DEFAULT_SCHEDULES[(space.lightSchedule || '18/6') as LightSchedule] ?? DEFAULT_SCHEDULES['18/6'];
+
+  // Create new space without legacy field
+  const { lightSchedule: _removed, ...spaceWithoutLegacy } = space;
+
+  return {
+    ...spaceWithoutLegacy,
+    customLightSchedule: bitmask,
+  };
+}
+
 export function migratePlantation(plantation: Plantation): Plantation {
   return {
     ...plantation,
     plants: plantation.plants.map((p) => migratePlantToSegments(p as unknown as LegacyPlant)),
+    spaces: plantation.spaces.map(migrateSpaceLightSchedule),
   };
 }
 

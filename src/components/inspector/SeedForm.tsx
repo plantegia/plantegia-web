@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { COLORS } from '../../constants';
 import type { StrainType, Photoperiod } from '../../types';
@@ -103,11 +104,13 @@ export function SeedForm({ onClose }: SeedFormProps) {
             background: 'transparent',
             border: 'none',
             color: COLORS.textMuted,
-            fontSize: 18,
             cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          ✕
+          <X size={16} />
         </button>
       </div>
 

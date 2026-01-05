@@ -25,6 +25,7 @@ import type {
 import { generateAbbreviation, generatePlantCode } from '../utils/abbreviation';
 import { DEFAULT_ZOOM, DEFAULT_TIMELINE_ZOOM, CURSORS, CELL_SIZE } from '../constants';
 import { getCurrentSegment } from '../utils/migration';
+import { DEFAULT_LIGHT_SCHEDULE } from '../utils/lightSchedule';
 import { TIME_VIEW_CONSTANTS, buildSlotList } from '../utils/grid';
 
 interface DataSnapshot {
@@ -247,7 +248,12 @@ export const useAppStore = create<AppState>()(
         saveToHistory();
         const id = nanoid();
         set((state) => {
-          state.spaces.push({ ...spaceData, id });
+          state.spaces.push({
+            ...spaceData,
+            id,
+            // Set default light schedule if not provided
+            customLightSchedule: spaceData.customLightSchedule ?? DEFAULT_LIGHT_SCHEDULE,
+          });
         });
         return id;
       },
