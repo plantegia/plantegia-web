@@ -20,18 +20,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           alt="Plantegia hero plant"
           style={styles.heroImage}
         />
-        <div style={styles.title}>Plantegia</div>
-        <div style={styles.subtitle}>Know when to plant, flower, harvest, and plant again...</div>
+        <div style={styles.title}>Organize your grow across time and space</div>
+      <div style={styles.subtitle}>Know when to seed, flip, harvest, and seed again.</div>
         {error && <div style={styles.error}>{error}</div>}
         <button style={styles.button} onClick={signInWithGoogle}>
           Sign in with Google
         </button>
         <div style={styles.copyright}>
-          <div style={styles.copyrightMain}>
-            Plan and track your plants in time and space. Free for grower community under AGPL-3.0.
-          </div>
           <div style={styles.copyrightAuthor}>
-            Created by Ivan Sokolov · 2025
+            Created by <a href="https://www.linkedin.com/in/ivansokolov2017/" target="_blank" rel="noopener noreferrer" style={styles.authorLink}>Ivan Sokolov</a> · 2026
           </div>
         </div>
       </div>
@@ -59,6 +56,7 @@ const styles: Record<string, React.CSSProperties> = {
   title: {
     fontSize: 24,
     color: COLORS.teal,
+    textAlign: 'center',
     fontWeight: 'bold',
   },
   subtitle: {
@@ -110,5 +108,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 11,
     color: COLORS.textMuted,
     opacity: 0.4,
+  },
+  authorLink: {
+    color: 'inherit',
+    textDecoration: 'underline',
+    textDecorationThickness: '1px',
+    textUnderlineOffset: '2px',
   },
 };
