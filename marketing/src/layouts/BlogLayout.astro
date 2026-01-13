@@ -1,0 +1,202 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import TOC from '../components/blog/TOC.astro';
+import RelatedPosts from '../components/blog/RelatedPosts.astro';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+  headings: { depth: number; slug: string; text: string }[];
+}
+
+const { post, headings } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, keywords, lang } = post.data;
+
+const formattedDate = new Date(pubDate).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+const formattedUpdateDate = updatedDate
+  ? new Date(updatedDate).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  : null;
+
+// Calculate reading time (~200 words per minute)
+const wordCount = post.body?.split(/\s+/).length || 0;
+const readingTime = Math.ceil(wordCount / 200);
+---
+
+<BaseLayout
+  title={`${title} | Plantegia Blog`}
+  description={description}
+  keywords={keywords}
+  lang={lang}
+  ogImage={heroImage}
+>
+  <article class="blog-post">
+    <div class="container">
+      <header class="post-header">
+        <div class="post-meta">
+          <time datetime={pubDate.toISOString()}>{formattedDate}</time>
+          {formattedUpdateDate && (
+            <span class="updated">
+              {lang === 'de' ? 'Aktualisiert:' : 'Updated:'} {formattedUpdateDate}
+            </span>
+          )}
+          <span class="reading-time">
+            {readingTime} {lang === 'de' ? 'Min. Lesezeit' : 'min read'}
+          </span>
+        </div>
+        <h1>{title}</h1>
+        <p class="description">{description}</p>
+      </header>
+
+      {heroImage && (
+        <img class="hero-image" src={heroImage} alt={title} />
+      )}
+
+      <div class="post-content-wrapper">
+        {headings.length > 0 && (
+          <aside class="toc-sidebar">
+            <TOC headings={headings} lang={lang} />
+          </aside>
+        )}
+
+        <div class="post-content prose">
+          <slot />
+        </div>
+      </div>
+
+      <footer class="post-footer">
+        <div class="cta-box">
+          <h3>{lang === 'de' ? 'Bereit zu planen?' : 'Ready to plan your grow?'}</h3>
+          <p>
+            {lang === 'de'
+              ? 'Plantegia hilft dir, deinen Perpetual Harvest visuell zu planen.'
+              : 'Plantegia helps you visually plan your perpetual harvest setup.'}
+          </p>
+          <a href="https://app.plantegia.com" class="cta-button">
+            {lang === 'de' ? 'Jetzt starten' : 'Get Started'}
+          </a>
+        </div>
+
+        <RelatedPosts currentSlug={post.slug} lang={lang} />
+      </footer>
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .blog-post {
+    padding: var(--spacing-2xl) 0;
+  }
+
+  .post-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .post-meta {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+  }
+
+  .post-meta .updated::before {
+    content: '•';
+    margin-right: var(--spacing-md);
+  }
+
+  .reading-time::before {
+    content: '•';
+    margin-right: var(--spacing-md);
+  }
+
+  .post-header h1 {
+    font-size: var(--font-size-3xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .description {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-muted);
+    max-width: 65ch;
+    margin: 0 auto;
+  }
+
+  .hero-image {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: var(--border-radius-lg);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .post-content-wrapper {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xl);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 1024px) {
+    .post-content-wrapper {
+      grid-template-columns: 200px 1fr;
+      max-width: 1100px;
+    }
+
+    .toc-sidebar {
+      position: sticky;
+      top: var(--spacing-xl);
+      height: fit-content;
+    }
+  }
+
+  .post-footer {
+    margin-top: var(--spacing-3xl);
+    max-width: 65ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .cta-box {
+    background: var(--color-background-dark);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-lg);
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .cta-box h3 {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .cta-box p {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .cta-button {
+    display: inline-block;
+    background: var(--color-green);
+    color: var(--color-text);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--border-radius);
+    font-weight: 700;
+    transition: background var(--transition-fast);
+  }
+
+  .cta-button:hover {
+    background: var(--color-orange);
+    color: var(--color-text);
+  }
+</style>

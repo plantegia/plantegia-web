@@ -1,0 +1,149 @@
+---
+interface Props {
+  lang: 'en' | 'de';
+}
+
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    tagline: 'Visual planning for indoor growers.',
+    product: 'Product',
+    home: 'Home',
+    blog: 'Blog',
+    tools: 'Free Tools',
+    app: 'Open App',
+    legal: 'Legal',
+    privacy: 'Privacy Policy',
+    terms: 'Terms of Service',
+    copyright: 'Plantegia. All rights reserved.',
+  },
+  de: {
+    tagline: 'Visuelle Planung für Indoor-Grower.',
+    product: 'Produkt',
+    home: 'Start',
+    blog: 'Blog',
+    tools: 'Kostenlose Tools',
+    app: 'App öffnen',
+    legal: 'Rechtliches',
+    privacy: 'Datenschutz',
+    terms: 'AGB',
+    copyright: 'Plantegia. Alle Rechte vorbehalten.',
+  },
+};
+
+const labels = t[lang];
+const prefix = lang === 'de' ? '/de' : '';
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="footer-container">
+    <div class="footer-brand">
+      <span class="logo">PLANTEGIA</span>
+      <p class="tagline">{labels.tagline}</p>
+    </div>
+
+    <div class="footer-links">
+      <div class="footer-section">
+        <h4>{labels.product}</h4>
+        <ul>
+          <li><a href={prefix || '/'}>{labels.home}</a></li>
+          <li><a href={`${prefix}/blog/`}>{labels.blog}</a></li>
+          <li><a href={`${prefix}/tools/`}>{labels.tools}</a></li>
+          <li><a href="https://app.plantegia.com">{labels.app}</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-section">
+        <h4>{labels.legal}</h4>
+        <ul>
+          <li><a href={`${prefix}/privacy/`}>{labels.privacy}</a></li>
+          <li><a href={`${prefix}/terms/`}>{labels.terms}</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; {year} {labels.copyright}</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--color-background-dark);
+    border-top: 1px solid var(--color-border);
+    padding: var(--spacing-2xl) 0 var(--spacing-lg);
+    margin-top: var(--spacing-3xl);
+  }
+
+  .footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+  }
+
+  .footer-brand {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .logo {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+
+  .tagline {
+    color: var(--color-text-muted);
+    margin-top: var(--spacing-sm);
+    margin-bottom: 0;
+  }
+
+  .footer-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .footer-section h4 {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .footer-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .footer-section li {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .footer-section a {
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    transition: color var(--transition-fast);
+  }
+
+  .footer-section a:hover {
+    color: var(--color-teal);
+  }
+
+  .footer-bottom {
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .footer-bottom p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    margin: 0;
+  }
+</style>

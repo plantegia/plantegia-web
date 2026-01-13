@@ -1,0 +1,141 @@
+---
+import ToolLayout from '../../../layouts/ToolLayout.astro';
+import TentSpacingCalculator from '../../../components/tools/TentSpacingCalculator';
+---
+
+<ToolLayout
+  title="Zelt-Platzierungs-Rechner"
+  description="Berechne wie viele Pflanzen in dein Grow-Zelt passen. Finde den optimalen Pflanzenabstand für deine Zeltgröße."
+  keywords={['Growzelt Rechner', 'Pflanzenabstand', 'wie viele Pflanzen', 'Zeltgröße Pflanzen']}
+  lang="de"
+>
+  <TentSpacingCalculator lang="de" client:load />
+
+  <section class="spacing-guide">
+    <h2>Pflanzabstand-Guide</h2>
+    <p>
+      Der richtige Pflanzabstand stellt sicher, dass jede Pflanze genug Licht und
+      Luftzirkulation bekommt. Zu viele Pflanzen führt zu Überfüllung, schlechter
+      Luftzirkulation und niedrigeren Erträgen pro Pflanze.
+    </p>
+
+    <h3>Pflanzengrößen-Richtlinien</h3>
+    <ul>
+      <li>
+        <strong>Klein (1 sq ft):</strong> Sea of Green (SOG) oder kurze Veg. Viele kleine
+        Pflanzen mit kurzer Veg-Zeit.
+      </li>
+      <li>
+        <strong>Mittel (2 sq ft):</strong> Standard-Training (LST, Topping). Am häufigsten
+        für Home-Grower.
+      </li>
+      <li>
+        <strong>Groß (4 sq ft):</strong> Lange Veg, intensives Training (SCROG, Mainlining).
+        Weniger Pflanzen aber größere Erträge pro Pflanze.
+      </li>
+    </ul>
+
+    <h3>Gängige Zeltgrößen</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Zeltgröße</th>
+          <th>Klein</th>
+          <th>Mittel</th>
+          <th>Groß</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>60x60 cm</td>
+          <td>4</td>
+          <td>2</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>80x80 cm</td>
+          <td>9</td>
+          <td>4</td>
+          <td>2</td>
+        </tr>
+        <tr>
+          <td>120x120 cm</td>
+          <td>16</td>
+          <td>8</td>
+          <td>4</td>
+        </tr>
+        <tr>
+          <td>150x150 cm</td>
+          <td>25</td>
+          <td>12</td>
+          <td>6</td>
+        </tr>
+        <tr>
+          <td>120x240 cm</td>
+          <td>32</td>
+          <td>16</td>
+          <td>8</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Tipps für bessere Erträge</h3>
+    <ul>
+      <li>Weniger größere Pflanzen produzieren oft mehr als viele kleine Pflanzen</li>
+      <li>Trainingstechniken (LST, Topping) maximieren die Canopy-Abdeckung</li>
+      <li>Lass Platz für Luftzirkulation um Schimmel und Schädlinge zu verhindern</li>
+      <li>Bedenke Topfgrößen — größere Töpfe brauchen mehr Bodenfläche</li>
+    </ul>
+  </section>
+</ToolLayout>
+
+<style>
+  .spacing-guide {
+    max-width: 65ch;
+    margin: var(--spacing-2xl) auto 0;
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .spacing-guide h2 {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .spacing-guide h3 {
+    font-size: var(--font-size-lg);
+    margin-top: var(--spacing-xl);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .spacing-guide p,
+  .spacing-guide li {
+    color: var(--color-text-muted);
+  }
+
+  .spacing-guide strong {
+    color: var(--color-text);
+  }
+
+  .spacing-guide table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--spacing-md) 0;
+  }
+
+  .spacing-guide th,
+  .spacing-guide td {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border);
+    text-align: center;
+  }
+
+  .spacing-guide th {
+    background: var(--color-background-dark);
+  }
+
+  .spacing-guide td:first-child {
+    text-align: left;
+    font-weight: bold;
+  }
+</style>

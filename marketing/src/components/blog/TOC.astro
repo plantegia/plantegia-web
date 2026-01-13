@@ -1,0 +1,73 @@
+---
+interface Props {
+  headings: { depth: number; slug: string; text: string }[];
+  lang: 'en' | 'de';
+}
+
+const { headings, lang } = Astro.props;
+
+// Only show h2 and h3
+const filteredHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+
+const title = lang === 'de' ? 'Inhalt' : 'Contents';
+---
+
+{filteredHeadings.length > 0 && (
+  <nav class="toc" aria-label={title}>
+    <h4>{title}</h4>
+    <ul>
+      {filteredHeadings.map((heading) => (
+        <li class={`depth-${heading.depth}`}>
+          <a href={`#${heading.slug}`}>{heading.text}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
+
+<style>
+  .toc {
+    background: var(--color-background-dark);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-md);
+  }
+
+  h4 {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-md);
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    margin-bottom: var(--spacing-xs);
+  }
+
+  a {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    display: block;
+    padding: var(--spacing-xs) 0;
+    border-left: 2px solid transparent;
+    padding-left: var(--spacing-sm);
+    transition: all var(--transition-fast);
+  }
+
+  a:hover {
+    color: var(--color-text);
+    border-left-color: var(--color-green);
+  }
+
+  .depth-3 a {
+    padding-left: var(--spacing-lg);
+    font-size: 13px;
+  }
+</style>

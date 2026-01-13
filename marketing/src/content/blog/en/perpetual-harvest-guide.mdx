@@ -1,0 +1,178 @@
+---
+title: "The Complete Guide to Perpetual Harvest: Never Run Out Again"
+description: "Learn how to set up a perpetual harvest system with multiple grow tents. Plan your rotation schedule, calculate plant numbers, and maintain continuous harvests."
+pubDate: 2025-01-09
+keywords:
+  - perpetual harvest
+  - continuous harvest
+  - multi tent grow
+  - rotation schedule
+  - perpetual harvest setup
+lang: en
+category: perpetual-harvest
+---
+
+import SpaceViewDemo from '@components/viz/SpaceViewDemo';
+import TimelineDemo from '@components/viz/TimelineDemo';
+import RotationDiagram from '@components/viz/RotationDiagram';
+
+A perpetual harvest setup is the holy grail of indoor growing. Instead of harvesting everything at once and waiting months for your next crop, you harvest fresh plants every few weeks while new ones are always growing.
+
+## What is Perpetual Harvest?
+
+Perpetual harvest means maintaining a continuous pipeline of plants at different growth stages. When you harvest one plant, another is ready to take its place in the flower tent. Meanwhile, younger plants are growing in veg, waiting for their turn.
+
+<RotationDiagram client:load vegSpace="VEG TENT" flowerSpace="FLOWER TENT" lang="en" />
+
+## The Two-Tent Setup
+
+The most common perpetual setup uses two grow spaces:
+
+1. **Veg Tent** — 18/6 light schedule for vegetative growth
+2. **Flower Tent** — 12/12 light schedule to trigger flowering
+
+Plants stay in the veg tent until they're the right size, then move to the flower tent. When a plant is harvested from flower, another moves in from veg.
+
+<SpaceViewDemo
+  client:load
+  spaces={[
+    {
+      id: 'veg',
+      name: 'VEG',
+      gridWidth: 2,
+      gridHeight: 3,
+      plants: [
+        { id: '1', code: 'GG-3', stage: 'vegetative', gridX: 0, gridY: 0, size: 1 },
+        { id: '2', code: 'GG-4', stage: 'vegetative', gridX: 1, gridY: 0, size: 1 },
+        { id: '3', code: 'WW-2', stage: 'seedling', gridX: 0, gridY: 1, size: 1 },
+        { id: '4', code: 'WW-3', stage: 'seedling', gridX: 1, gridY: 1, size: 1 },
+      ]
+    },
+    {
+      id: 'flower',
+      name: 'FLOWER',
+      gridWidth: 2,
+      gridHeight: 2,
+      colorIndex: 3,
+      plants: [
+        { id: '5', code: 'GG-1', stage: 'flowering', gridX: 0, gridY: 0, size: 2 },
+        { id: '6', code: 'GG-2', stage: 'flowering', gridX: 0, gridY: 1, size: 2 },
+      ]
+    }
+  ]}
+/>
+
+## Calculating Your Plant Numbers
+
+The number of plants you need depends on three factors:
+
+1. **Flowering time** — How long your strain takes to flower (typically 8-10 weeks)
+2. **Veg time** — How long you keep plants in veg (typically 4-8 weeks)
+3. **Harvest frequency** — How often you want to harvest (typically every 1-2 weeks)
+
+### The Math
+
+**Plants in flower** = Flowering weeks ÷ Harvest frequency (weeks)
+
+**Plants in veg** = Veg weeks ÷ Harvest frequency (weeks)
+
+### Example
+
+- 8-week flowering strain
+- 4-week veg period
+- Harvest every 2 weeks
+
+**Plants in flower:** 8 ÷ 2 = 4 plants
+**Plants in veg:** 4 ÷ 2 = 2 plants
+**Total:** 6 plants running continuously
+
+## The Timeline View
+
+Here's what a perpetual harvest looks like over time. Each row is a plant, showing its journey from seedling to harvest:
+
+<TimelineDemo
+  client:load
+  totalDays={120}
+  currentDay={60}
+  plants={[
+    {
+      id: '1',
+      code: 'GG-1',
+      stages: [
+        { stage: 'seedling', startDay: 0, endDay: 14 },
+        { stage: 'vegetative', startDay: 14, endDay: 42 },
+        { stage: 'flowering', startDay: 42, endDay: 98 },
+        { stage: 'harvested', startDay: 98, endDay: 105 },
+      ]
+    },
+    {
+      id: '2',
+      code: 'GG-2',
+      stages: [
+        { stage: 'seedling', startDay: 14, endDay: 28 },
+        { stage: 'vegetative', startDay: 28, endDay: 56 },
+        { stage: 'flowering', startDay: 56, endDay: 112 },
+      ]
+    },
+    {
+      id: '3',
+      code: 'GG-3',
+      stages: [
+        { stage: 'seedling', startDay: 28, endDay: 42 },
+        { stage: 'vegetative', startDay: 42, endDay: 70 },
+        { stage: 'flowering', startDay: 70, endDay: 120 },
+      ]
+    },
+    {
+      id: '4',
+      code: 'GG-4',
+      stages: [
+        { stage: 'seedling', startDay: 42, endDay: 56 },
+        { stage: 'vegetative', startDay: 56, endDay: 84 },
+      ]
+    },
+  ]}
+/>
+
+Notice how plants are staggered — when GG-1 is harvested, GG-2 is already deep into flowering, and GG-3 is ready to flip.
+
+## Common Mistakes
+
+### 1. Not Planning for Ramp-Up
+
+It takes time to fill your perpetual pipeline. Don't expect continuous harvests on day one. Plan for a 2-3 month ramp-up period before you're harvesting consistently.
+
+### 2. Mismatched Tent Sizes
+
+Your veg tent size should match your plant count. If you need 2 plants in veg at all times, don't use a huge veg tent — it wastes electricity.
+
+### 3. Inconsistent Timing
+
+The key to perpetual harvest is consistency. Start new plants on the same schedule, flip to flower on time, and your harvests will be predictable.
+
+### 4. Different Flowering Times
+
+Mixing strains with different flowering times complicates scheduling. Stick to strains with similar flowering periods, or plan for flexibility.
+
+## Sizing Your Veg vs Flower Tent
+
+| Harvest Frequency | Veg Tent | Flower Tent |
+|-------------------|----------|-------------|
+| Every 2 weeks | Small (2-3 plants) | Large (4-5 plants) |
+| Every 1 week | Medium (4-5 plants) | XL (8-10 plants) |
+
+The flower tent is always bigger because plants spend more time there.
+
+## Tips for Success
+
+1. **Track everything** — Use a planning tool or spreadsheet to track plant dates
+2. **Label your plants** — Name them so you can tell them apart
+3. **Start small** — Begin with 4-6 plants before scaling up
+4. **Same strain first** — Master perpetual with one strain before mixing
+5. **Plan for clones** — Taking clones keeps genetics consistent
+
+## Ready to Plan Your Perpetual Setup?
+
+Planning a perpetual harvest by hand can be complex. That's why we built **Plantegia** — a visual planning tool that shows your entire grow operation across space and time.
+
+See exactly where each plant is, when it moves, and when you'll harvest — all in one view.

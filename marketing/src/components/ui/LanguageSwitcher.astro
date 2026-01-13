@@ -1,0 +1,64 @@
+---
+interface Props {
+  currentPath: string;
+  lang: 'en' | 'de';
+}
+
+const { currentPath, lang } = Astro.props;
+
+// Convert path between languages
+const getAlternatePath = (targetLang: 'en' | 'de') => {
+  if (targetLang === 'de') {
+    // EN -> DE: add /de prefix
+    if (currentPath === '/') return '/de/';
+    return `/de${currentPath}`;
+  } else {
+    // DE -> EN: remove /de prefix
+    if (currentPath === '/de/' || currentPath === '/de') return '/';
+    return currentPath.replace(/^\/de/, '');
+  }
+};
+
+const alternateLang = lang === 'en' ? 'de' : 'en';
+const alternatePath = getAlternatePath(alternateLang);
+---
+
+<a
+  href={alternatePath}
+  class="lang-switch"
+  aria-label={`Switch to ${alternateLang === 'de' ? 'German' : 'English'}`}
+>
+  <span class={lang === 'en' ? 'active' : ''}>EN</span>
+  <span class="divider">/</span>
+  <span class={lang === 'de' ? 'active' : ''}>DE</span>
+</a>
+
+<style>
+  .lang-switch {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .lang-switch:hover {
+    color: var(--color-text);
+  }
+
+  .lang-switch span {
+    padding: 2px 4px;
+  }
+
+  .lang-switch .active {
+    color: var(--color-text);
+    background: var(--color-background-light);
+    border-radius: var(--border-radius);
+  }
+
+  .divider {
+    color: var(--color-text-muted);
+  }
+</style>

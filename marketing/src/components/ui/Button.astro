@@ -1,0 +1,95 @@
+---
+interface Props {
+  href?: string;
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  class?: string;
+  [key: string]: any;
+}
+
+const {
+  href,
+  variant = 'primary',
+  size = 'md',
+  class: className = '',
+  ...rest
+} = Astro.props;
+
+const Tag = href ? 'a' : 'button';
+const classes = `btn btn-${variant} btn-${size} ${className}`.trim();
+---
+
+<Tag href={href} class={classes} {...rest}>
+  <slot />
+</Tag>
+
+<style>
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    font-family: var(--font-family);
+    font-weight: 700;
+    border: 2px solid transparent;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 2px;
+  }
+
+  /* Sizes */
+  .btn-sm {
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-xs) var(--spacing-md);
+  }
+
+  .btn-md {
+    font-size: var(--font-size-base);
+    padding: var(--spacing-sm) var(--spacing-lg);
+  }
+
+  .btn-lg {
+    font-size: var(--font-size-lg);
+    padding: var(--spacing-md) var(--spacing-xl);
+  }
+
+  /* Variants */
+  .btn-primary {
+    background: var(--color-green);
+    color: var(--color-text);
+    border-color: var(--color-green);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-orange);
+    border-color: var(--color-orange);
+  }
+
+  .btn-secondary {
+    background: var(--color-background-dark);
+    color: var(--color-text);
+    border-color: var(--color-border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--color-background-light);
+    border-color: var(--color-teal);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--color-text);
+    border-color: var(--color-border);
+  }
+
+  .btn-outline:hover {
+    background: var(--color-green);
+    border-color: var(--color-green);
+  }
+</style>

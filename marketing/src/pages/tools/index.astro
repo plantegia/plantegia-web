@@ -1,0 +1,78 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Card from '../../components/ui/Card.astro';
+
+const tools = [
+  {
+    href: '/tools/perpetual-calculator/',
+    title: 'Perpetual Harvest Calculator',
+    description: 'Calculate how many plants you need for continuous harvests based on flowering time and harvest frequency.',
+    icon: '🔄',
+  },
+  {
+    href: '/tools/tent-spacing/',
+    title: 'Tent Spacing Calculator',
+    description: 'Find out how many plants fit in your grow tent based on tent size and plant spacing.',
+    icon: '📐',
+  },
+];
+---
+
+<BaseLayout
+  title="Free Growing Tools | Plantegia"
+  description="Free calculators and tools for planning your indoor grow. Perpetual harvest calculator, tent spacing, and more."
+  keywords={['grow calculator', 'perpetual harvest calculator', 'tent spacing', 'grow tools']}
+  lang="en"
+>
+  <div class="tools-page">
+    <header class="tools-header">
+      <h1>Free Growing Tools</h1>
+      <p>Calculators and tools to help plan your indoor grow.</p>
+    </header>
+
+    <div class="tools-grid">
+      {tools.map((tool) => (
+        <Card href={tool.href}>
+          <span class="tool-icon">{tool.icon}</span>
+          <h3>{tool.title}</h3>
+          <p>{tool.description}</p>
+        </Card>
+      ))}
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .tools-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--spacing-2xl) var(--spacing-md);
+  }
+
+  .tools-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .tools-header h1 {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .tools-header p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .tool-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: var(--spacing-md);
+  }
+</style>

@@ -1,0 +1,53 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import PostCard from './PostCard.astro';
+
+interface Props {
+  currentSlug: string;
+  lang: 'en' | 'de';
+  limit?: number;
+}
+
+const { currentSlug, lang, limit = 3 } = Astro.props;
+
+// Get all posts for this language
+const allPosts = await getCollection('blog', ({ data }: { data: { lang: string } }) => data.lang === lang);
+
+// Exclude current post and take first N
+const relatedPosts = allPosts
+  .filter((post: CollectionEntry<'blog'>) => post.slug !== currentSlug)
+  .sort((a: CollectionEntry<'blog'>, b: CollectionEntry<'blog'>) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime())
+  .slice(0, limit);
+
+const title = lang === 'de' ? 'Weitere Artikel' : 'Related Posts';
+---
+
+{relatedPosts.length > 0 && (
+  <section class="related-posts">
+    <h3>{title}</h3>
+    <div class="related-grid">
+      {relatedPosts.map((post: CollectionEntry<'blog'>) => (
+        <PostCard post={post} lang={lang} />
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .related-posts {
+    margin-top: var(--spacing-2xl);
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  h3 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+  }
+</style>

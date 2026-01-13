@@ -1,0 +1,148 @@
+---
+import Button from '../ui/Button.astro';
+
+interface Props {
+  lang: 'en' | 'de';
+}
+
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    title: 'Plan Your Grow.',
+    titleAccent: 'See Your Harvest.',
+    subtitle: 'Visual planning tool for indoor growers with multiple grow spaces. Plan rotations, track lifecycles, optimize your perpetual harvest.',
+    cta: 'Start Planning',
+    ctaSecondary: 'See How It Works',
+  },
+  de: {
+    title: 'Plane Deinen Grow.',
+    titleAccent: 'Sieh Deine Ernte.',
+    subtitle: 'Visuelles Planungstool für Indoor-Grower mit mehreren Grow-Spaces. Plane Rotationen, verfolge Lebenszyklen, optimiere deine Dauerernte.',
+    cta: 'Jetzt planen',
+    ctaSecondary: 'So funktioniert es',
+  },
+};
+
+const labels = t[lang];
+---
+
+<section class="hero">
+  <div class="hero-content">
+    <h1>
+      {labels.title}
+      <span class="accent">{labels.titleAccent}</span>
+    </h1>
+    <p class="subtitle">{labels.subtitle}</p>
+    <div class="hero-actions">
+      <Button href="https://app.plantegia.com" size="lg">
+        {labels.cta}
+      </Button>
+      <Button href="#features" variant="outline" size="lg">
+        {labels.ctaSecondary}
+      </Button>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="screenshot-wrapper">
+      <img
+        src="/screenshots/space-view.png"
+        alt="Plantegia Space View - Visual grow space planning"
+        class="screenshot"
+        loading="eager"
+      />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding: var(--spacing-3xl) var(--spacing-md);
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-2xl);
+    align-items: center;
+  }
+
+  @media (min-width: 1024px) {
+    .hero {
+      grid-template-columns: 1fr 1fr;
+      padding: var(--spacing-3xl) var(--spacing-lg);
+    }
+  }
+
+  .hero-content {
+    text-align: center;
+  }
+
+  @media (min-width: 1024px) {
+    .hero-content {
+      text-align: left;
+    }
+  }
+
+  h1 {
+    font-size: var(--font-size-2xl);
+    line-height: 1.1;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  @media (min-width: 768px) {
+    h1 {
+      font-size: var(--font-size-3xl);
+    }
+  }
+
+  .accent {
+    display: block;
+    color: var(--color-orange);
+  }
+
+  .subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-xl);
+    max-width: 500px;
+  }
+
+  @media (min-width: 1024px) {
+    .subtitle {
+      margin-left: 0;
+      margin-right: auto;
+    }
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    justify-content: center;
+  }
+
+  @media (min-width: 1024px) {
+    .hero-actions {
+      justify-content: flex-start;
+    }
+  }
+
+  .hero-visual {
+    display: flex;
+    justify-content: center;
+  }
+
+  .screenshot-wrapper {
+    position: relative;
+    max-width: 400px;
+    width: 100%;
+  }
+
+  .screenshot {
+    width: 100%;
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    border: 2px solid var(--color-border);
+  }
+</style>

@@ -1,0 +1,68 @@
+---
+import Button from '../ui/Button.astro';
+
+interface Props {
+  lang: 'en' | 'de';
+}
+
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    title: 'Ready to Plan Your Grow?',
+    subtitle: 'Join growers who use Plantegia to optimize their perpetual harvest setups.',
+    cta: 'Get Started — $29',
+    note: 'One-time purchase. No subscription.',
+  },
+  de: {
+    title: 'Bereit deinen Grow zu planen?',
+    subtitle: 'Schließe dich Growern an, die Plantegia für ihre Dauerernte-Setups nutzen.',
+    cta: 'Jetzt starten — $29',
+    note: 'Einmaliger Kauf. Kein Abo.',
+  },
+};
+
+const labels = t[lang];
+---
+
+<section class="cta-section">
+  <div class="cta-content">
+    <h2>{labels.title}</h2>
+    <p class="subtitle">{labels.subtitle}</p>
+    <Button href="https://app.plantegia.com" size="lg">
+      {labels.cta}
+    </Button>
+    <p class="note">{labels.note}</p>
+  </div>
+</section>
+
+<style>
+  .cta-section {
+    padding: var(--spacing-3xl) var(--spacing-md);
+    background: var(--color-background-dark);
+    margin: var(--spacing-3xl) 0;
+  }
+
+  .cta-content {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  h2 {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .note {
+    margin-top: var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+  }
+</style>

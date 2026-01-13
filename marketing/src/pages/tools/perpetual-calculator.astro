@@ -1,0 +1,82 @@
+---
+import ToolLayout from '../../layouts/ToolLayout.astro';
+import PerpetualCalculatorComponent from '../../components/tools/PerpetualCalculator';
+---
+
+<ToolLayout
+  title="Perpetual Harvest Calculator"
+  description="Calculate how many plants you need for continuous harvests. Plan your veg and flower tent setup for perpetual harvesting."
+  keywords={['perpetual harvest calculator', 'continuous harvest', 'perpetual grow', 'harvest schedule calculator']}
+  lang="en"
+>
+  <PerpetualCalculatorComponent lang="en" client:load />
+
+  <section class="how-it-works">
+    <h2>How Perpetual Harvest Works</h2>
+    <p>
+      A perpetual harvest setup means you're always harvesting fresh plants by staggering
+      when you start new ones. Instead of harvesting everything at once, you harvest one
+      plant (or batch) every few weeks while new plants are always growing.
+    </p>
+
+    <h3>Key Concepts</h3>
+    <ul>
+      <li>
+        <strong>Flowering Period:</strong> How long your strain takes to flower (typically 8-10 weeks).
+      </li>
+      <li>
+        <strong>Veg Period:</strong> How long you keep plants in vegetative growth before flipping
+        to flower. Longer veg = bigger plants.
+      </li>
+      <li>
+        <strong>Harvest Frequency:</strong> How often you want to harvest. Every 2 weeks is common.
+      </li>
+    </ul>
+
+    <h3>Example Setup</h3>
+    <p>
+      With an 8-week flowering strain and harvesting every 2 weeks, you need 4 plants in
+      flower at different stages. Add 2 plants in veg (4-week veg period), and you need
+      6 total plants running at all times.
+    </p>
+
+    <h3>Two-Tent Setup</h3>
+    <p>
+      Most perpetual growers use two tents: one for veg (18/6 light schedule) and one for
+      flower (12/12). Plants move from veg to flower when they're ready, keeping a
+      continuous pipeline of plants at different stages.
+    </p>
+  </section>
+</ToolLayout>
+
+<style>
+  .how-it-works {
+    max-width: 65ch;
+    margin: var(--spacing-2xl) auto 0;
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .how-it-works h2 {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .how-it-works h3 {
+    font-size: var(--font-size-lg);
+    margin-top: var(--spacing-xl);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .how-it-works p {
+    color: var(--color-text-muted);
+  }
+
+  .how-it-works ul {
+    color: var(--color-text-muted);
+  }
+
+  .how-it-works strong {
+    color: var(--color-text);
+  }
+</style>

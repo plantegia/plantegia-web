@@ -1,0 +1,128 @@
+{
+  "keywords": [
+    {
+      "keyword": "perpetual harvest schedule",
+      "volume": "500-1K",
+      "competition": "medium",
+      "priority": 5,
+      "status": "published",
+      "slug": "perpetual-harvest-guide",
+      "lang": ["en", "de"]
+    },
+    {
+      "keyword": "perpetual harvest calculator",
+      "volume": "100-500",
+      "competition": "low",
+      "priority": 5,
+      "status": "tool",
+      "slug": "perpetual-calculator",
+      "lang": ["en", "de"]
+    },
+    {
+      "keyword": "two tent grow setup",
+      "volume": "500-1K",
+      "competition": "medium",
+      "priority": 5,
+      "status": "pending",
+      "slug": null,
+      "lang": ["en"]
+    },
+    {
+      "keyword": "veg and flower tent schedule",
+      "volume": "100-500",
+      "competition": "low",
+      "priority": 5,
+      "status": "pending",
+      "slug": null,
+      "lang": ["en"]
+    },
+    {
+      "keyword": "multi tent grow planning",
+      "volume": "50-100",
+      "competition": "very-low",
+      "priority": 5,
+      "status": "pending",
+      "slug": null,
+      "lang": ["en"]
+    },
+    {
+      "keyword": "grow room rotation schedule",
+      "volume": "100-500",
+      "competition": "low",
+      "priority": 4,
+      "status": "pending",
+      "slug": null,
+      "lang": ["en"]
+    },
+    {
+      "keyword": "cannabis grow planner",
+      "volume": "500-1K",
+      "competition": "medium",
+      "priority": 4,
+      "status": "pending",
+      "slug": null,
+      "lang": ["en"]
+    },
+    {
+      "keyword": "when to start seeds perpetual harvest",
+      "volume": "100-500",
+      "competition": "low",
+      "priority": 4,
+      "status": "pending",
+      "slug": null,
+      "lang": ["en"]
+    },
+    {
+      "keyword": "autoflower perpetual harvest",
+      "volume": "500-1K",
+      "competition": "medium",
+      "priority": 4,
+      "status": "pending",
+      "slug": null,
+      "lang": ["en"]
+    },
+    {
+      "keyword": "veg tent size vs flower tent",
+      "volume": "100-500",
+      "competition": "low",
+      "priority": 4,
+      "status": "pending",
+      "slug": null,
+      "lang": ["en"]
+    },
+    {
+      "keyword": "Cannabis Anbau Planer",
+      "volume": "100-500",
+      "competition": "very-low",
+      "priority": 5,
+      "status": "pending",
+      "slug": null,
+      "lang": ["de"]
+    },
+    {
+      "keyword": "Growbox Planung",
+      "volume": "100-500",
+      "competition": "very-low",
+      "priority": 5,
+      "status": "pending",
+      "slug": null,
+      "lang": ["de"]
+    },
+    {
+      "keyword": "Dauerernte Cannabis",
+      "volume": "50-100",
+      "competition": "very-low",
+      "priority": 4,
+      "status": "pending",
+      "slug": null,
+      "lang": ["de"]
+    }
+  ],
+  "categories": [
+    "perpetual-harvest",
+    "multi-tent",
+    "planning",
+    "tools",
+    "guides"
+  ]
+}

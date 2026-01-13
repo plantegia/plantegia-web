@@ -1,0 +1,140 @@
+---
+import ToolLayout from '../../layouts/ToolLayout.astro';
+import TentSpacingCalculator from '../../components/tools/TentSpacingCalculator';
+---
+
+<ToolLayout
+  title="Tent Spacing Calculator"
+  description="Calculate how many plants fit in your grow tent. Find the optimal plant spacing for your tent size."
+  keywords={['grow tent calculator', 'plant spacing', 'how many plants fit', 'tent size plants']}
+  lang="en"
+>
+  <TentSpacingCalculator lang="en" client:load />
+
+  <section class="spacing-guide">
+    <h2>Plant Spacing Guide</h2>
+    <p>
+      Proper plant spacing ensures each plant gets enough light and airflow. Too many
+      plants leads to crowding, poor airflow, and lower yields per plant.
+    </p>
+
+    <h3>Plant Size Guidelines</h3>
+    <ul>
+      <li>
+        <strong>Small (1 sq ft):</strong> Sea of Green (SOG) or quick veg. Many small plants
+        with short veg time.
+      </li>
+      <li>
+        <strong>Medium (2 sq ft):</strong> Standard training (LST, topping). Most common
+        for home growers.
+      </li>
+      <li>
+        <strong>Large (4 sq ft):</strong> Long veg, heavy training (SCROG, mainlining).
+        Fewer plants but bigger yields per plant.
+      </li>
+    </ul>
+
+    <h3>Common Tent Sizes</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Tent Size</th>
+          <th>Small</th>
+          <th>Medium</th>
+          <th>Large</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>2x2 ft</td>
+          <td>4</td>
+          <td>2</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>3x3 ft</td>
+          <td>9</td>
+          <td>4</td>
+          <td>2</td>
+        </tr>
+        <tr>
+          <td>4x4 ft</td>
+          <td>16</td>
+          <td>8</td>
+          <td>4</td>
+        </tr>
+        <tr>
+          <td>5x5 ft</td>
+          <td>25</td>
+          <td>12</td>
+          <td>6</td>
+        </tr>
+        <tr>
+          <td>4x8 ft</td>
+          <td>32</td>
+          <td>16</td>
+          <td>8</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Tips for Better Yields</h3>
+    <ul>
+      <li>Fewer larger plants often produce more than many small plants</li>
+      <li>Training techniques (LST, topping) maximize canopy coverage</li>
+      <li>Leave space for airflow to prevent mold and pests</li>
+      <li>Consider pot size — larger pots need more floor space</li>
+    </ul>
+  </section>
+</ToolLayout>
+
+<style>
+  .spacing-guide {
+    max-width: 65ch;
+    margin: var(--spacing-2xl) auto 0;
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .spacing-guide h2 {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .spacing-guide h3 {
+    font-size: var(--font-size-lg);
+    margin-top: var(--spacing-xl);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .spacing-guide p,
+  .spacing-guide li {
+    color: var(--color-text-muted);
+  }
+
+  .spacing-guide strong {
+    color: var(--color-text);
+  }
+
+  .spacing-guide table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--spacing-md) 0;
+  }
+
+  .spacing-guide th,
+  .spacing-guide td {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border);
+    text-align: center;
+  }
+
+  .spacing-guide th {
+    background: var(--color-background-dark);
+  }
+
+  .spacing-guide td:first-child {
+    text-align: left;
+    font-weight: bold;
+  }
+</style>

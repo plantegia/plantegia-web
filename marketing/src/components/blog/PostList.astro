@@ -1,0 +1,42 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import PostCard from './PostCard.astro';
+
+interface Props {
+  posts: CollectionEntry<'blog'>[];
+  lang: 'en' | 'de';
+}
+
+const { posts, lang } = Astro.props;
+
+// Sort by date, newest first
+const sortedPosts = posts.sort(
+  (a, b) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime()
+);
+---
+
+<div class="post-list">
+  {sortedPosts.map((post) => (
+    <PostCard post={post} lang={lang} />
+  ))}
+</div>
+
+{posts.length === 0 && (
+  <p class="no-posts">
+    {lang === 'de' ? 'Noch keine Artikel vorhanden.' : 'No posts yet.'}
+  </p>
+)}
+
+<style>
+  .post-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .no-posts {
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: var(--spacing-2xl);
+  }
+</style>

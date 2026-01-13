@@ -1,0 +1,151 @@
+---
+import LanguageSwitcher from './LanguageSwitcher.astro';
+
+interface Props {
+  currentPath: string;
+  lang: 'en' | 'de';
+}
+
+const { currentPath, lang } = Astro.props;
+
+const t = {
+  en: {
+    home: 'Home',
+    blog: 'Blog',
+    tools: 'Tools',
+    app: 'Open App',
+  },
+  de: {
+    home: 'Start',
+    blog: 'Blog',
+    tools: 'Tools',
+    app: 'App öffnen',
+  },
+};
+
+const labels = t[lang];
+const prefix = lang === 'de' ? '/de' : '';
+
+const links = [
+  { href: `${prefix}/`, label: labels.home },
+  { href: `${prefix}/blog/`, label: labels.blog },
+  { href: `${prefix}/tools/`, label: labels.tools },
+];
+
+const isActive = (href: string) => {
+  if (href === '/' || href === '/de/') {
+    return currentPath === href;
+  }
+  return currentPath.startsWith(href);
+};
+---
+
+<nav class="nav">
+  <div class="nav-container">
+    <a href={prefix || '/'} class="logo">
+      <span class="logo-text">PLANTEGIA</span>
+    </a>
+
+    <div class="nav-links">
+      {links.map((link) => (
+        <a
+          href={link.href}
+          class={`nav-link ${isActive(link.href) ? 'active' : ''}`}
+        >
+          {link.label}
+        </a>
+      ))}
+    </div>
+
+    <div class="nav-actions">
+      <LanguageSwitcher currentPath={currentPath} lang={lang} />
+      <a href="https://app.plantegia.com" class="app-link">
+        {labels.app}
+      </a>
+    </div>
+  </div>
+</nav>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+  }
+
+  .logo {
+    text-decoration: none;
+    color: var(--color-text);
+  }
+
+  .logo-text {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: var(--spacing-lg);
+  }
+
+  .nav-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    transition: color var(--transition-fast);
+  }
+
+  .nav-link:hover,
+  .nav-link.active {
+    color: var(--color-text);
+  }
+
+  .nav-link.active {
+    border-bottom: 2px solid var(--color-green);
+    padding-bottom: 2px;
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+  }
+
+  .app-link {
+    background: var(--color-green);
+    color: var(--color-text);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    text-decoration: none;
+    transition: background var(--transition-fast);
+  }
+
+  .app-link:hover {
+    background: var(--color-orange);
+  }
+
+  @media (max-width: 640px) {
+    .nav-links {
+      display: none;
+    }
+
+    .nav-container {
+      justify-content: space-between;
+    }
+  }
+</style>

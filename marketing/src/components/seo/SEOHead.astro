@@ -1,0 +1,98 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  keywords?: string[];
+  lang?: 'en' | 'de';
+  ogImage?: string;
+  canonicalUrl?: string;
+  noindex?: boolean;
+}
+
+const {
+  title,
+  description,
+  keywords = [],
+  lang = 'en',
+  ogImage = '/og-default.png',
+  canonicalUrl,
+  noindex = false,
+} = Astro.props;
+
+const siteUrl = 'https://plantegia.com';
+const fullTitle = title.includes('Plantegia') ? title : `${title} | Plantegia`;
+const canonical = canonicalUrl || Astro.url.href;
+const ogImageUrl = ogImage.startsWith('http') ? ogImage : `${siteUrl}${ogImage}`;
+
+// Alternate language URL
+const currentPath = Astro.url.pathname;
+const alternateLang = lang === 'en' ? 'de' : 'en';
+const alternatePath = lang === 'en'
+  ? currentPath === '/' ? '/de/' : `/de${currentPath}`
+  : currentPath.replace(/^\/de/, '') || '/';
+const alternateUrl = `${siteUrl}${alternatePath}`;
+---
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="generator" content={Astro.generator} />
+
+<!-- Primary Meta Tags -->
+<title>{fullTitle}</title>
+<meta name="title" content={fullTitle} />
+<meta name="description" content={description} />
+{keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
+{noindex && <meta name="robots" content="noindex, nofollow" />}
+
+<!-- Canonical & Language -->
+<link rel="canonical" href={canonical} />
+<link rel="alternate" hreflang={lang} href={canonical} />
+<link rel="alternate" hreflang={alternateLang} href={alternateUrl} />
+<link rel="alternate" hreflang="x-default" href={siteUrl} />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content={canonical} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImageUrl} />
+<meta property="og:locale" content={lang === 'de' ? 'de_DE' : 'en_US'} />
+<meta property="og:site_name" content="Plantegia" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:url" content={canonical} />
+<meta name="twitter:title" content={fullTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImageUrl} />
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+<!-- Preconnect -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+<!-- Structured Data -->
+<script is:inline type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Plantegia",
+  "description": lang === 'de'
+    ? "Visuelle Planung für Indoor-Grower mit mehreren Grow-Spaces."
+    : "Visual planning tool for indoor growers with multiple grow spaces.",
+  "url": siteUrl,
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web",
+  "offers": {
+    "@type": "Offer",
+    "price": "29",
+    "priceCurrency": "USD"
+  },
+  "inLanguage": [lang],
+  "author": {
+    "@type": "Organization",
+    "name": "Plantegia"
+  }
+})} />

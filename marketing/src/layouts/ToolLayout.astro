@@ -1,0 +1,110 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  keywords?: string[];
+  lang?: 'en' | 'de';
+}
+
+const { title, description, keywords = [], lang = 'en' } = Astro.props;
+---
+
+<BaseLayout
+  title={`${title} | Plantegia Tools`}
+  description={description}
+  keywords={keywords}
+  lang={lang}
+>
+  <div class="tool-page">
+    <div class="container">
+      <header class="tool-header">
+        <h1>{title}</h1>
+        <p class="description">{description}</p>
+      </header>
+
+      <div class="tool-content">
+        <slot />
+      </div>
+
+      <footer class="tool-footer">
+        <div class="cta-box">
+          <h3>{lang === 'de' ? 'Vollständige Planung?' : 'Need full planning?'}</h3>
+          <p>
+            {lang === 'de'
+              ? 'Mit Plantegia kannst du deinen gesamten Grow visuell planen.'
+              : 'With Plantegia you can visually plan your entire grow operation.'}
+          </p>
+          <a href="https://app.plantegia.com" class="cta-button">
+            {lang === 'de' ? 'Plantegia testen' : 'Try Plantegia'}
+          </a>
+        </div>
+      </footer>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .tool-page {
+    padding: var(--spacing-2xl) 0;
+  }
+
+  .tool-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .tool-header h1 {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .description {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-muted);
+    max-width: 65ch;
+    margin: 0 auto;
+  }
+
+  .tool-content {
+    max-width: 800px;
+    margin: 0 auto var(--spacing-2xl);
+  }
+
+  .tool-footer {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .cta-box {
+    background: var(--color-background-dark);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-lg);
+    text-align: center;
+  }
+
+  .cta-box h3 {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .cta-box p {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .cta-button {
+    display: inline-block;
+    background: var(--color-green);
+    color: var(--color-text);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--border-radius);
+    font-weight: 700;
+    transition: background var(--transition-fast);
+  }
+
+  .cta-button:hover {
+    background: var(--color-orange);
+    color: var(--color-text);
+  }
+</style>

@@ -1,0 +1,120 @@
+---
+import Card from '../ui/Card.astro';
+
+interface Props {
+  lang: 'en' | 'de';
+}
+
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    title: 'Plan Smarter, Grow Better',
+    subtitle: 'Everything you need to manage multiple grow spaces and perpetual harvests.',
+    features: [
+      {
+        title: 'Space View',
+        description: 'Visual top-down layout of your tents and rooms. See where every plant is at a glance.',
+        icon: '🏠',
+      },
+      {
+        title: 'Timeline View',
+        description: 'Gantt-style view showing plant lifecycles over time. Plan when to plant, flip, and harvest.',
+        icon: '📅',
+      },
+      {
+        title: 'Multi-Tent Support',
+        description: 'Manage unlimited grow spaces. Perfect for veg/flower setups and perpetual harvests.',
+        icon: '🏕️',
+      },
+      {
+        title: 'Rotation Planning',
+        description: 'Plan plant movements between spaces. See the full journey from seed to harvest.',
+        icon: '🔄',
+      },
+    ],
+  },
+  de: {
+    title: 'Smarter planen, besser growen',
+    subtitle: 'Alles was du brauchst um mehrere Grow-Spaces und Dauerernten zu managen.',
+    features: [
+      {
+        title: 'Space View',
+        description: 'Visuelle Draufsicht deiner Zelte und Räume. Sieh auf einen Blick wo jede Pflanze ist.',
+        icon: '🏠',
+      },
+      {
+        title: 'Timeline View',
+        description: 'Gantt-ähnliche Ansicht der Pflanzen-Lebenszyklen. Plane wann du pflanzt, umstellst und erntest.',
+        icon: '📅',
+      },
+      {
+        title: 'Multi-Zelt Support',
+        description: 'Verwalte unbegrenzt viele Grow-Spaces. Perfekt für Veg/Blüte-Setups und Dauerernten.',
+        icon: '🏕️',
+      },
+      {
+        title: 'Rotationsplanung',
+        description: 'Plane Pflanzenbewegungen zwischen Spaces. Sieh die komplette Reise vom Samen bis zur Ernte.',
+        icon: '🔄',
+      },
+    ],
+  },
+};
+
+const labels = t[lang];
+---
+
+<section id="features" class="features">
+  <div class="features-header">
+    <h2>{labels.title}</h2>
+    <p class="subtitle">{labels.subtitle}</p>
+  </div>
+
+  <div class="features-grid">
+    {labels.features.map((feature) => (
+      <Card>
+        <span class="feature-icon">{feature.icon}</span>
+        <h3>{feature.title}</h3>
+        <p>{feature.description}</p>
+      </Card>
+    ))}
+  </div>
+</section>
+
+<style>
+  .features {
+    padding: var(--spacing-3xl) var(--spacing-md);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .features-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .features-header h2 {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .feature-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: var(--spacing-md);
+  }
+</style>

@@ -1,0 +1,178 @@
+---
+title: "Die komplette Anleitung zur Dauerernte: Nie wieder ohne Vorrat"
+description: "Lerne wie du ein Dauerernte-System mit mehreren Grow-Zelten aufbaust. Plane deinen Rotationsplan, berechne Pflanzenanzahl und erhalte kontinuierliche Ernten."
+pubDate: 2025-01-09
+keywords:
+  - Dauerernte
+  - Perpetual Harvest
+  - Multi Zelt Grow
+  - Rotationsplan
+  - kontinuierliche Ernte
+lang: de
+category: perpetual-harvest
+---
+
+import SpaceViewDemo from '@components/viz/SpaceViewDemo';
+import TimelineDemo from '@components/viz/TimelineDemo';
+import RotationDiagram from '@components/viz/RotationDiagram';
+
+Ein Dauerernte-Setup ist der heilige Gral des Indoor-Growings. Statt alles auf einmal zu ernten und Monate auf die nächste Ernte zu warten, erntest du alle paar Wochen frische Pflanzen während neue immer nachwachsen.
+
+## Was ist Dauerernte?
+
+Dauerernte bedeutet eine kontinuierliche Pipeline von Pflanzen in verschiedenen Wachstumsphasen zu erhalten. Wenn du eine Pflanze erntest, ist eine andere bereit ihren Platz im Blüte-Zelt einzunehmen. Währenddessen wachsen jüngere Pflanzen in Veg und warten auf ihre Runde.
+
+<RotationDiagram client:load vegSpace="VEG ZELT" flowerSpace="BLÜTE ZELT" lang="de" />
+
+## Das Zwei-Zelt-Setup
+
+Das häufigste Dauerernte-Setup nutzt zwei Grow-Spaces:
+
+1. **Veg-Zelt** — 18/6 Lichtzeitplan für vegetatives Wachstum
+2. **Blüte-Zelt** — 12/12 Lichtzeitplan um die Blüte auszulösen
+
+Pflanzen bleiben im Veg-Zelt bis sie die richtige Größe haben, dann ziehen sie ins Blüte-Zelt um. Wenn eine Pflanze aus der Blüte geerntet wird, rückt eine andere aus Veg nach.
+
+<SpaceViewDemo
+  client:load
+  spaces={[
+    {
+      id: 'veg',
+      name: 'VEG',
+      gridWidth: 2,
+      gridHeight: 3,
+      plants: [
+        { id: '1', code: 'GG-3', stage: 'vegetative', gridX: 0, gridY: 0, size: 1 },
+        { id: '2', code: 'GG-4', stage: 'vegetative', gridX: 1, gridY: 0, size: 1 },
+        { id: '3', code: 'WW-2', stage: 'seedling', gridX: 0, gridY: 1, size: 1 },
+        { id: '4', code: 'WW-3', stage: 'seedling', gridX: 1, gridY: 1, size: 1 },
+      ]
+    },
+    {
+      id: 'flower',
+      name: 'BLÜTE',
+      gridWidth: 2,
+      gridHeight: 2,
+      colorIndex: 3,
+      plants: [
+        { id: '5', code: 'GG-1', stage: 'flowering', gridX: 0, gridY: 0, size: 2 },
+        { id: '6', code: 'GG-2', stage: 'flowering', gridX: 0, gridY: 1, size: 2 },
+      ]
+    }
+  ]}
+/>
+
+## Berechnung deiner Pflanzenanzahl
+
+Die Anzahl der Pflanzen die du brauchst hängt von drei Faktoren ab:
+
+1. **Blütezeit** — Wie lange deine Sorte zum Blühen braucht (typischerweise 8-10 Wochen)
+2. **Veg-Zeit** — Wie lange du Pflanzen in Veg hältst (typischerweise 4-8 Wochen)
+3. **Erntefrequenz** — Wie oft du ernten möchtest (typischerweise alle 1-2 Wochen)
+
+### Die Rechnung
+
+**Pflanzen in Blüte** = Blüte-Wochen ÷ Erntefrequenz (Wochen)
+
+**Pflanzen in Veg** = Veg-Wochen ÷ Erntefrequenz (Wochen)
+
+### Beispiel
+
+- 8-Wochen-Blüte-Sorte
+- 4-Wochen Veg-Zeit
+- Ernte alle 2 Wochen
+
+**Pflanzen in Blüte:** 8 ÷ 2 = 4 Pflanzen
+**Pflanzen in Veg:** 4 ÷ 2 = 2 Pflanzen
+**Gesamt:** 6 Pflanzen laufen kontinuierlich
+
+## Die Timeline-Ansicht
+
+So sieht eine Dauerernte über die Zeit aus. Jede Zeile ist eine Pflanze, die ihre Reise vom Sämling bis zur Ernte zeigt:
+
+<TimelineDemo
+  client:load
+  totalDays={120}
+  currentDay={60}
+  plants={[
+    {
+      id: '1',
+      code: 'GG-1',
+      stages: [
+        { stage: 'seedling', startDay: 0, endDay: 14 },
+        { stage: 'vegetative', startDay: 14, endDay: 42 },
+        { stage: 'flowering', startDay: 42, endDay: 98 },
+        { stage: 'harvested', startDay: 98, endDay: 105 },
+      ]
+    },
+    {
+      id: '2',
+      code: 'GG-2',
+      stages: [
+        { stage: 'seedling', startDay: 14, endDay: 28 },
+        { stage: 'vegetative', startDay: 28, endDay: 56 },
+        { stage: 'flowering', startDay: 56, endDay: 112 },
+      ]
+    },
+    {
+      id: '3',
+      code: 'GG-3',
+      stages: [
+        { stage: 'seedling', startDay: 28, endDay: 42 },
+        { stage: 'vegetative', startDay: 42, endDay: 70 },
+        { stage: 'flowering', startDay: 70, endDay: 120 },
+      ]
+    },
+    {
+      id: '4',
+      code: 'GG-4',
+      stages: [
+        { stage: 'seedling', startDay: 42, endDay: 56 },
+        { stage: 'vegetative', startDay: 56, endDay: 84 },
+      ]
+    },
+  ]}
+/>
+
+Beachte wie die Pflanzen versetzt sind — wenn GG-1 geerntet wird, ist GG-2 schon tief in der Blüte, und GG-3 ist bereit zum Umstellen.
+
+## Häufige Fehler
+
+### 1. Keine Planung für die Anlaufphase
+
+Es braucht Zeit um deine Dauerernte-Pipeline zu füllen. Erwarte keine kontinuierlichen Ernten am ersten Tag. Plane für eine 2-3 monatige Anlaufphase bevor du konstant erntest.
+
+### 2. Falsch dimensionierte Zelte
+
+Deine Veg-Zelt-Größe sollte zu deiner Pflanzenanzahl passen. Wenn du immer 2 Pflanzen in Veg brauchst, nutze kein riesiges Veg-Zelt — das verschwendet Strom.
+
+### 3. Inkonsistentes Timing
+
+Der Schlüssel zur Dauerernte ist Konsistenz. Starte neue Pflanzen nach dem gleichen Zeitplan, stelle pünktlich auf Blüte um, und deine Ernten werden vorhersehbar.
+
+### 4. Unterschiedliche Blütezeiten
+
+Das Mischen von Sorten mit unterschiedlichen Blütezeiten erschwert die Planung. Bleib bei Sorten mit ähnlichen Blütezeiten, oder plane für Flexibilität.
+
+## Dimensionierung Veg vs Blüte-Zelt
+
+| Erntefrequenz | Veg-Zelt | Blüte-Zelt |
+|---------------|----------|------------|
+| Alle 2 Wochen | Klein (2-3 Pflanzen) | Groß (4-5 Pflanzen) |
+| Jede Woche | Mittel (4-5 Pflanzen) | XL (8-10 Pflanzen) |
+
+Das Blüte-Zelt ist immer größer weil Pflanzen dort mehr Zeit verbringen.
+
+## Tipps für den Erfolg
+
+1. **Tracke alles** — Nutze ein Planungstool oder Spreadsheet um Pflanzendaten zu verfolgen
+2. **Beschrifte deine Pflanzen** — Benenne sie damit du sie unterscheiden kannst
+3. **Fang klein an** — Beginne mit 4-6 Pflanzen bevor du skalierst
+4. **Erst eine Sorte** — Meistere Dauerernte mit einer Sorte bevor du mischst
+5. **Plane für Stecklinge** — Stecklinge nehmen hält die Genetik konsistent
+
+## Bereit dein Dauerernte-Setup zu planen?
+
+Eine Dauerernte von Hand zu planen kann komplex sein. Deshalb haben wir **Plantegia** gebaut — ein visuelles Planungstool das deine gesamte Grow-Operation über Raum und Zeit zeigt.
+
+Sieh genau wo jede Pflanze ist, wann sie umzieht, und wann du erntest — alles in einer Ansicht.

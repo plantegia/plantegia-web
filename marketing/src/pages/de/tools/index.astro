@@ -1,0 +1,78 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Card from '../../../components/ui/Card.astro';
+
+const tools = [
+  {
+    href: '/de/tools/perpetual-calculator/',
+    title: 'Dauerernte Rechner',
+    description: 'Berechne wie viele Pflanzen du für kontinuierliche Ernten brauchst basierend auf Blütezeit und Erntefrequenz.',
+    icon: '🔄',
+  },
+  {
+    href: '/de/tools/tent-spacing/',
+    title: 'Zelt-Platzierungs-Rechner',
+    description: 'Finde heraus wie viele Pflanzen in dein Grow-Zelt passen basierend auf Zeltgröße und Pflanzenabstand.',
+    icon: '📐',
+  },
+];
+---
+
+<BaseLayout
+  title="Kostenlose Grow-Tools | Plantegia"
+  description="Kostenlose Rechner und Tools für die Planung deines Indoor-Grows. Dauerernte-Rechner, Zelt-Platzierung und mehr."
+  keywords={['Grow Rechner', 'Perpetual Harvest Rechner', 'Zelt Platzierung', 'Grow Tools']}
+  lang="de"
+>
+  <div class="tools-page">
+    <header class="tools-header">
+      <h1>Kostenlose Grow-Tools</h1>
+      <p>Rechner und Tools für die Planung deines Indoor-Grows.</p>
+    </header>
+
+    <div class="tools-grid">
+      {tools.map((tool) => (
+        <Card href={tool.href}>
+          <span class="tool-icon">{tool.icon}</span>
+          <h3>{tool.title}</h3>
+          <p>{tool.description}</p>
+        </Card>
+      ))}
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .tools-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--spacing-2xl) var(--spacing-md);
+  }
+
+  .tools-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .tools-header h1 {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .tools-header p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .tool-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: var(--spacing-md);
+  }
+</style>

@@ -1,0 +1,48 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PostList from '../../../components/blog/PostList.astro';
+
+const posts = await getCollection('blog', ({ data }: { data: { lang: string } }) => data.lang === 'de');
+---
+
+<BaseLayout
+  title="Blog | Plantegia"
+  description="Tipps, Anleitungen und Strategien für die Planung deines Indoor-Grows. Lerne über Dauerernte, Multi-Zelt-Setups und Rotationsplanung."
+  keywords={['Grow Planung Blog', 'Perpetual Harvest Anleitung', 'Multi Zelt Tipps', 'Indoor Growing']}
+  lang="de"
+>
+  <div class="blog-page">
+    <header class="blog-header">
+      <h1>Blog</h1>
+      <p>Tipps, Anleitungen und Strategien für die Planung deines Indoor-Grows.</p>
+    </header>
+
+    <PostList posts={posts} lang="de" />
+  </div>
+</BaseLayout>
+
+<style>
+  .blog-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-2xl) var(--spacing-md);
+  }
+
+  .blog-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .blog-header h1 {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .blog-header p {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-lg);
+    max-width: 600px;
+    margin: 0 auto;
+  }
+</style>
