@@ -41,24 +41,27 @@ const readingTime = Math.ceil(wordCount / 200);
   <article class="blog-post">
     <div class="container">
       <header class="post-header">
-        <div class="post-meta">
-          <time datetime={pubDate.toISOString()}>{formattedDate}</time>
-          {formattedUpdateDate && (
-            <span class="updated">
-              {lang === 'de' ? 'Aktualisiert:' : 'Updated:'} {formattedUpdateDate}
+        <div class="header-content">
+          <div class="post-meta">
+            <time datetime={pubDate.toISOString()}>{formattedDate}</time>
+            {formattedUpdateDate && (
+              <span class="updated">
+                {lang === 'de' ? 'Aktualisiert:' : 'Updated:'} {formattedUpdateDate}
+              </span>
+            )}
+            <span class="reading-time">
+              {readingTime} {lang === 'de' ? 'Min. Lesezeit' : 'min read'}
             </span>
-          )}
-          <span class="reading-time">
-            {readingTime} {lang === 'de' ? 'Min. Lesezeit' : 'min read'}
-          </span>
+          </div>
+          <h1>{title}</h1>
+          <p class="description">{description}</p>
         </div>
-        <h1>{title}</h1>
-        <p class="description">{description}</p>
+        {heroImage && (
+          <div class="header-image">
+            <img class="hero-image" src={heroImage} alt={title} />
+          </div>
+        )}
       </header>
-
-      {heroImage && (
-        <img class="hero-image" src={heroImage} alt={title} />
-      )}
 
       <div class="post-content-wrapper">
         {headings.length > 0 && (
@@ -94,16 +97,33 @@ const readingTime = Math.ceil(wordCount / 200);
 <style>
   .blog-post {
     padding: var(--spacing-2xl) 0;
+    background: var(--color-background-dark);
   }
 
   .post-header {
-    text-align: center;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xl);
     margin-bottom: var(--spacing-2xl);
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (min-width: 1024px) {
+    .post-header {
+      grid-template-columns: 3fr 2fr;
+      align-items: center;
+    }
+  }
+
+  .header-content {
+    text-align: left;
   }
 
   .post-meta {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-md);
     font-size: var(--font-size-sm);
@@ -128,48 +148,62 @@ const readingTime = Math.ceil(wordCount / 200);
   .description {
     font-size: var(--font-size-lg);
     color: var(--color-text-muted);
-    max-width: 65ch;
-    margin: 0 auto;
+    margin: 0;
+  }
+
+  .header-image {
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   .hero-image {
     width: 100%;
-    max-height: 400px;
+    max-height: 300px;
     object-fit: cover;
     border-radius: var(--border-radius-lg);
-    margin-bottom: var(--spacing-2xl);
   }
 
   .post-content-wrapper {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--spacing-xl);
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
   }
 
   @media (min-width: 1024px) {
     .post-content-wrapper {
-      grid-template-columns: 200px 1fr;
-      max-width: 1100px;
+      grid-template-columns: 1fr 280px;
+      max-width: 1200px;
     }
 
     .toc-sidebar {
       position: sticky;
       top: var(--spacing-xl);
       height: fit-content;
+      order: 2;
     }
+
+    .post-content {
+      order: 1;
+      max-width: none;
+      margin: 0;
+    }
+  }
+
+  .post-content.prose {
+    max-width: 100%;
+    margin: 0;
   }
 
   .post-footer {
     margin-top: var(--spacing-3xl);
-    max-width: 65ch;
-    margin-left: auto;
-    margin-right: auto;
+    max-width: 100%;
   }
 
   .cta-box {
-    background: var(--color-background-dark);
+    background: var(--color-background);
     padding: var(--spacing-xl);
     border-radius: var(--border-radius-lg);
     text-align: center;
