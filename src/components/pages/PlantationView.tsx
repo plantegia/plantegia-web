@@ -36,7 +36,7 @@ export function PlantationView() {
     return (
       <div style={styles.container}>
         <div style={styles.message}>{error || 'Plantation not found'}</div>
-        <button style={styles.backButton} onClick={() => navigate('/')}>
+        <button style={styles.backButton} onClick={() => navigate('/p/')}>
           Back to list
         </button>
       </div>
@@ -47,7 +47,7 @@ export function PlantationView() {
     return (
       <div style={styles.container}>
         <div style={styles.message}>This plantation is private</div>
-        <button style={styles.backButton} onClick={() => navigate('/')}>
+        <button style={styles.backButton} onClick={() => navigate('/p/')}>
           Back to list
         </button>
       </div>

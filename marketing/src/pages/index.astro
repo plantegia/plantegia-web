@@ -1,19 +1,29 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/landing/Hero.astro';
+import Problem from '../components/landing/Problem.astro';
+import WhoItsFor from '../components/landing/WhoItsFor.astro';
+import UseCases from '../components/landing/UseCases.astro';
 import Features from '../components/landing/Features.astro';
-import Screenshots from '../components/landing/Screenshots.astro';
+import Alternatives from '../components/landing/Alternatives.astro';
+import Testimonials from '../components/landing/Testimonials.astro';
+import FAQ from '../components/landing/FAQ.astro';
 import CTA from '../components/landing/CTA.astro';
 ---
 
 <BaseLayout
-  title="Plantegia — Visual Planning for Indoor Growers"
-  description="Visual planning tool for indoor growers with multiple grow spaces. Plan rotations, track lifecycles, optimize your perpetual harvest."
-  keywords={['cannabis grow planner', 'perpetual harvest', 'multi tent grow', 'grow room planning', 'indoor growing']}
+  title="Perpetual Harvest Planner for Multi-Tent Growers | Plantegia"
+  description="Plan your perpetual harvest across multiple tents. Visual grow planner for rotation schedules, veg-to-flower timing, and continuous cycles. One-time $29."
+  keywords={['perpetual harvest planner', 'cannabis grow planner', 'multi tent grow schedule', 'two tent setup', 'grow room planning', 'veg and flower tent', 'perpetual harvest calculator', 'indoor grow rotation']}
   lang="en"
 >
   <Hero lang="en" />
+  <Problem lang="en" />
   <Features lang="en" />
-  <Screenshots lang="en" />
+  <WhoItsFor lang="en" />
+  <UseCases lang="en" />
+  <Alternatives lang="en" />
+  <Testimonials lang="en" />
+  <FAQ lang="en" />
   <CTA lang="en" />
 </BaseLayout>

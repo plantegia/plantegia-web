@@ -1,8 +1,8 @@
 {
+  "buildCommand": "npm run build:all",
+  "outputDirectory": "dist-final",
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/p/:path*", "destination": "/app/index.html" },
+    { "source": "/tutorial/:path*", "destination": "/app/index.html" }
   ]
 }

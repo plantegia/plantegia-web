@@ -9,7 +9,7 @@ import { FEATURES } from '../constants';
 export function App() {
   const routes = (
     <Routes>
-      <Route path="/" element={<PlantationList />} />
+      <Route path="/p/" element={<PlantationList />} />
       <Route path="/p/:id" element={<PlantationView />} />
       {FEATURES.TUTORIALS && (
         <Route path="/tutorial/:tutorialId" element={<TutorialView />} />

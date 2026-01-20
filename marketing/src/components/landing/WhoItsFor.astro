@@ -1,0 +1,71 @@
+---
+interface Props {
+  lang: 'en' | 'de';
+}
+
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    sectionTitle: 'Built for',
+    audiences: [
+      {
+        title: 'Multi-tent growers',
+        description: 'Running veg and flower separately. Need to track what moves where and when.',
+      },
+      {
+        title: 'Perpetual harvesters',
+        description: 'Staggering plants for continuous cycles. Want to see gaps before they happen.',
+      },
+      {
+        title: 'Rotation planners',
+        description: 'Growing multiple strains with different timings. Need the big picture.',
+      },
+    ],
+    notFor: 'Not for: single-plant hobbyists or grow diary logging. This is a planner, not a journal.',
+  },
+  de: {
+    sectionTitle: 'Gebaut für',
+    audiences: [
+      {
+        title: 'Multi-Zelt Grower',
+        description: 'Veg und Blüte getrennt. Müssen tracken was wohin wann wechselt.',
+      },
+      {
+        title: 'Perpetual Harvester',
+        description: 'Staffeln Pflanzen für kontinuierliche Zyklen. Wollen Lücken sehen bevor sie passieren.',
+      },
+      {
+        title: 'Rotations-Planer',
+        description: 'Mehrere Strains mit verschiedenen Timings. Brauchen das große Bild.',
+      },
+    ],
+    notFor: 'Nicht für: Einzel-Pflanzen Hobbygärtner oder Grow-Diary Logging. Das ist ein Planer, kein Tagebuch.',
+  },
+};
+
+const labels = t[lang];
+---
+
+<section class="section">
+  <h2 class="section-title">{labels.sectionTitle}</h2>
+  <div class="grid grid--3">
+    {labels.audiences.map((a) => (
+      <div class="card-item">
+        <h3 class="card-title card-title--teal">{a.title}</h3>
+        <p class="body-text body-text--sm">{a.description}</p>
+      </div>
+    ))}
+  </div>
+  <p class="not-for body-text body-text--sm body-text--italic">{labels.notFor}</p>
+</section>
+
+<style>
+  .grid {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .not-for {
+    opacity: 0.7;
+  }
+</style>

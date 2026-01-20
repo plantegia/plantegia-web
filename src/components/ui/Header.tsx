@@ -132,7 +132,7 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/p/')}
           style={{
             background: 'transparent',
             border: 'none',

@@ -61,7 +61,7 @@ export function TutorialView() {
       {error ? (
         <>
           <div style={styles.message}>{error}</div>
-          <button style={styles.button} onClick={() => navigate('/')}>
+          <button style={styles.button} onClick={() => navigate('/p/')}>
             Back to list
           </button>
         </>

@@ -1,0 +1,64 @@
+---
+interface Props {
+  lang: 'en' | 'de';
+}
+
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    sectionTitle: 'Coming soon',
+    features: [
+      {
+        title: 'Smart recommendations',
+        description: 'DLI, PPE, pH suggestions based on your setup and light schedule.',
+      },
+      {
+        title: 'Printables',
+        description: 'Plant labels, planting calendar, recommended conditions. Print and stick.',
+      },
+      {
+        title: 'JSON export/import',
+        description: 'Export your plantation data. Perfect for AI agents and automations.',
+      },
+    ],
+  },
+  de: {
+    sectionTitle: 'Demnächst',
+    features: [
+      {
+        title: 'Smarte Empfehlungen',
+        description: 'DLI, PPE, pH Vorschläge basierend auf deinem Setup und Lichtplan.',
+      },
+      {
+        title: 'Druckvorlagen',
+        description: 'Pflanzenetiketten, Pflanzkalender, empfohlene Bedingungen. Drucken und kleben.',
+      },
+      {
+        title: 'JSON Export/Import',
+        description: 'Exportiere deine Plantagen-Daten. Perfekt für KI-Agenten und Automatisierungen.',
+      },
+    ],
+  },
+};
+
+const labels = t[lang];
+---
+
+<section class="section section--wide section--center coming-soon">
+  <h2 class="section-title section-title--center">{labels.sectionTitle}</h2>
+  <div class="grid grid--3">
+    {labels.features.map((feature) => (
+      <div class="feature">
+        <h3 class="card-title card-title--orange">{feature.title}</h3>
+        <p class="body-text body-text--sm">{feature.description}</p>
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  .coming-soon {
+    border-top: 1px solid var(--color-border);
+  }
+</style>

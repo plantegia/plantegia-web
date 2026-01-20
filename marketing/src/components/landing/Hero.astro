@@ -1,5 +1,6 @@
 ---
-import Button from '../ui/Button.astro';
+import TimelineDemo from './TimelineDemo.astro';
+import { SignInButton } from '../ui/SignInButton';
 
 interface Props {
   lang: 'en' | 'de';
@@ -7,20 +8,153 @@ interface Props {
 
 const { lang } = Astro.props;
 
+// Hero timeline data - fuller perpetual harvest scenario
+const heroSpaces = [
+  { id: 'veg', name: 'VEG', slots: 4 },
+  { id: 'flower', name: 'FLOWER', slots: 4, colorIndex: 1 },
+];
+
+const heroPlants = [
+  {
+    id: 'p1',
+    code: 'GSC-1',
+    startDay: -78,
+    stages: [
+      { stage: 'germinating', days: 10 },
+      { stage: 'seedling', days: 12 },
+      { stage: 'vegetative', days: 24 },
+      { stage: 'flowering', days: 54 },
+      { stage: 'harvested', days: 7 },
+    ],
+    segments: [
+      { spaceId: 'veg', slotIndex: 0, startDay: -78, endDay: -36 },
+      { spaceId: 'flower', slotIndex: 0, startDay: -36, endDay: null },
+    ],
+  },
+  {
+    id: 'p2',
+    code: 'GSC-2',
+    startDay: -78,
+    stages: [
+      { stage: 'germinating', days: 10 },
+      { stage: 'seedling', days: 14 },
+      { stage: 'vegetative', days: 28 },
+      { stage: 'flowering', days: 58 },
+      { stage: 'harvested', days: 7 },
+    ],
+    segments: [
+      { spaceId: 'veg', slotIndex: 1, startDay: -78, endDay: -29 },
+      { spaceId: 'flower', slotIndex: 1, startDay: -29, endDay: null },
+    ],
+  },
+  {
+    id: 'p3',
+    code: 'HZE-1',
+    startDay: -58,
+    stages: [
+      { stage: 'germinating', days: 10 },
+      { stage: 'seedling', days: 16 },
+      { stage: 'vegetative', days: 32 },
+      { stage: 'flowering', days: 70 },
+      { stage: 'harvested', days: 7 },
+    ],
+    segments: [
+      { spaceId: 'veg', slotIndex: 2, startDay: -58, endDay: -3 },
+      { spaceId: 'flower', slotIndex: 2, startDay: -3, endDay: null },
+    ],
+  },
+  {
+    id: 'p4',
+    code: 'GDP-1',
+    startDay: -35,
+    stages: [
+      { stage: 'germinating', days: 10 },
+      { stage: 'seedling', days: 12 },
+      { stage: 'vegetative', days: 42 },
+      { stage: 'flowering', days: 52 },
+      { stage: 'harvested', days: 7 },
+    ],
+    segments: [
+      { spaceId: 'veg', slotIndex: 0, startDay: -35, endDay: 24 },
+      { spaceId: 'flower', slotIndex: 3, startDay: 24, endDay: null },
+    ],
+  },
+  {
+    id: 'p5',
+    code: 'OGK-1',
+    startDay: -15,
+    stages: [
+      { stage: 'germinating', days: 10 },
+      { stage: 'seedling', days: 14 },
+      { stage: 'vegetative', days: 28 },
+      { stage: 'flowering', days: 56 },
+      { stage: 'harvested', days: 7 },
+    ],
+    segments: [
+      { spaceId: 'veg', slotIndex: 1, startDay: -15, endDay: 33 },
+      { spaceId: 'flower', slotIndex: 0, startDay: 33, endDay: null },
+    ],
+  },
+  {
+    id: 'p6',
+    code: 'AK-1',
+    startDay: -10,
+    stages: [
+      { stage: 'germinating', days: 7 },
+      { stage: 'seedling', days: 14 },
+      { stage: 'vegetative', days: 28 },
+      { stage: 'flowering', days: 56 },
+      { stage: 'harvested', days: 7 },
+    ],
+    segments: [
+      { spaceId: 'veg', slotIndex: 3, startDay: -10, endDay: 40 },
+      { spaceId: 'flower', slotIndex: 1, startDay: 40, endDay: null },
+    ],
+  },
+  {
+    id: 'p7',
+    code: 'WW-1',
+    startDay: 22,
+    stages: [
+      { stage: 'germinating', days: 10 },
+      { stage: 'seedling', days: 11 },
+      { stage: 'vegetative', days: 45 },
+      { stage: 'flowering', days: 50 },
+      { stage: 'harvested', days: 7 },
+    ],
+    segments: [
+      { spaceId: 'veg', slotIndex: 2, startDay: 22, endDay: 80 },
+      { spaceId: 'flower', slotIndex: 2, startDay: 80, endDay: null },
+    ],
+  },
+];
+
 const t = {
   en: {
-    title: 'Plan Your Grow.',
-    titleAccent: 'See Your Harvest.',
-    subtitle: 'Visual planning tool for indoor growers with multiple grow spaces. Plan rotations, track lifecycles, optimize your perpetual harvest.',
-    cta: 'Start Planning',
-    ctaSecondary: 'See How It Works',
+    headline: 'Perpetual harvest planner for growers',
+    taglinePrefix: 'Know when to',
+    seed: 'seed',
+    flip: 'flip',
+    harvest: 'harvest',
+    taglineSuffix: 'and',
+    seedAgain: 'seed',
+    taglineEnd: 'again.',
+    cta: 'Sign in with Google',
+    price: '$39 one time payment',
+    guarantee: '7-day money back',
   },
   de: {
-    title: 'Plane Deinen Grow.',
-    titleAccent: 'Sieh Deine Ernte.',
-    subtitle: 'Visuelles Planungstool für Indoor-Grower mit mehreren Grow-Spaces. Plane Rotationen, verfolge Lebenszyklen, optimiere deine Dauerernte.',
-    cta: 'Jetzt planen',
-    ctaSecondary: 'So funktioniert es',
+    headline: 'Perpetual Harvest Planer für Grower',
+    taglinePrefix: 'Wissen, wann man',
+    seed: 'säen',
+    flip: 'umstellen',
+    harvest: 'ernten',
+    taglineSuffix: 'und wieder',
+    seedAgain: 'säen',
+    taglineEnd: 'muss.',
+    cta: 'Mit Google anmelden',
+    price: '39 € einmalige Zahlung',
+    guarantee: '7 Tage Geld zurück',
   },
 };
 
@@ -28,121 +162,100 @@ const labels = t[lang];
 ---
 
 <section class="hero">
-  <div class="hero-content">
-    <h1>
-      {labels.title}
-      <span class="accent">{labels.titleAccent}</span>
-    </h1>
-    <p class="subtitle">{labels.subtitle}</p>
-    <div class="hero-actions">
-      <Button href="https://app.plantegia.com" size="lg">
-        {labels.cta}
-      </Button>
-      <Button href="#features" variant="outline" size="lg">
-        {labels.ctaSecondary}
-      </Button>
-    </div>
+  <div class="app-preview">
+    <TimelineDemo spaces={heroSpaces} plants={heroPlants} />
   </div>
 
-  <div class="hero-visual">
-    <div class="screenshot-wrapper">
-      <img
-        src="/screenshots/space-view.png"
-        alt="Plantegia Space View - Visual grow space planning"
-        class="screenshot"
-        loading="eager"
-      />
+  <div class="hero-bottom">
+    <div class="hero-content">
+      <h1 class="headline">{labels.headline}</h1>
+      <p class="tagline body-text body-text--lg body-text--primary">
+        {labels.taglinePrefix} <span class="hl-seed">{labels.seed}</span>, <span class="hl-flip">{labels.flip}</span>, <span class="hl-harvest">{labels.harvest}</span>, {labels.taglineSuffix} <span class="hl-seed">{labels.seedAgain}</span> {labels.taglineEnd}
+      </p>
+      <div class="cta-row">
+        <SignInButton
+          client:load
+          className="cta-button"
+          label={labels.cta}
+          labelSignedIn={lang === 'de' ? 'Zur App' : 'Go to App'}
+        />
+        <div class="price-info">
+          <span class="price price--sm">{labels.price}</span>
+          <span class="body-text body-text--sm">{labels.guarantee}</span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
 <style>
   .hero {
-    padding: var(--spacing-3xl) var(--spacing-md);
-    max-width: 1200px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--spacing-2xl);
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    position: relative;
   }
 
-  @media (min-width: 1024px) {
-    .hero {
-      grid-template-columns: 1fr 1fr;
-      padding: var(--spacing-3xl) var(--spacing-lg);
-    }
+  .app-preview {
+    position: relative;
+    width: 100%;
+    background-color: var(--color-background);
+  }
+
+  .app-preview :global(.timeline-demo) {
+    width: 100%;
+    height: auto;
+  }
+
+  .app-preview::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--color-green);
+  }
+
+  .hero-bottom {
+    position: relative;
+    max-width: 640px;
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--spacing-2xl) var(--spacing-md) var(--spacing-3xl);
   }
 
   .hero-content {
-    text-align: center;
-  }
-
-  @media (min-width: 1024px) {
-    .hero-content {
-      text-align: left;
-    }
-  }
-
-  h1 {
-    font-size: var(--font-size-2xl);
-    line-height: 1.1;
-    margin-bottom: var(--spacing-lg);
-  }
-
-  @media (min-width: 768px) {
-    h1 {
-      font-size: var(--font-size-3xl);
-    }
-  }
-
-  .accent {
-    display: block;
-    color: var(--color-orange);
-  }
-
-  .subtitle {
-    font-size: var(--font-size-lg);
-    color: var(--color-text-muted);
-    margin-bottom: var(--spacing-xl);
-    max-width: 500px;
-  }
-
-  @media (min-width: 1024px) {
-    .subtitle {
-      margin-left: 0;
-      margin-right: auto;
-    }
-  }
-
-  .hero-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
     gap: var(--spacing-md);
-    justify-content: center;
   }
 
-  @media (min-width: 1024px) {
-    .hero-actions {
-      justify-content: flex-start;
-    }
+  .headline {
+    font-family: var(--font-family-sans);
+    font-size: 24px;
+    line-height: 1.3;
+    margin-bottom: 0;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+    color: var(--color-text);
   }
 
-  .hero-visual {
+  .tagline {
+    margin: 0;
+  }
+
+  .cta-row {
     display: flex;
-    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-sm);
   }
 
-  .screenshot-wrapper {
-    position: relative;
-    max-width: 400px;
-    width: 100%;
-  }
-
-  .screenshot {
-    width: 100%;
-    border-radius: var(--border-radius-lg);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    border: 2px solid var(--color-border);
+  .price-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
   }
 </style>

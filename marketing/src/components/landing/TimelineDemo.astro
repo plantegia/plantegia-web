@@ -1,0 +1,573 @@
+---
+/**
+ * TimelineDemo - Static SVG representation of Time View
+ * Configurable via props for use in different contexts
+ */
+
+// Colors from the app
+const COLORS = {
+  background: '#231F20',
+  backgroundDark: '#1a1a1e',
+  text: '#FBD19F',
+  textMuted: '#d4b088',
+  green: '#51853B',
+  orange: '#F15D43',
+  border: '#51853B',
+};
+
+const STAGE_COLORS: Record<string, string> = {
+  germinating: '#a08060',
+  seedling: '#6aA050',
+  vegetative: '#51853B',
+  flowering: '#15472C',
+  harvested: '#3a3530',
+};
+
+const SPACE_COLORS = ['#51853B', '#F15D43', '#4ECDC4', '#F7DC6F'];
+
+// Types
+interface Segment {
+  spaceId: string;
+  slotIndex: number;
+  startDay: number;
+  endDay: number | null;
+}
+
+interface Plant {
+  id: string;
+  code: string;
+  startDay: number;
+  stages: { stage: string; days: number }[];
+  segments: Segment[];
+}
+
+interface Space {
+  id: string;
+  name: string;
+  slots: number;
+  colorIndex?: number;
+}
+
+interface Props {
+  spaces: Space[];
+  plants: Plant[];
+  width?: number;
+  dayWidth?: number;
+  slotHeight?: number;
+  showDateLabels?: boolean;
+  showTodayLine?: boolean;
+  showMarkers?: boolean;
+}
+
+const {
+  spaces,
+  plants,
+  width: WIDTH = 1200,
+  dayWidth: DAY_WIDTH = 4,
+  slotHeight: SLOT_HEIGHT = 28,
+  showDateLabels = true,
+  showTodayLine = true,
+  showMarkers = true,
+} = Astro.props;
+
+// Layout constants
+const SPACE_HEADER_HEIGHT = 20;
+const SEGMENT_HEIGHT = 20;
+const SEGMENT_GAP = 4;
+const TOP_MARGIN = 40;
+
+// Calculate height based on spaces
+let yOffset = TOP_MARGIN;
+const slotPositions: Record<string, number> = {};
+
+spaces.forEach((space) => {
+  slotPositions[`${space.id}-header`] = yOffset;
+  yOffset += SPACE_HEADER_HEIGHT;
+  for (let i = 0; i < space.slots; i++) {
+    slotPositions[`${space.id}-${i}`] = yOffset;
+    yOffset += SLOT_HEIGHT;
+  }
+});
+
+const HEIGHT = yOffset;
+
+// "Today" is positioned at ~40% of the timeline
+const TODAY_X = WIDTH * 0.4;
+
+// Helper to convert days to X position
+function dayToX(day: number): number {
+  return TODAY_X + day * DAY_WIDTH;
+}
+
+// Helper to get germinating days based on code length
+function getGerminatingDays(code: string): number {
+  const minDays = Math.ceil((code.length * 6 + 8) / DAY_WIDTH);
+  return Math.max(7, minDays);
+}
+
+// Calculate stage positions for each plant segment
+interface StageRect {
+  x: number;
+  width: number;
+  stage: string;
+  color: string;
+}
+
+function getSegmentStages(plant: Plant, segment: Segment): StageRect[] {
+  const rects: StageRect[] = [];
+  const segStartDay = segment.startDay;
+  const segEndDay = segment.endDay ?? (plant.startDay + plant.stages.reduce((sum, s) => sum + s.days, 0));
+
+  let dayCounter = plant.startDay;
+
+  for (const { stage, days } of plant.stages) {
+    const stageStartDay = dayCounter;
+    const stageEndDay = dayCounter + days;
+    dayCounter = stageEndDay;
+
+    const overlapStart = Math.max(stageStartDay, segStartDay);
+    const overlapEnd = Math.min(stageEndDay, segEndDay);
+
+    if (overlapStart < overlapEnd) {
+      const x = dayToX(overlapStart);
+      const endX = dayToX(overlapEnd);
+      rects.push({
+        x,
+        width: endX - x,
+        stage,
+        color: STAGE_COLORS[stage] || COLORS.text,
+      });
+    }
+  }
+
+  return rects;
+}
+
+// Generate date labels
+const dateLabels: { x: number; label: string }[] = [];
+if (showDateLabels) {
+  const startDay = Math.floor(-TODAY_X / DAY_WIDTH);
+  const endDay = Math.ceil((WIDTH - TODAY_X) / DAY_WIDTH);
+
+  for (let d = startDay; d <= endDay; d += 14) {
+    const date = new Date();
+    date.setDate(date.getDate() + d);
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const x = dayToX(d);
+    if (x > 10 && x < WIDTH - 40 && Math.abs(d) > 3) {
+      dateLabels.push({ x, label: `${day} ${month}` });
+    }
+  }
+}
+
+// Generate week grid lines
+const weekLines: number[] = [];
+const startDay = Math.floor(-TODAY_X / DAY_WIDTH);
+const endDay = Math.ceil((WIDTH - TODAY_X) / DAY_WIDTH);
+for (let d = startDay; d <= endDay; d += 7) {
+  const x = dayToX(d);
+  if (x > 0 && x < WIDTH) {
+    weekLines.push(x);
+  }
+}
+
+// Get space color
+function getSpaceColor(space: Space, index: number): string {
+  return SPACE_COLORS[space.colorIndex ?? index % SPACE_COLORS.length];
+}
+---
+
+<svg
+  viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+  class="timeline-demo"
+  xmlns="http://www.w3.org/2000/svg"
+  preserveAspectRatio="xMidYMid slice"
+>
+
+  <!-- Week grid lines -->
+  {weekLines.map(x => (
+    <line
+      x1={x}
+      y1={TOP_MARGIN}
+      x2={x}
+      y2={HEIGHT}
+      stroke={COLORS.text}
+      stroke-width="0.5"
+      opacity="0.15"
+    />
+  ))}
+
+  <!-- Space headers and slot backgrounds -->
+  {spaces.map((space, spaceIdx) => {
+    const headerY = slotPositions[`${space.id}-header`];
+    const spaceColor = getSpaceColor(space, spaceIdx);
+    const elements = [];
+
+    // Space header background
+    elements.push(
+      <rect
+        x="0"
+        y={headerY}
+        width={WIDTH}
+        height={SPACE_HEADER_HEIGHT}
+        fill={spaceColor}
+        opacity="0.15"
+      />
+    );
+
+    // Space header text
+    elements.push(
+      <text
+        x={WIDTH / 2}
+        y={headerY + SPACE_HEADER_HEIGHT / 2}
+        fill={spaceColor}
+        font-size="10"
+        font-weight="bold"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        font-family="'Space Mono', monospace"
+      >
+        {space.name}
+      </text>
+    );
+
+    // Header borders
+    elements.push(
+      <line x1="0" y1={headerY} x2={WIDTH} y2={headerY} stroke={spaceColor} stroke-width="1" opacity="0.5" />,
+      <line x1="0" y1={headerY + SPACE_HEADER_HEIGHT} x2={WIDTH} y2={headerY + SPACE_HEADER_HEIGHT} stroke={spaceColor} stroke-width="1" opacity="0.5" />
+    );
+
+    // Slot row backgrounds
+    for (let i = 0; i < space.slots; i++) {
+      const slotY = slotPositions[`${space.id}-${i}`];
+      const isEven = i % 2 === 0;
+      elements.push(
+        <rect
+          x="0"
+          y={slotY}
+          width={WIDTH}
+          height={SLOT_HEIGHT}
+          fill={spaceColor}
+          opacity={isEven ? 0.03 : 0.06}
+        />,
+        <line
+          x1="0"
+          y1={slotY + SLOT_HEIGHT}
+          x2={WIDTH}
+          y2={slotY + SLOT_HEIGHT}
+          stroke={spaceColor}
+          stroke-width="0.5"
+          opacity="0.2"
+        />
+      );
+    }
+
+    return elements;
+  })}
+
+  <!-- Plant segments -->
+  {plants.map(plant => {
+    const elements: any[] = [];
+
+    plant.segments.forEach((segment) => {
+      const slotY = slotPositions[`${segment.spaceId}-${segment.slotIndex}`];
+      if (slotY === undefined) return;
+
+      const y = slotY + SEGMENT_GAP;
+      const stageRects = getSegmentStages(plant, segment);
+
+      // Draw stage rectangles
+      stageRects.forEach(rect => {
+        const visibleX = Math.max(0, rect.x);
+        const visibleEnd = Math.min(WIDTH, rect.x + rect.width);
+        const visibleWidth = visibleEnd - visibleX;
+
+        if (visibleWidth > 0) {
+          elements.push(
+            <rect
+              x={visibleX}
+              y={y}
+              width={visibleWidth}
+              height={SEGMENT_HEIGHT}
+              fill={rect.color}
+              opacity="0.92"
+            />
+          );
+
+          // Stage label
+          const labelX = visibleX + visibleWidth / 2;
+          const stageAbbrev = rect.stage === 'seedling' ? 'SDL'
+            : rect.stage === 'flowering' ? 'FLO'
+            : rect.stage === 'harvested' ? 'HRV'
+            : rect.stage.slice(0, 3).toUpperCase();
+
+          if (rect.stage === 'germinating' && visibleWidth > 18) {
+            elements.push(
+              <text
+                x={labelX}
+                y={y + SEGMENT_HEIGHT / 2}
+                fill={COLORS.backgroundDark}
+                font-size="9"
+                font-weight="bold"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                font-family="'Space Mono', monospace"
+              >
+                {plant.code}
+              </text>
+            );
+          } else if (rect.stage === 'harvested' && visibleWidth > 20) {
+            const label = visibleWidth > 50 ? `HRV ${plant.code}` : 'HRV';
+            elements.push(
+              <text
+                x={labelX}
+                y={y + SEGMENT_HEIGHT / 2}
+                fill={COLORS.text}
+                font-size="8"
+                font-weight="bold"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                font-family="'Space Mono', monospace"
+                opacity="0.8"
+              >
+                {label}
+              </text>
+            );
+          } else if (visibleWidth > 60) {
+            const weeks = Math.round(rect.width / DAY_WIDTH / 7);
+            elements.push(
+              <text
+                x={labelX}
+                y={y + SEGMENT_HEIGHT / 2}
+                fill={COLORS.text}
+                font-size="8"
+                font-weight="bold"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                font-family="'Space Mono', monospace"
+                opacity="0.8"
+              >
+                {`${stageAbbrev} ${weeks}W ${plant.code}`}
+              </text>
+            );
+          } else if (visibleWidth > 40) {
+            const weeks = Math.round(rect.width / DAY_WIDTH / 7);
+            elements.push(
+              <text
+                x={labelX}
+                y={y + SEGMENT_HEIGHT / 2}
+                fill={COLORS.text}
+                font-size="8"
+                font-weight="bold"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                font-family="'Space Mono', monospace"
+                opacity="0.8"
+              >
+                {`${stageAbbrev} ${weeks}W`}
+              </text>
+            );
+          } else if (visibleWidth > 20) {
+            elements.push(
+              <text
+                x={labelX}
+                y={y + SEGMENT_HEIGHT / 2}
+                fill={COLORS.text}
+                font-size="8"
+                font-weight="bold"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                font-family="'Space Mono', monospace"
+                opacity="0.8"
+              >
+                {stageAbbrev}
+              </text>
+            );
+          }
+        }
+      });
+
+      // Draw segment border
+      const segStartX = dayToX(segment.startDay);
+      const segEndX = segment.endDay !== null
+        ? dayToX(segment.endDay)
+        : dayToX(plant.startDay + plant.stages.reduce((sum, s) => sum + s.days, 0));
+
+      const borderX = Math.max(0, segStartX);
+      const borderEnd = Math.min(WIDTH, segEndX);
+      const borderWidth = borderEnd - borderX;
+
+      if (borderWidth > 0) {
+        elements.push(
+          <rect
+            x={borderX}
+            y={y}
+            width={borderWidth}
+            height={SEGMENT_HEIGHT}
+            fill="none"
+            stroke={COLORS.backgroundDark}
+            stroke-width="1"
+            opacity="0.5"
+          />
+        );
+      }
+    });
+
+    // Draw Bezier connections between segments
+    if (plant.segments.length > 1) {
+      for (let i = 0; i < plant.segments.length - 1; i++) {
+        const seg1 = plant.segments[i];
+        const seg2 = plant.segments[i + 1];
+
+        const y1Slot = slotPositions[`${seg1.spaceId}-${seg1.slotIndex}`];
+        const y2Slot = slotPositions[`${seg2.spaceId}-${seg2.slotIndex}`];
+
+        if (y1Slot === undefined || y2Slot === undefined) continue;
+
+        const connectionDay = seg1.endDay ?? seg2.startDay;
+        const plantEndDay = plant.startDay + plant.stages.reduce((sum, s) => sum + s.days, 0);
+        const seg2EndDay = seg2.endDay ?? plantEndDay;
+        const harvestedStage = plant.stages.find(s => s.stage === 'harvested');
+        const harvestedDays = harvestedStage?.days ?? 0;
+        const seg2IncludesHarvested = seg2EndDay >= plantEndDay;
+        const seg2EffectiveEnd = seg2IncludesHarvested ? plantEndDay - harvestedDays : seg2EndDay;
+
+        const x = dayToX(connectionDay);
+        const y1 = y1Slot + SEGMENT_GAP + SEGMENT_HEIGHT / 2;
+        const y2 = y2Slot + SEGMENT_GAP + SEGMENT_HEIGHT / 2;
+
+        if (x > 0 && x < WIDTH) {
+          const maxCurveOffset = Math.min(25, (seg2EffectiveEnd - connectionDay) * DAY_WIDTH * 0.3);
+          const curveOffset = Math.max(10, maxCurveOffset);
+          elements.push(
+            <path
+              d={`M ${x} ${y1} C ${x + curveOffset} ${y1}, ${x + curveOffset} ${y2}, ${x} ${y2}`}
+              fill="none"
+              stroke={COLORS.textMuted}
+              stroke-width="2"
+              stroke-dasharray="4 4"
+            />,
+            <circle cx={x} cy={y1} r="3" fill={COLORS.textMuted} />,
+            <circle cx={x} cy={y2} r="3" fill={COLORS.textMuted} />
+          );
+        }
+      }
+    }
+
+    return elements;
+  })}
+
+  <!-- TODAY line -->
+  {showTodayLine && (
+    <line
+      x1={TODAY_X}
+      y1={TOP_MARGIN}
+      x2={TODAY_X}
+      y2={HEIGHT}
+      stroke={COLORS.orange}
+      stroke-width="2"
+    />
+  )}
+
+  <!-- Date bar line -->
+  <line x1="0" y1={TOP_MARGIN} x2={WIDTH} y2={TOP_MARGIN} stroke={COLORS.border} stroke-width="1" />
+
+  <!-- Start (S) and Harvest (H) markers -->
+  {showMarkers && plants.map(plant => {
+    const elements: any[] = [];
+    const plantEndDay = plant.startDay + plant.stages.reduce((sum, s) => sum + s.days, 0);
+
+    const startX = dayToX(plant.startDay);
+    const endX = dayToX(plantEndDay);
+    const boxSize = 12;
+
+    if (startX > 5 && startX < WIDTH - 5) {
+      elements.push(
+        <rect
+          x={startX - boxSize / 2}
+          y={TOP_MARGIN - boxSize / 2}
+          width={boxSize}
+          height={boxSize}
+          fill={COLORS.green}
+        />,
+        <text
+          x={startX}
+          y={TOP_MARGIN}
+          fill={COLORS.background}
+          font-size="9"
+          font-weight="bold"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          font-family="'Space Mono', monospace"
+        >
+          S
+        </text>
+      );
+    }
+
+    if (endX > 5 && endX < WIDTH - 5) {
+      elements.push(
+        <rect
+          x={endX - boxSize / 2}
+          y={TOP_MARGIN - boxSize / 2}
+          width={boxSize}
+          height={boxSize}
+          fill={COLORS.orange}
+        />,
+        <text
+          x={endX}
+          y={TOP_MARGIN}
+          fill={COLORS.background}
+          font-size="9"
+          font-weight="bold"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          font-family="'Space Mono', monospace"
+        >
+          H
+        </text>
+      );
+    }
+
+    return elements;
+  })}
+
+  <!-- Date labels -->
+  {showDateLabels && dateLabels.map(({ x, label }) => (
+    <text
+      x={x}
+      y={TOP_MARGIN - 16}
+      fill={COLORS.textMuted}
+      font-size="8"
+      text-anchor="middle"
+      font-family="'Space Mono', monospace"
+    >
+      {label}
+    </text>
+  ))}
+
+  <!-- TODAY label -->
+  {showTodayLine && (
+    <text
+      x={TODAY_X}
+      y={TOP_MARGIN - 16}
+      fill={COLORS.orange}
+      font-size="8"
+      font-weight="bold"
+      text-anchor="middle"
+      font-family="'Space Mono', monospace"
+    >
+      TODAY
+    </text>
+  )}
+
+</svg>
+
+<style>
+  .timeline-demo {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+</style>

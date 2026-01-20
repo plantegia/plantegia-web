@@ -1,0 +1,95 @@
+---
+interface Props {
+  lang: 'en' | 'de';
+}
+
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    headline: 'Two tents.',
+    headlineAccent: 'Endless questions.',
+    q1: 'When do I <span class="hl-seed">start new seeds</span> if my flower tent is full for <span class="hl-time">9 more weeks</span>?',
+    k1: 'seed start dates · tent capacity planning',
+    q2: 'Which plant <span class="hl-flip">moves to flower</span> next — and where does it fit?',
+    k2: 'veg to flower transition · rotation schedule',
+    q3: 'How do I keep <span class="hl-harvest">harvesting</span> every few weeks without gaps?',
+    k3: 'harvest timing',
+    solutionHeadline: 'Plantegia solves this',
+    solution: 'A visual planner that helps you align multiple growth cycles in limited space.',
+  },
+  de: {
+    headline: 'Zwei Zelte.',
+    headlineAccent: 'Endlose Fragen.',
+    q1: 'Wann starte ich <span class="hl-seed">neue Seeds</span> wenn mein Blütezelt noch <span class="hl-time">9 Wochen</span> voll ist?',
+    k1: 'Aussaatdaten · Zeltkapazität',
+    q2: 'Welche Pflanze geht als nächstes <span class="hl-flip">in die Blüte</span> — und wo passt sie hin?',
+    k2: 'Veg zu Blüte · Rotationsplan',
+    q3: 'Wie <span class="hl-harvest">ernte</span> ich alle paar Wochen ohne Lücken?',
+    k3: 'Ernte-Timing',
+    solutionHeadline: 'Plantegia löst das',
+    solution: 'Ein visueller Planer der hilft, mehrere Wachstumszyklen im begrenzten Raum zu koordinieren.',
+  },
+};
+
+const labels = t[lang];
+---
+
+<section class="section problem">
+  <h2 class="headline">
+    <span>{labels.headline}</span><br />
+    <span class="headline--orange">{labels.headlineAccent}</span>
+  </h2>
+
+  <div class="questions">
+    <div class="q-group">
+      <p class="body-text" set:html={labels.q1} />
+      <p class="keywords">{labels.k1}</p>
+    </div>
+    <div class="q-group">
+      <p class="body-text" set:html={labels.q2} />
+      <p class="keywords">{labels.k2}</p>
+    </div>
+    <div class="q-group">
+      <p class="body-text" set:html={labels.q3} />
+      <p class="keywords">{labels.k3}</p>
+    </div>
+  </div>
+
+  <div class="solution-block">
+    <h3 class="card-title card-title--green">{labels.solutionHeadline}</h3>
+    <p class="body-text body-text--primary">{labels.solution}</p>
+  </div>
+</section>
+
+<style>
+  .problem .headline {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .questions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .q-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .keywords {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    opacity: 0.5;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+
+  .solution-block {
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--spacing-xl);
+  }
+</style>

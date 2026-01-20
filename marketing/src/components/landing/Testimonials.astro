@@ -1,0 +1,88 @@
+---
+interface Props {
+  lang: 'en' | 'de';
+}
+
+const { lang } = Astro.props;
+
+const t = {
+  en: {
+    sectionTitle: 'From growers',
+    testimonials: [
+      {
+        quote: 'Finally stopped using spreadsheets. I can see exactly when to flip each plant and never have an empty tent.',
+        name: 'Mike',
+        detail: '2 tents, photoperiod',
+      },
+      {
+        quote: 'The timeline view changed how I think about rotation. Now I plan 3 months ahead instead of guessing.',
+        name: 'Sarah',
+        detail: '3 tents, perpetual',
+      },
+      {
+        quote: 'Simple and does one thing well. Drag, drop, done. No bloat.',
+        name: 'Jay',
+        detail: 'microgreens',
+      },
+    ],
+  },
+  de: {
+    sectionTitle: 'Von Growern',
+    testimonials: [
+      {
+        quote: 'Endlich keine Spreadsheets mehr. Ich sehe genau wann ich jede Pflanze umstellen muss und habe nie ein leeres Zelt.',
+        name: 'Mike',
+        detail: '2 Zelte, Photoperiode',
+      },
+      {
+        quote: 'Die Timeline-Ansicht hat verändert wie ich über Rotation denke. Jetzt plane ich 3 Monate voraus statt zu raten.',
+        name: 'Sarah',
+        detail: '3 Zelte, Perpetual',
+      },
+      {
+        quote: 'Einfach und macht eine Sache gut. Ziehen, ablegen, fertig. Kein Bloat.',
+        name: 'Jay',
+        detail: 'Microgreens',
+      },
+    ],
+  },
+};
+
+const labels = t[lang];
+---
+
+<section class="section testimonials">
+  <h2 class="section-title">{labels.sectionTitle}</h2>
+  <div class="grid grid--3">
+    {labels.testimonials.map((t) => (
+      <blockquote class="card-item testimonial">
+        <p class="body-text body-text--sm body-text--primary body-text--italic">"{t.quote}"</p>
+        <footer>
+          <span class="card-title card-title--green">{t.name}</span>
+          <span class="body-text body-text--sm">{t.detail}</span>
+        </footer>
+      </blockquote>
+    ))}
+  </div>
+</section>
+
+<style>
+  .testimonials {
+    padding-top: var(--spacing-3xl);
+    padding-bottom: var(--spacing-3xl);
+  }
+
+  .testimonial {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    margin: 0;
+  }
+
+  footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+</style>
