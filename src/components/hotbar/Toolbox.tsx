@@ -1,13 +1,13 @@
 import { useAppStore } from '../../store/useAppStore';
 import { ToolButton } from './ToolButton';
-import { COLORS } from '../../constants';
+import { COLORS, BASE_URL } from '../../constants';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 const TOOL_ICONS: Record<string, string> = {
-  cursor: '/cursors/cursor.svg',
-  space: '/cursors/space.svg',
-  erase: '/cursors/erase.svg',
-  split: '/cursors/split.svg',
+  cursor: `${BASE_URL}cursors/cursor.svg`,
+  space: `${BASE_URL}cursors/space.svg`,
+  erase: `${BASE_URL}cursors/erase.svg`,
+  split: `${BASE_URL}cursors/split.svg`,
 };
 
 export function Toolbox() {

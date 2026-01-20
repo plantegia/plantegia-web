@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getUserPlantations, createPlantation, deletePlantation } from '../../lib/firestore';
-import { VIEWPORT_WIDTH, COLORS, FEATURES } from '../../constants';
+import { VIEWPORT_WIDTH, COLORS, FEATURES, BASE_URL } from '../../constants';
 import type { Plantation } from '../../types';
 
 export function PlantationList() {
@@ -92,7 +92,7 @@ export function PlantationList() {
 
       {plantations.length === 0 && (
         <img
-          src="/illustrations/heroplant.svg"
+          src={`${BASE_URL}illustrations/heroplant.svg`}
           alt="Plantegia hero plant"
           style={styles.heroImage}
         />

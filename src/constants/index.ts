@@ -1,5 +1,8 @@
 import type { Stage } from '../types';
 
+// Base URL for assets (set by Vite)
+export const BASE_URL = import.meta.env.BASE_URL || '/';
+
 // Feature flags for experimental/easter-egg features
 export const FEATURES = {
   BIRD_MINIGAME: false, // Easter egg bird game with leaderboard
@@ -99,7 +102,7 @@ export const CURSORS = {
   pointer: 'pointer',
   notAllowed: 'not-allowed',
   text: 'text',
-  split: 'url(/cursors/split.svg) 12 12, crosshair',
+  split: `url(${BASE_URL}cursors/split.svg) 12 12, crosshair`,
   colResize: 'col-resize',
   nResize: 'n-resize',
   sResize: 's-resize',

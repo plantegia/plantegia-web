@@ -1,5 +1,5 @@
 import { useAuth } from '../../hooks/useAuth';
-import { VIEWPORT_WIDTH, COLORS } from '../../constants';
+import { VIEWPORT_WIDTH, COLORS, BASE_URL } from '../../constants';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, error, signInWithGoogle } = useAuth();
@@ -16,7 +16,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <div style={styles.container}>
         <img
-          src="/illustrations/heroplant.svg"
+          src={`${BASE_URL}illustrations/heroplant.svg`}
           alt="Plantegia hero plant"
           style={styles.heroImage}
         />
