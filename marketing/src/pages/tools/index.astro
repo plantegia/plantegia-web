@@ -1,33 +1,27 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Card from '../../components/ui/Card.astro';
+import { getTranslations } from '../../i18n';
 
-const tools = [
-  {
-    href: '/tools/perpetual-calculator/',
-    title: 'Perpetual Harvest Calculator',
-    description: 'Calculate how many plants you need for continuous harvests based on flowering time and harvest frequency.',
-    icon: '🔄',
-  },
-  {
-    href: '/tools/tent-spacing/',
-    title: 'Tent Spacing Calculator',
-    description: 'Find out how many plants fit in your grow tent based on tent size and plant spacing.',
-    icon: '📐',
-  },
-];
+const lang = 'en';
+const t = getTranslations(lang).pages.tools;
+
+const tools = t.toolsList.map(tool => ({
+  ...tool,
+  href: `/tools/${tool.slug}/`,
+}));
 ---
 
 <BaseLayout
-  title="Free Growing Tools | Plantegia"
-  description="Free calculators and tools for planning your indoor grow. Perpetual harvest calculator, tent spacing, and more."
-  keywords={['grow calculator', 'perpetual harvest calculator', 'tent spacing', 'grow tools']}
-  lang="en"
+  title={t.title}
+  description={t.description}
+  keywords={t.keywords}
+  lang={lang}
 >
   <div class="tools-page">
     <header class="tools-header">
-      <h1>Free Growing Tools</h1>
-      <p>Calculators and tools to help plan your indoor grow.</p>
+      <h1>{t.headerTitle}</h1>
+      <p>{t.headerSubtitle}</p>
     </header>
 
     <div class="tools-grid">

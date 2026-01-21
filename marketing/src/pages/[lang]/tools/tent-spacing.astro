@@ -1,9 +1,13 @@
 ---
-import ToolLayout from '../../layouts/ToolLayout.astro';
-import TentSpacingCalculator from '../../components/tools/TentSpacingCalculator';
-import { getTranslations } from '../../i18n';
+import ToolLayout from '../../../layouts/ToolLayout.astro';
+import TentSpacingCalculator from '../../../components/tools/TentSpacingCalculator';
+import { getTranslations, getNonDefaultLocales, type Locale } from '../../../i18n';
 
-const lang = 'en';
+export function getStaticPaths() {
+  return getNonDefaultLocales().map(lang => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params as { lang: Locale };
 const t = getTranslations(lang).pages.tentSpacing;
 ---
 

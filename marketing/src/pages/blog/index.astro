@@ -2,23 +2,27 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostList from '../../components/blog/PostList.astro';
+import { getTranslations } from '../../i18n';
 
-const posts = await getCollection('blog', ({ data }: { data: { lang: string } }) => data.lang === 'en');
+const lang = 'en';
+const t = getTranslations(lang).pages.blog;
+
+const posts = await getCollection('blog', ({ data }: { data: { lang: string } }) => data.lang === lang);
 ---
 
 <BaseLayout
-  title="Blog | Plantegia"
-  description="Tips, guides, and strategies for planning your indoor grow. Learn about perpetual harvest, multi-tent setups, and rotation planning."
-  keywords={['grow planning blog', 'perpetual harvest guide', 'multi tent tips', 'indoor growing']}
-  lang="en"
+  title={t.title}
+  description={t.description}
+  keywords={t.keywords}
+  lang={lang}
 >
   <div class="blog-page">
     <header class="blog-header">
-      <h1>Blog</h1>
-      <p>Tips, guides, and strategies for planning your indoor grow.</p>
+      <h1>{t.headerTitle}</h1>
+      <p>{t.headerSubtitle}</p>
     </header>
 
-    <PostList posts={posts} lang="en" />
+    <PostList posts={posts} lang={lang} />
   </div>
 </BaseLayout>
 

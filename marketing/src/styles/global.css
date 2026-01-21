@@ -74,30 +74,6 @@ body {
   position: relative;
 }
 
-/* Background grid overlay - scrolls with page */
-body::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  min-height: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-  background-image:
-    linear-gradient(to right, var(--color-border) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
-  background-size: 56px 56px;
-  opacity: 0.15;
-}
-
-/* Ensure main content is above background effects */
-main, header, footer, nav {
-  position: relative;
-  z-index: 1;
-}
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {

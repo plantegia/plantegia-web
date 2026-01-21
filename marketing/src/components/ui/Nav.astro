@@ -1,5 +1,6 @@
 ---
 import LanguageSwitcher from './LanguageSwitcher.astro';
+import Logo from './Logo.astro';
 
 interface Props {
   currentPath: string;
@@ -42,9 +43,7 @@ const isActive = (href: string) => {
 
 <nav class="nav">
   <div class="nav-container">
-    <a href={prefix || '/'} class="logo">
-      <span class="logo-text">PLANTEGIA</span>
-    </a>
+<Logo href={prefix || '/'} />
 
     <div class="nav-links">
       {links.map((link) => (
@@ -83,17 +82,6 @@ const isActive = (href: string) => {
     margin: 0 auto;
     padding: var(--spacing-md);
     gap: var(--spacing-md);
-  }
-
-  .logo {
-    text-decoration: none;
-    color: var(--color-text);
-  }
-
-  .logo-text {
-    font-size: var(--font-size-lg);
-    font-weight: 700;
-    letter-spacing: 2px;
   }
 
   .nav-links {

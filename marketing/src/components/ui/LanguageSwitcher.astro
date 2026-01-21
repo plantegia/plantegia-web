@@ -1,37 +1,61 @@
 ---
+import { getLocales, DEFAULT_LOCALE, type Locale } from '../../i18n';
+
 interface Props {
   currentPath: string;
-  lang: 'en' | 'de';
+  lang: Locale;
 }
 
 const { currentPath, lang } = Astro.props;
+const locales = getLocales();
 
 // Convert path between languages
-const getAlternatePath = (targetLang: 'en' | 'de') => {
-  if (targetLang === 'de') {
-    // EN -> DE: add /de prefix
-    if (currentPath === '/') return '/de/';
-    return `/de${currentPath}`;
-  } else {
-    // DE -> EN: remove /de prefix
-    if (currentPath === '/de/' || currentPath === '/de') return '/';
-    return currentPath.replace(/^\/de/, '');
+const getAlternatePath = (targetLang: Locale) => {
+  // Remove current language prefix if present
+  let basePath = currentPath;
+  for (const loc of locales) {
+    if (loc !== DEFAULT_LOCALE) {
+      if (basePath === `/${loc}/` || basePath === `/${loc}`) {
+        basePath = '/';
+      } else if (basePath.startsWith(`/${loc}/`)) {
+        basePath = basePath.replace(`/${loc}`, '');
+      }
+    }
   }
+
+  // Add target language prefix if not default
+  if (targetLang === DEFAULT_LOCALE) {
+    return basePath;
+  }
+  if (basePath === '/') {
+    return `/${targetLang}/`;
+  }
+  return `/${targetLang}${basePath}`;
 };
 
-const alternateLang = lang === 'en' ? 'de' : 'en';
-const alternatePath = getAlternatePath(alternateLang);
+const languageNames: Record<Locale, string> = {
+  en: 'English',
+  de: 'German',
+};
 ---
 
-<a
-  href={alternatePath}
-  class="lang-switch"
-  aria-label={`Switch to ${alternateLang === 'de' ? 'German' : 'English'}`}
->
-  <span class={lang === 'en' ? 'active' : ''}>EN</span>
-  <span class="divider">/</span>
-  <span class={lang === 'de' ? 'active' : ''}>DE</span>
-</a>
+<div class="lang-switch">
+  {locales.map((loc, index) => (
+    <>
+      {index > 0 && <span class="divider">/</span>}
+      {loc === lang ? (
+        <span class="active">{loc.toUpperCase()}</span>
+      ) : (
+        <a
+          href={getAlternatePath(loc)}
+          aria-label={`Switch to ${languageNames[loc]}`}
+        >
+          {loc.toUpperCase()}
+        </a>
+      )}
+    </>
+  ))}
+</div>
 
 <style>
   .lang-switch {
@@ -40,11 +64,16 @@ const alternatePath = getAlternatePath(alternateLang);
     gap: 2px;
     font-size: var(--font-size-sm);
     color: var(--color-text-muted);
+  }
+
+  .lang-switch a {
     text-decoration: none;
+    color: var(--color-text-muted);
+    padding: 2px 4px;
     transition: color var(--transition-fast);
   }
 
-  .lang-switch:hover {
+  .lang-switch a:hover {
     color: var(--color-text);
   }
 
@@ -60,5 +89,6 @@ const alternatePath = getAlternatePath(alternateLang);
 
   .divider {
     color: var(--color-text-muted);
+    padding: 0 !important;
   }
 </style>

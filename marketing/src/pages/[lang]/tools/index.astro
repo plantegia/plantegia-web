@@ -1,33 +1,31 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Card from '../../../components/ui/Card.astro';
+import { getTranslations, getNonDefaultLocales, getLocalizedPath, type Locale } from '../../../i18n';
 
-const tools = [
-  {
-    href: '/de/tools/perpetual-calculator/',
-    title: 'Dauerernte Rechner',
-    description: 'Berechne wie viele Pflanzen du für kontinuierliche Ernten brauchst basierend auf Blütezeit und Erntefrequenz.',
-    icon: '🔄',
-  },
-  {
-    href: '/de/tools/tent-spacing/',
-    title: 'Zelt-Platzierungs-Rechner',
-    description: 'Finde heraus wie viele Pflanzen in dein Grow-Zelt passen basierend auf Zeltgröße und Pflanzenabstand.',
-    icon: '📐',
-  },
-];
+export function getStaticPaths() {
+  return getNonDefaultLocales().map(lang => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params as { lang: Locale };
+const t = getTranslations(lang).pages.tools;
+
+const tools = t.toolsList.map(tool => ({
+  ...tool,
+  href: getLocalizedPath(`/tools/${tool.slug}/`, lang),
+}));
 ---
 
 <BaseLayout
-  title="Kostenlose Grow-Tools | Plantegia"
-  description="Kostenlose Rechner und Tools für die Planung deines Indoor-Grows. Dauerernte-Rechner, Zelt-Platzierung und mehr."
-  keywords={['Grow Rechner', 'Perpetual Harvest Rechner', 'Zelt Platzierung', 'Grow Tools']}
-  lang="de"
+  title={t.title}
+  description={t.description}
+  keywords={t.keywords}
+  lang={lang}
 >
   <div class="tools-page">
     <header class="tools-header">
-      <h1>Kostenlose Grow-Tools</h1>
-      <p>Rechner und Tools für die Planung deines Indoor-Grows.</p>
+      <h1>{t.headerTitle}</h1>
+      <p>{t.headerSubtitle}</p>
     </header>
 
     <div class="tools-grid">

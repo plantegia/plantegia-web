@@ -1,15 +1,16 @@
 ---
 /**
- * Simplified Landing Page
- *
- * Traditional layout without complex SVG demos or interactive elements.
- * Mobile-first, clean sections, easy to maintain.
+ * Simplified Landing Page for non-default locales
  */
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { SignInButton } from '../components/ui/SignInButton';
-import { getTranslations } from '../i18n';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { SignInButton } from '../../components/ui/SignInButton';
+import { getTranslations, getNonDefaultLocales, type Locale } from '../../i18n';
 
-const lang = 'en';
+export function getStaticPaths() {
+  return getNonDefaultLocales().map(lang => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params as { lang: Locale };
 const t = getTranslations(lang).components;
 const p = getTranslations(lang).pages.home;
 
@@ -378,7 +379,6 @@ const faqSchema = {
     display: flex;
     align-items: flex-start;
     padding-top: 80px;
-    background: var(--color-background-light);
   }
 
   .hero .container {
@@ -395,7 +395,7 @@ const faqSchema = {
   }
 
   .hero__plant {
-    width: min(90vw, 500px);
+    width: min(70vw, 500px);
     height: auto;
   }
 

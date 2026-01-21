@@ -1,0 +1,239 @@
+---
+/**
+ * Tetris-style decorative blocks on the sides of the page.
+ * Uses seeded random to generate consistent patterns.
+ * Scrolls with page content.
+ */
+
+// Seeded random for consistent generation
+function seededRandom(seed: number) {
+  return function() {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+}
+
+const CELL = 96; // Cell size in pixels
+const COLORS = ['#51853B', '#15472C', '#3a6a3a', '#6aA050'];
+
+// Rectangle shapes defined as [width, height]
+const SHAPES: [number, number][] = [
+  [1, 1],  // single cell
+  [1, 2],  // vertical 1x2
+  [2, 1],  // horizontal 2x1
+  [1, 3],  // vertical 1x3
+  [2, 2],  // square 2x2
+  [2, 3],  // rectangle 2x3
+  [3, 2],  // rectangle 3x2
+  [3, 3],  // big square 3x3
+  [1, 4],  // tall column
+  [2, 4],  // tall rectangle
+];
+
+interface Shape {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  opacity: number;
+  cells: boolean[][]; // true = filled, false = empty (stroke only)
+}
+
+function generateSideShapes(seed: number): Shape[] {
+  const rand = seededRandom(seed);
+  const shapes: Shape[] = [];
+
+  // Y positions for longer page coverage
+  const yPositions = [0, 5, 11, 18, 26, 35, 45, 56, 68, 81, 95, 110, 126, 143, 161, 180];
+
+  yPositions.forEach((baseY, idx) => {
+    // High probability of placing shapes
+    if (rand() > 0.9) return;
+
+    const [shapeW, shapeH] = SHAPES[Math.floor(rand() * SHAPES.length)];
+    const color = COLORS[Math.floor(rand() * COLORS.length)];
+
+    // X position: closer to edge
+    const maxX = Math.min(3, 1 + Math.floor(idx / 5));
+    const baseX = Math.floor(rand() * maxX);
+
+    // Base opacity varies randomly
+    const distFromEdge = baseX + shapeW / 2;
+    const edgeFade = Math.max(0.4, 1 - distFromEdge * 0.15);
+    const baseOpacity = (0.2 + rand() * 0.3) * edgeFade;
+
+    // Generate cell fill pattern
+    const cells: boolean[][] = [];
+    for (let dx = 0; dx < shapeW; dx++) {
+      cells[dx] = [];
+      for (let dy = 0; dy < shapeH; dy++) {
+        cells[dx][dy] = rand() > 0.4;
+      }
+    }
+
+    shapes.push({
+      x: baseX,
+      y: baseY,
+      w: shapeW,
+      h: shapeH,
+      color,
+      opacity: baseOpacity,
+      cells,
+    });
+  });
+
+  return shapes;
+}
+
+const leftShapes = generateSideShapes(42);
+const rightShapes = generateSideShapes(137);
+
+// Calculate SVG height based on max Y position
+const maxY = Math.max(
+  ...leftShapes.map(s => s.y + s.h),
+  ...rightShapes.map(s => s.y + s.h)
+);
+const svgHeight = (maxY + 4) * CELL;
+---
+
+<div class="tetris-decor tetris-decor--left" aria-hidden="true">
+  <svg width="500" height={svgHeight}>
+    {leftShapes.map(shape => (
+      <g opacity={shape.opacity}>
+        {/* Outer border of the shape */}
+        <rect
+          x={shape.x * CELL}
+          y={shape.y * CELL}
+          width={shape.w * CELL}
+          height={shape.h * CELL}
+          fill="none"
+          stroke={shape.color}
+          stroke-width="1"
+        />
+        {/* Inner grid lines - vertical */}
+        {Array.from({ length: shape.w - 1 }, (_, i) => (
+          <line
+            x1={(shape.x + i + 1) * CELL}
+            y1={shape.y * CELL}
+            x2={(shape.x + i + 1) * CELL}
+            y2={(shape.y + shape.h) * CELL}
+            stroke={shape.color}
+            stroke-width="1"
+          />
+        ))}
+        {/* Inner grid lines - horizontal */}
+        {Array.from({ length: shape.h - 1 }, (_, i) => (
+          <line
+            x1={shape.x * CELL}
+            y1={(shape.y + i + 1) * CELL}
+            x2={(shape.x + shape.w) * CELL}
+            y2={(shape.y + i + 1) * CELL}
+            stroke={shape.color}
+            stroke-width="1"
+          />
+        ))}
+        {/* Filled cells */}
+        {shape.cells.flatMap((col, dx) =>
+          col.map((filled, dy) =>
+            filled ? (
+              <rect
+                x={(shape.x + dx) * CELL + 1}
+                y={(shape.y + dy) * CELL + 1}
+                width={CELL - 2}
+                height={CELL - 2}
+                fill={shape.color}
+              />
+            ) : null
+          )
+        )}
+      </g>
+    ))}
+  </svg>
+</div>
+
+<div class="tetris-decor tetris-decor--right" aria-hidden="true">
+  <svg width="500" height={svgHeight}>
+    {rightShapes.map(shape => {
+      const mirrorX = (x: number) => 500 - x;
+      return (
+        <g opacity={shape.opacity}>
+          {/* Outer border of the shape */}
+          <rect
+            x={mirrorX((shape.x + shape.w) * CELL)}
+            y={shape.y * CELL}
+            width={shape.w * CELL}
+            height={shape.h * CELL}
+            fill="none"
+            stroke={shape.color}
+            stroke-width="1"
+          />
+          {/* Inner grid lines - vertical */}
+          {Array.from({ length: shape.w - 1 }, (_, i) => (
+            <line
+              x1={mirrorX((shape.x + i + 1) * CELL)}
+              y1={shape.y * CELL}
+              x2={mirrorX((shape.x + i + 1) * CELL)}
+              y2={(shape.y + shape.h) * CELL}
+              stroke={shape.color}
+              stroke-width="1"
+            />
+          ))}
+          {/* Inner grid lines - horizontal */}
+          {Array.from({ length: shape.h - 1 }, (_, i) => (
+            <line
+              x1={mirrorX((shape.x + shape.w) * CELL)}
+              y1={(shape.y + i + 1) * CELL}
+              x2={mirrorX(shape.x * CELL)}
+              y2={(shape.y + i + 1) * CELL}
+              stroke={shape.color}
+              stroke-width="1"
+            />
+          ))}
+          {/* Filled cells */}
+          {shape.cells.flatMap((col, dx) =>
+            col.map((filled, dy) =>
+              filled ? (
+                <rect
+                  x={mirrorX((shape.x + dx + 1) * CELL) + 1}
+                  y={(shape.y + dy) * CELL + 1}
+                  width={CELL - 2}
+                  height={CELL - 2}
+                  fill={shape.color}
+                />
+              ) : null
+            )
+          )}
+        </g>
+      );
+    })}
+  </svg>
+</div>
+
+<style>
+  .tetris-decor {
+    position: absolute;
+    top: 0;
+    bottom: 160px; /* Stop before footer */
+    width: 500px;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .tetris-decor--left {
+    left: 0;
+  }
+
+  .tetris-decor--right {
+    right: 0;
+  }
+
+
+  /* Hide on narrow screens where it would overlap content */
+  @media (max-width: 1100px) {
+    .tetris-decor {
+      display: none;
+    }
+  }
+</style>

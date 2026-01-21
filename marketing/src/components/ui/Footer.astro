@@ -1,4 +1,6 @@
 ---
+import Logo from './Logo.astro';
+
 interface Props {
   lang: 'en' | 'de';
 }
@@ -40,7 +42,7 @@ const year = new Date().getFullYear();
 <footer class="footer">
   <div class="footer-container">
     <div class="footer-brand">
-      <span class="logo">PLANTEGIA</span>
+      <Logo />
       <p class="tagline">{labels.tagline}</p>
     </div>
 
@@ -86,12 +88,6 @@ const year = new Date().getFullYear();
 
   .footer-brand {
     margin-bottom: var(--spacing-xl);
-  }
-
-  .logo {
-    font-size: var(--font-size-lg);
-    font-weight: 700;
-    letter-spacing: 2px;
   }
 
   .tagline {
