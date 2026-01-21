@@ -10,8 +10,8 @@ export default {
     taglineEnd: 'muss.',
     cta: 'Mit Google anmelden',
     ctaSignedIn: 'Zur App',
-    price: '39 € einmalige Zahlung',
-    guarantee: '7 Tage Geld zurück',
+    price: 'Kostenlos für Early Adopters',
+    guarantee: 'dann 29 € einmalig',
   },
   problem: {
     headline: 'Zwei Zelte.',
@@ -186,9 +186,9 @@ export default {
     ],
   },
   cta: {
-    price: '$29',
-    note: 'Einmalig. Kein Abo.',
-    guarantee: '7 Tage Geld-zurück-Garantie. Keine Fragen.',
+    price: 'Kostenlos starten',
+    note: 'Erstelle dein Konto und plane deinen ersten Grow noch heute.',
+    guarantee: 'Die App ist kostenlos für Early Adopters, dann 29 € einmalig.',
     cta: 'Eintreten',
     ctaSignedIn: 'Zur App',
   },
