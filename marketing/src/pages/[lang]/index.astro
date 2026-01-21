@@ -39,7 +39,7 @@ const faqSchema = {
   <section class="hero">
     <div class="container">
       <div class="hero__image">
-        <img src="/heroplant.svg" alt="Plant illustration" class="hero__plant" />
+        <img src="/heroplant.svg" alt="Cannabis grow planner - visual tool for perpetual harvest scheduling" class="hero__plant" />
       </div>
       <h1 class="hero__title">{t.hero.headline}</h1>
       <p class="hero__tagline">
@@ -296,7 +296,7 @@ const faqSchema = {
         {t.faq.faqs.map((faq) => (
           <div class="faq-item">
             <dt class="faq-item__question">{faq.q}</dt>
-            <dd class="faq-item__answer">{faq.a}</dd>
+            <dd class="faq-item__answer" set:html={faq.a} />
           </div>
         ))}
       </dl>
@@ -379,7 +379,7 @@ const faqSchema = {
     display: flex;
     align-items: flex-start;
     padding-top: 80px;
-    background: var(--color-background-light);
+    background: var(--color-stage-flowering);
   }
 
   .hero .container {
@@ -956,6 +956,16 @@ const faqSchema = {
     color: var(--color-text-muted);
     line-height: 1.6;
     margin: 0;
+  }
+
+  .faq-item__answer :global(a) {
+    color: var(--color-teal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .faq-item__answer :global(a:hover) {
+    color: var(--color-green);
   }
 
   /* ============================================

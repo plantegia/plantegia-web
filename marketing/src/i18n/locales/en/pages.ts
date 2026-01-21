@@ -1,8 +1,8 @@
 export default {
   home: {
-    title: 'Perpetual Harvest Planner for Multi-Tent Growers | Plantegia',
-    description: 'Plan your perpetual harvest across multiple tents. Visual grow planner for rotation schedules, veg-to-flower timing, and continuous cycles. One-time $29.',
-    keywords: ['perpetual harvest planner', 'cannabis grow planner', 'multi tent grow schedule', 'two tent setup', 'grow room planning', 'veg and flower tent', 'perpetual harvest calculator', 'indoor grow rotation'],
+    title: 'Cannabis Grow Planner for Multi-Tent Setups | Plantegia',
+    description: 'Cannabis grow planner for perpetual harvest. Visual timeline to schedule veg-to-flower transitions across multiple tents. Plan rotation, avoid gaps. Free for early adopters.',
+    keywords: ['cannabis grow planner', 'perpetual harvest planner', 'perpetual harvest schedule', 'two tent grow setup', 'veg and flower tent schedule', 'grow room rotation schedule', 'perpetual harvest calculator', 'multi tent grow planning'],
   },
   blog: {
     title: 'Blog | Plantegia',

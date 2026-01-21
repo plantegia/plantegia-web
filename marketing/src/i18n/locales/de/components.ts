@@ -1,6 +1,6 @@
 export default {
   hero: {
-    headline: 'Perpetual Harvest Planer für Grower',
+    headline: 'Perpetual Harvest Planer',
     taglinePrefix: 'Wissen, wann man',
     seed: 'säen',
     flip: 'umstellen',
@@ -32,13 +32,13 @@ export default {
       and: 'und',
     },
     space: {
-      title: 'Space Ansicht',
+      title: 'Raum',
       subtitle: 'XY',
       desc: 'Plane deine Zelte und Räume. Ziehe Pflanzen zwischen Zellen. Sieh dein ganzes Setup — Veg-Zelt, Blütezelt, Klon-Ecke.',
       alt: 'Plantegia Growraum Layout Planer zeigt Pflanzenpositionen in mehreren Zelten mit Drag-and-Drop',
     },
     time: {
-      title: 'Timeline Ansicht',
+      title: 'Zeit',
       subtitle: 'XT',
       desc: 'Gantt-Zeitplan für deinen Grow. Sieh Keimung bis Ernte. Ziehe um Timing zu ändern. Plane Wochen voraus.',
       alt: 'Perpetual Harvest Timeline zeigt Pflanzenwachstumsphasen von Keimung bis Ernte im Gantt-Diagramm Stil',
@@ -161,11 +161,11 @@ export default {
     faqs: [
       {
         q: 'Wie viele Pflanzen brauche ich für Perpetual Harvest?',
-        a: 'Hängt von deiner Blütezeit und Erntefrequenz ab. Mit 8-Wochen Strains und zwei Zelten halten 4-8 Pflanzen in Rotation dich alle 2-4 Wochen am Ernten.',
+        a: 'Hängt von deiner Blütezeit und Erntefrequenz ab. Mit 8-Wochen Strains und zwei Zelten halten 4-8 Pflanzen in Rotation dich alle 2-4 Wochen am Ernten. Probiere unseren <a href="/de/tools/perpetual-calculator">Dauerernte-Rechner</a> um deine ideale Anzahl zu finden.',
       },
       {
         q: 'Kann ich ein Zwei-Zelt-Setup mit Veg und Blüte planen?',
-        a: 'Ja — genau dafür ist Plantegia gebaut. Mappe beide Zelte, plane wann Pflanzen von Veg zu Blüte wechseln, und sieh deine ganze Rotation auf einer Timeline.',
+        a: 'Ja — genau dafür ist Plantegia gebaut. Mappe beide Zelte, plane wann Pflanzen von Veg zu Blüte wechseln, und sieh deine ganze Rotation auf einer Timeline. Nutze unseren <a href="/de/tools/tent-spacing">Zelt-Platzierungs-Rechner</a> für die Kapazität.',
       },
       {
         q: 'Wie berechne ich wann ich neue Seeds starten soll?',

@@ -32,13 +32,13 @@ export default {
       and: 'and',
     },
     space: {
-      title: 'Space View',
+      title: 'Space',
       subtitle: 'XY',
       desc: 'Map your tents and rooms. Drag plants between cells. See your whole setup at a glance — veg tent, flower tent, clone corner.',
       alt: 'Plantegia grow room layout planner showing plant positions across multiple tents with drag and drop interface',
     },
     time: {
-      title: 'Timeline View',
+      title: 'Timeline',
       subtitle: 'XT',
       desc: 'Gantt-style schedule for your grow. See germination through harvest. Drag to shift timing. Plan weeks ahead.',
       alt: 'Perpetual harvest timeline view showing plant growth stages from germination to harvest in Gantt chart style',
@@ -161,11 +161,11 @@ export default {
     faqs: [
       {
         q: 'How many plants do I need for perpetual harvest?',
-        a: 'Depends on your flowering time and harvest frequency. With 8-week strains and two tents, 4-8 plants in rotation keeps you harvesting every 2-4 weeks. Plantegia helps you visualize the math.',
+        a: 'Depends on your flowering time and harvest frequency. With 8-week strains and two tents, 4-8 plants in rotation keeps you harvesting every 2-4 weeks. Try our <a href="/tools/perpetual-calculator">perpetual harvest calculator</a> to find your ideal number.',
       },
       {
         q: 'Can I plan a two tent setup with veg and flower?',
-        a: 'Yes — this is exactly what Plantegia is built for. Map both tents, schedule when plants move from veg to flower, and see your whole rotation on a timeline.',
+        a: 'Yes — this is exactly what Plantegia is built for. Map both tents, schedule when plants move from veg to flower, and see your whole rotation on a timeline. Check our <a href="/tools/tent-spacing">tent spacing calculator</a> to plan capacity.',
       },
       {
         q: 'How do I calculate when to start new seeds?',

@@ -1,8 +1,8 @@
 export default {
   home: {
-    title: 'Perpetual Harvest Planer für Multi-Zelt Grower | Plantegia',
-    description: 'Plane deine Dauerernte über mehrere Zelte. Visueller Cannabis Anbau Planer für Rotations-Zeitpläne und Veg-zu-Blüte Timing. Einmalig $29.',
-    keywords: ['Cannabis Anbau Planer', 'Perpetual Harvest Anleitung', 'Growbox Planung', 'zwei Zelte Cannabis', 'Dauerernte', 'Veg und Blüte Zelt', 'Indoor Growing Planer'],
+    title: 'Cannabis Anbau Planer für Growbox & Multi-Zelt Setups | Plantegia',
+    description: 'Cannabis Anbau Planer für Dauerernte. Visuelle Timeline für Veg-zu-Blüte Übergänge in mehreren Zelten. Rotation planen, Lücken vermeiden. Kostenlos für Early Adopters.',
+    keywords: ['Cannabis Anbau Planer', 'Growbox Planung', 'Perpetual Harvest Anleitung', 'zwei Zelte Cannabis', 'Dauerernte Cannabis', 'Veg und Blüte Zelt', 'Cannabis Ernte Planung', 'Indoor Growing Planer'],
   },
   blog: {
     title: 'Blog | Plantegia',
