@@ -1,5 +1,5 @@
 ---
-import ToolLayout from '../../../layouts/ToolLayout.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
 import TentSpacingCalculator from '../../../components/tools/TentSpacingCalculator';
 import { getTranslations, getNonDefaultLocales, type Locale } from '../../../i18n';
 
@@ -9,105 +9,290 @@ export function getStaticPaths() {
 
 const { lang } = Astro.params as { lang: Locale };
 const t = getTranslations(lang).pages.tentSpacing;
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": t.faq.items.map(item => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
+};
+
+const webAppSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Grow Tent Size Calculator",
+  "description": t.description,
+  "applicationCategory": "Utility",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+};
 ---
 
-<ToolLayout
+<BaseLayout
   title={t.title}
   description={t.description}
   keywords={t.keywords}
   lang={lang}
 >
-  <TentSpacingCalculator lang={lang} client:load />
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} slot="head" />
+  <script type="application/ld+json" set:html={JSON.stringify(webAppSchema)} slot="head" />
 
-  <section class="spacing-guide">
-    <h2>{t.guide.title}</h2>
-    <p>{t.guide.intro}</p>
+  <div class="tool-page">
+    <div class="container">
+      <header class="tool-header">
+        <h1>Growzelt Rechner</h1>
+        <p class="subtitle">{t.subtitle}</p>
+      </header>
 
-    <h3>{t.guide.plantSizes.title}</h3>
-    <ul>
-      {t.guide.plantSizes.items.map(item => (
-        <li>
-          <strong>{item.size}:</strong> {item.description}
-        </li>
-      ))}
-    </ul>
+      <div class="calculator-section">
+        <TentSpacingCalculator lang={lang} client:load />
+      </div>
 
-    <h3>{t.guide.commonTentSizes.title}</h3>
-    <table>
-      <thead>
-        <tr>
-          {t.guide.commonTentSizes.headers.map(header => (
-            <th>{header}</th>
+      <section class="content-section">
+        <h2>{t.whatIs.title}</h2>
+        <p>{t.whatIs.content}</p>
+      </section>
+
+      <section class="content-section">
+        <h2>{t.referenceTable.title}</h2>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                {t.referenceTable.headers.map(header => (
+                  <th>{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {t.referenceTable.rows.map(row => (
+                <tr>
+                  {row.map((cell, i) => (
+                    <td class={i >= 2 ? 'number' : ''}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="footnote">{t.referenceTable.footnote}</p>
+      </section>
+
+      <section class="content-section">
+        <h2>{t.howItWorks.title}</h2>
+        <p>{t.howItWorks.intro}</p>
+
+        <h3>{t.howItWorks.keyConcepts.title}</h3>
+        <ul class="concepts-list">
+          {t.howItWorks.keyConcepts.items.map(item => (
+            <li>
+              <strong>{item.term}:</strong> {item.definition}
+            </li>
           ))}
-        </tr>
-      </thead>
-      <tbody>
-        {t.guide.commonTentSizes.rows.map(row => (
-          <tr>
-            {row.map(cell => (
-              <td>{cell}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+        </ul>
+      </section>
 
-    <h3>{t.guide.tips.title}</h3>
-    <ul>
-      {t.guide.tips.items.map(tip => (
-        <li>{tip}</li>
-      ))}
-    </ul>
-  </section>
-</ToolLayout>
+      <section class="content-section">
+        <h2>{t.tips.title}</h2>
+        <ul class="tips-list">
+          {t.tips.items.map(tip => (
+            <li>{tip}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section class="content-section faq-section">
+        <h2>{t.faq.title}</h2>
+        {t.faq.items.map(item => (
+          <div class="faq-item">
+            <h3>{item.question}</h3>
+            <p>{item.answer}</p>
+          </div>
+        ))}
+      </section>
+
+      <section class="cta-section">
+        <h2>{t.cta.title}</h2>
+        <p>{t.cta.content}</p>
+        <a href="https://app.plantegia.com" class="cta-button">{t.cta.button}</a>
+      </section>
+    </div>
+  </div>
+</BaseLayout>
 
 <style>
-  .spacing-guide {
-    max-width: 65ch;
-    margin: var(--spacing-2xl) auto 0;
+  .tool-page {
+    padding: var(--spacing-2xl) 0;
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+  }
+
+  .tool-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .tool-header h1 {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-muted);
+  }
+
+  .calculator-section {
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .content-section {
+    margin-bottom: var(--spacing-2xl);
     padding-top: var(--spacing-xl);
     border-top: 1px solid var(--color-border);
   }
 
-  .spacing-guide h2 {
+  .content-section h2 {
     font-size: var(--font-size-xl);
     margin-bottom: var(--spacing-md);
+    color: var(--color-teal);
   }
 
-  .spacing-guide h3 {
+  .content-section h3 {
     font-size: var(--font-size-lg);
-    margin-top: var(--spacing-xl);
+    margin-top: var(--spacing-lg);
     margin-bottom: var(--spacing-sm);
   }
 
-  .spacing-guide p,
-  .spacing-guide li {
+  .content-section p {
     color: var(--color-text-muted);
+    line-height: 1.6;
   }
 
-  .spacing-guide strong {
+  .concepts-list,
+  .tips-list {
+    color: var(--color-text-muted);
+    padding-left: var(--spacing-lg);
+  }
+
+  .concepts-list li,
+  .tips-list li {
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.6;
+  }
+
+  .concepts-list strong {
     color: var(--color-text);
   }
 
-  .spacing-guide table {
-    width: 100%;
-    border-collapse: collapse;
+  /* Table styles */
+  .table-wrapper {
+    overflow-x: auto;
     margin: var(--spacing-md) 0;
   }
 
-  .spacing-guide th,
-  .spacing-guide td {
-    padding: var(--spacing-sm);
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+  }
+
+  th, td {
+    padding: var(--spacing-sm) var(--spacing-md);
     border: 1px solid var(--color-border);
     text-align: center;
   }
 
-  .spacing-guide th {
+  th {
     background: var(--color-background-dark);
+    font-weight: 700;
+    color: var(--color-text);
   }
 
-  .spacing-guide td:first-child {
+  td:first-child {
     text-align: left;
-    font-weight: bold;
+    font-weight: 600;
+  }
+
+  td.number {
+    color: var(--color-green);
+    font-weight: 600;
+  }
+
+  .footnote {
+    font-size: var(--font-size-sm);
+    font-style: italic;
+    margin-top: var(--spacing-sm);
+  }
+
+  /* FAQ styles */
+  .faq-section h2 {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .faq-item {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .faq-item h3 {
+    font-size: var(--font-size-base);
+    margin-top: 0;
+    margin-bottom: var(--spacing-xs);
+    color: var(--color-text);
+  }
+
+  .faq-item p {
+    margin: 0;
+  }
+
+  /* CTA styles */
+  .cta-section {
+    background: var(--color-background-dark);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-lg);
+    text-align: center;
+    margin-top: var(--spacing-2xl);
+  }
+
+  .cta-section h2 {
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .cta-section p {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-lg);
+    max-width: 50ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .cta-button {
+    display: inline-block;
+    background: var(--color-green);
+    color: var(--color-text);
+    padding: var(--spacing-sm) var(--spacing-xl);
+    border-radius: var(--border-radius);
+    font-weight: 700;
+    transition: background var(--transition-fast);
+  }
+
+  .cta-button:hover {
+    background: var(--color-orange);
+    color: var(--color-text);
   }
 </style>
