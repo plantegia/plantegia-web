@@ -1,6 +1,6 @@
 import { defineCollection, z } from 'astro:content';
 
-const blog = defineCollection({
+const guides = defineCollection({
   type: 'content',
   schema: z.object({
     title: z.string(),
@@ -8,6 +8,7 @@ const blog = defineCollection({
     pubDate: z.coerce.date(),
     updatedDate: z.coerce.date().optional(),
     heroImage: z.string().optional(),
+    heroImageQuery: z.string().optional(), // Pexels search query for dev image picker
     keywords: z.array(z.string()).default([]),
     lang: z.enum(['en', 'de']).default('en'),
     // For related posts
@@ -21,4 +22,4 @@ const blog = defineCollection({
   }),
 });
 
-export const collections = { blog };
+export const collections = { guides };

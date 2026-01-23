@@ -1,24 +1,32 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { COLORS, STAGE_COLORS } from '../../styles/tokens';
+import TickSlider from '../ui/TickSlider';
 
 interface Props {
   lang?: 'en' | 'de';
-}
-
-interface Result {
-  plantsInVeg: number;
-  plantsInFlower: number;
-  totalPlants: number;
-  plantEveryXDays: number;
-  harvestEveryXDays: number;
-  vegWeeks: number;
 }
 
 export default function PerpetualCalculator({ lang = 'en' }: Props) {
   const [floweringWeeks, setFloweringWeeks] = useState(8);
   const [vegWeeks, setVegWeeks] = useState(4);
   const [harvestFrequency, setHarvestFrequency] = useState(2); // weeks between harvests
-  const [result, setResult] = useState<Result | null>(null);
+
+  const result = useMemo(() => {
+    const harvestDays = harvestFrequency * 7;
+    const floweringDays = floweringWeeks * 7;
+    const vegDays = vegWeeks * 7;
+
+    const plantsInFlower = Math.ceil(floweringDays / harvestDays);
+    const plantsInVeg = Math.ceil(vegDays / harvestDays);
+
+    return {
+      plantsInVeg,
+      plantsInFlower,
+      totalPlants: plantsInVeg + plantsInFlower,
+      plantEveryXDays: harvestDays,
+      harvestEveryXDays: harvestDays,
+    };
+  }, [floweringWeeks, vegWeeks, harvestFrequency]);
 
   const t = {
     en: {
@@ -28,14 +36,16 @@ export default function PerpetualCalculator({ lang = 'en' }: Props) {
       harvestFrequency: 'Harvest Every (weeks)',
       calculate: 'Calculate',
       results: 'Results',
-      plantsInVeg: 'Plants in Veg',
-      plantsInFlower: 'Plants in Flower',
+      plantsInVeg: 'Veg Zone',
+      plantsInFlower: 'Flower Zone',
       totalPlants: 'Total Plants Needed',
       plantEvery: 'Plant new every',
       harvestEvery: 'Harvest every',
       days: 'days',
       weeks: 'weeks',
       tip: 'Tip: Adjust veg period to control plant size before flowering.',
+      ctaText: 'Different strains have different veg and flowering periods. For precise planning with multiple strains,',
+      ctaLink: 'try Plantegia',
     },
     de: {
       title: 'Dauerernte Rechner',
@@ -44,205 +54,160 @@ export default function PerpetualCalculator({ lang = 'en' }: Props) {
       harvestFrequency: 'Ernte alle (Wochen)',
       calculate: 'Berechnen',
       results: 'Ergebnisse',
-      plantsInVeg: 'Pflanzen in Veg',
-      plantsInFlower: 'Pflanzen in Blüte',
+      plantsInVeg: 'Veg Zone',
+      plantsInFlower: 'Flower Zone',
       totalPlants: 'Benötigte Pflanzen',
       plantEvery: 'Neue Pflanze alle',
       harvestEvery: 'Ernte alle',
       days: 'Tage',
       weeks: 'Wochen',
       tip: 'Tipp: Passe die Veg-Zeit an um die Pflanzengröße vor der Blüte zu kontrollieren.',
+      ctaText: 'Verschiedene Sorten haben unterschiedliche Veg- und Blütezeiten. Für präzise Planung mit mehreren Sorten,',
+      ctaLink: 'Plantegia testen',
     },
   };
 
   const labels = t[lang];
-
-  const calculate = () => {
-    const harvestDays = harvestFrequency * 7;
-    const floweringDays = floweringWeeks * 7;
-    const vegDays = vegWeeks * 7;
-
-    // Plants in flowering = flowering days / harvest frequency
-    const plantsInFlower = Math.ceil(floweringDays / harvestDays);
-    // Plants in veg = veg days / harvest frequency
-    const plantsInVeg = Math.ceil(vegDays / harvestDays);
-
-    setResult({
-      plantsInVeg,
-      plantsInFlower,
-      totalPlants: plantsInVeg + plantsInFlower,
-      plantEveryXDays: harvestDays,
-      harvestEveryXDays: harvestDays,
-      vegWeeks,
-    });
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '8px 12px',
-    fontSize: '16px',
-    fontFamily: '"Space Mono", monospace',
-    backgroundColor: COLORS.background,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: '4px',
-    color: COLORS.text,
-    outline: 'none',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: 'block',
-    marginBottom: '4px',
-    fontSize: '14px',
-    color: COLORS.textMuted,
-  };
 
   return (
     <div
       style={{
         fontFamily: '"Space Mono", monospace',
         backgroundColor: COLORS.backgroundDark,
-        borderRadius: '8px',
+        border: `1px solid ${COLORS.border}`,
         padding: '24px',
       }}
     >
-      <div style={{ display: 'grid', gap: '16px', marginBottom: '24px' }}>
-        <div>
-          <label style={labelStyle}>{labels.floweringWeeks}</label>
-          <input
-            type="number"
-            min={6}
-            max={14}
-            value={floweringWeeks}
-            onChange={(e) => setFloweringWeeks(Number(e.target.value))}
-            style={inputStyle}
-          />
-        </div>
-
-        <div>
-          <label style={labelStyle}>{labels.vegWeeks}</label>
-          <input
-            type="number"
-            min={2}
-            max={12}
-            value={vegWeeks}
-            onChange={(e) => setVegWeeks(Number(e.target.value))}
-            style={inputStyle}
-          />
-        </div>
-
-        <div>
-          <label style={labelStyle}>{labels.harvestFrequency}</label>
-          <input
-            type="number"
-            min={1}
-            max={4}
-            value={harvestFrequency}
-            onChange={(e) => setHarvestFrequency(Number(e.target.value))}
-            style={inputStyle}
-          />
-        </div>
-
-        <button
-          onClick={calculate}
-          style={{
-            padding: '12px 24px',
-            fontSize: '16px',
-            fontFamily: '"Space Mono", monospace',
-            fontWeight: 'bold',
-            backgroundColor: COLORS.green,
-            color: COLORS.text,
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            transition: 'background 0.2s',
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = COLORS.orange)}
-          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = COLORS.green)}
-        >
-          {labels.calculate}
-        </button>
-      </div>
-
-      {result && (
+      {/* Results - big numbers */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '24px',
+          marginBottom: '32px',
+        }}
+      >
         <div
           style={{
-            backgroundColor: COLORS.background,
-            borderRadius: '8px',
+            flex: 1,
+            textAlign: 'center',
             padding: '16px',
+            border: `1px solid ${STAGE_COLORS.vegetative}`,
           }}
         >
-          <h4 style={{ marginBottom: '16px', color: COLORS.teal }}>{labels.results}</h4>
-
-          <div style={{ display: 'grid', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: COLORS.textMuted }}>{labels.plantsInVeg}</span>
-              <span
-                style={{
-                  fontWeight: 'bold',
-                  color: STAGE_COLORS.vegetative,
-                  padding: '2px 8px',
-                  backgroundColor: COLORS.backgroundDark,
-                  borderRadius: '4px',
-                }}
-              >
-                {result.plantsInVeg}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: COLORS.textMuted }}>{labels.plantsInFlower}</span>
-              <span
-                style={{
-                  fontWeight: 'bold',
-                  color: STAGE_COLORS.flowering,
-                  padding: '2px 8px',
-                  backgroundColor: COLORS.backgroundDark,
-                  borderRadius: '4px',
-                }}
-              >
-                {result.plantsInFlower}
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                paddingTop: '12px',
-                borderTop: `1px solid ${COLORS.border}`,
-              }}
-            >
-              <span style={{ color: COLORS.textMuted }}>{labels.totalPlants}</span>
-              <span style={{ fontWeight: 'bold', fontSize: '18px' }}>{result.totalPlants}</span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: COLORS.textMuted }}>{labels.plantEvery}</span>
-              <span>
-                {result.plantEveryXDays} {labels.days}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: COLORS.textMuted }}>{labels.harvestEvery}</span>
-              <span>
-                {result.harvestEveryXDays} {labels.days}
-              </span>
-            </div>
-          </div>
-
-          <p
+          <div
             style={{
-              marginTop: '16px',
-              fontSize: '12px',
-              color: COLORS.textMuted,
-              fontStyle: 'italic',
+              fontSize: '48px',
+              fontWeight: 'bold',
+              color: STAGE_COLORS.vegetative,
+              lineHeight: 1,
             }}
           >
-            {labels.tip}
-          </p>
+            {result.plantsInVeg}
+          </div>
+          <div
+            style={{
+              fontSize: '12px',
+              color: COLORS.textMuted,
+              marginTop: '8px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            {labels.plantsInVeg}
+          </div>
         </div>
-      )}
+
+        <div
+          style={{
+            flex: 1,
+            textAlign: 'center',
+            padding: '16px',
+            border: `1px solid ${STAGE_COLORS.vegetative}`,
+          }}
+        >
+          <div
+            style={{
+              fontSize: '48px',
+              fontWeight: 'bold',
+              color: STAGE_COLORS.vegetative,
+              lineHeight: 1,
+            }}
+          >
+            {result.plantsInFlower}
+          </div>
+          <div
+            style={{
+              fontSize: '12px',
+              color: COLORS.textMuted,
+              marginTop: '8px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >
+            {labels.plantsInFlower}
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: 'grid', gap: '24px' }}>
+        <TickSlider
+          label={labels.floweringWeeks}
+          value={floweringWeeks}
+          onChange={setFloweringWeeks}
+          min={6}
+          max={14}
+          tickInterval={2}
+        />
+
+        <TickSlider
+          label={labels.vegWeeks}
+          value={vegWeeks}
+          onChange={setVegWeeks}
+          min={2}
+          max={12}
+          tickInterval={2}
+        />
+
+        <TickSlider
+          label={labels.harvestFrequency}
+          value={harvestFrequency}
+          onChange={setHarvestFrequency}
+          min={1}
+          max={8}
+          tickInterval={2}
+        />
+      </div>
+
+      {/* CTA */}
+      <div
+        style={{
+          marginTop: '24px',
+          paddingTop: '20px',
+          borderTop: `1px solid ${COLORS.border}`,
+          textAlign: 'center',
+        }}
+      >
+        <p
+          style={{
+            fontSize: '13px',
+            color: COLORS.textMuted,
+            margin: 0,
+            lineHeight: 1.5,
+          }}
+        >
+          {labels.ctaText}{' '}
+          <a
+            href="https://app.plantegia.com"
+            style={{
+              color: COLORS.text,
+              fontWeight: 'bold',
+            }}
+          >
+            {labels.ctaLink}
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

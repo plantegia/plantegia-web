@@ -9,9 +9,9 @@ export function getStaticPaths() {
 }
 
 const { lang } = Astro.params as { lang: Locale };
-const t = getTranslations(lang).pages.blog;
+const t = getTranslations(lang).pages.guides;
 
-const posts = await getCollection('blog', ({ data }: { data: { lang: string } }) => data.lang === lang);
+const posts = await getCollection('guides', ({ data }: { data: { lang: string } }) => data.lang === lang);
 ---
 
 <BaseLayout

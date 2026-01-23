@@ -1,10 +1,10 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import PerpetualCalculatorComponent from '../../components/tools/PerpetualCalculator';
+import PerpetualVsSequentialCalculator from '../../components/tools/PerpetualVsSequentialCalculator';
 import { getTranslations } from '../../i18n';
 
 const lang = 'en';
-const t = getTranslations(lang).pages.perpetualCalculator;
+const t = getTranslations(lang).pages.perpetualVsSequential;
 
 const faqSchema = {
   "@context": "https://schema.org",
@@ -22,7 +22,7 @@ const faqSchema = {
 const webAppSchema = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  "name": "Perpetual Harvest Calculator",
+  "name": "Perpetual vs Sequential Harvest Calculator",
   "description": t.description,
   "applicationCategory": "Utility",
   "operatingSystem": "Any",
@@ -46,12 +46,12 @@ const webAppSchema = {
   <div class="tool-page">
     <div class="container">
       <header class="tool-header">
-        <h1>Perpetual Harvest Calculator</h1>
-        <p class="subtitle">Calculate exactly how many plants you need for continuous harvests</p>
+        <h1>Perpetual vs Sequential Harvest</h1>
+        <p class="subtitle">{t.subtitle}</p>
       </header>
 
       <div class="calculator-section">
-        <PerpetualCalculatorComponent lang={lang} client:load />
+        <PerpetualVsSequentialCalculator lang={lang} client:load />
       </div>
 
       <section class="content-section">
@@ -74,7 +74,7 @@ const webAppSchema = {
               {t.referenceTable.rows.map(row => (
                 <tr>
                   {row.map((cell, i) => (
-                    <td class={i === row.length - 1 ? 'highlight' : ''}>{cell}</td>
+                    <td class={i === 1 ? 'highlight' : ''}>{cell}</td>
                   ))}
                 </tr>
               ))}
@@ -96,12 +96,6 @@ const webAppSchema = {
             </li>
           ))}
         </ul>
-
-        <h3>{t.howItWorks.twoTentSetup.title}</h3>
-        <p>{t.howItWorks.twoTentSetup.content}</p>
-
-        <h3>{t.howItWorks.exampleSetup.title}</h3>
-        <p>{t.howItWorks.exampleSetup.content}</p>
       </section>
 
       <section class="content-section">

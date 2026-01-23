@@ -121,28 +121,28 @@ Core content:
 | Week | Content | Type | Target Keyword |
 |------|---------|------|----------------|
 | 1 | Landing page SEO optimization | Page | cannabis grow planner |
-| 1 | "What is Perpetual Harvest" | Blog | perpetual harvest meaning |
-| 2 | "Perpetual Harvest with 2 Tents" | Blog (Pillar) | two tent grow setup |
+| 1 | "What is Perpetual Harvest" | Guide | perpetual harvest meaning |
+| 2 | "Perpetual Harvest with 2 Tents" | Guide (Pillar) | two tent grow setup |
 | 3 | "Perpetual Harvest Schedule Calculator" | Tool + Blog | perpetual harvest calculator |
-| 4 | "When to Start New Seeds in Perpetual Setup" | Blog | when to start seeds perpetual harvest |
+| 4 | "When to Start New Seeds in Perpetual Setup" | Guide | when to start seeds perpetual harvest |
 
 ### Month 2: Depth
 
 | Week | Content | Type | Target Keyword |
 |------|---------|------|----------------|
-| 5 | "Veg Tent vs Flower Tent Size Ratio" | Blog | veg tent size vs flower tent |
-| 6 | "8-Week Strain Perpetual Schedule" | Blog | perpetual harvest schedule 8 week |
-| 7 | "10-Week Strain Perpetual Schedule" | Blog | perpetual harvest schedule 10 week |
-| 8 | "Common Perpetual Harvest Mistakes" | Blog | perpetual harvest problems |
+| 5 | "Veg Tent vs Flower Tent Size Ratio" | Guide | veg tent size vs flower tent |
+| 6 | "8-Week Strain Perpetual Schedule" | Guide | perpetual harvest schedule 8 week |
+| 7 | "10-Week Strain Perpetual Schedule" | Guide | perpetual harvest schedule 10 week |
+| 8 | "Common Perpetual Harvest Mistakes" | Guide | perpetual harvest problems |
 
 ### Month 3: Expansion + German Launch
 
 | Week | Content | Type | Target Keyword |
 |------|---------|------|----------------|
-| 9 | "Autoflower Perpetual Harvest Guide" | Blog (Pillar) | autoflower perpetual harvest |
-| 10 | "Perpetual Harvest Anleitung" (DE) | Blog | Perpetual Harvest Anleitung |
-| 11 | "Cannabis Anbau mit zwei Zelten" (DE) | Blog | zwei Zelte Cannabis |
-| 12 | "How Many Plants for Perpetual Harvest" | Blog | how many plants perpetual harvest |
+| 9 | "Autoflower Perpetual Harvest Guide" | Guide (Pillar) | autoflower perpetual harvest |
+| 10 | "Perpetual Harvest Anleitung" (DE) | Guide | Perpetual Harvest Anleitung |
+| 11 | "Cannabis Anbau mit zwei Zelten" (DE) | Guide | zwei Zelte Cannabis |
+| 12 | "How Many Plants for Perpetual Harvest" | Guide | how many plants perpetual harvest |
 
 ### Month 4: Tools & Calculators
 
@@ -157,10 +157,10 @@ Core content:
 
 | Week | Content | Type | Target Keyword |
 |------|---------|------|----------------|
-| 17 | "3-Tent Perpetual Setup" | Blog | three tent grow setup |
-| 18 | "Mother Plant Room Planning" | Blog | mother plant setup schedule |
-| 19 | "Perpetual Harvest Yield Optimization" | Blog | perpetual harvest yield |
-| 20 | "Growbox Planung für Anfänger" (DE) | Blog (Pillar) | Growbox Planung |
+| 17 | "3-Tent Perpetual Setup" | Guide | three tent grow setup |
+| 18 | "Mother Plant Room Planning" | Guide | mother plant setup schedule |
+| 19 | "Perpetual Harvest Yield Optimization" | Guide | perpetual harvest yield |
+| 20 | "Growbox Planung für Anfänger" (DE) | Guide (Pillar) | Growbox Planung |
 
 ### Month 6: Comparison & Review
 
@@ -175,7 +175,7 @@ Core content:
 
 ## Content Templates
 
-### Blog Post Template (Educational)
+### Guide Template (Educational)
 
 ```markdown
 # [Primary Keyword]: [Compelling Title]
@@ -254,17 +254,17 @@ Core content:
 ```
 plantegia.com/
 ├── / (Landing page — tool demo + purchase)
-├── /blog/ (Content hub)
-│   ├── /blog/perpetual-harvest-guide/
-│   ├── /blog/two-tent-setup/
-│   ├── /blog/autoflower-perpetual/
+├── /guides/ (Educational content hub)
+│   ├── /guides/perpetual-harvest-guide/
+│   ├── /guides/two-tent-setup/
+│   ├── /guides/autoflower-perpetual/
 │   └── ...
 ├── /tools/ (Free calculators)
-│   ├── /tools/perpetual-harvest-calculator/
-│   ├── /tools/tent-spacing-calculator/
+│   ├── /tools/perpetual-calculator/
+│   ├── /tools/tent-spacing/
 │   └── ...
 ├── /de/ (German content)
-│   ├── /de/perpetual-harvest-anleitung/
+│   ├── /de/guides/perpetual-harvest-anleitung/
 │   └── ...
 └── /pricing/ (Purchase page)
 ```
@@ -498,7 +498,7 @@ Human review required for:
 - [ ] Set up Google Analytics
 - [ ] Optimize landing page for "cannabis grow planner"
 - [ ] Publish first pillar: "Perpetual Harvest with 2 Tents"
-- [ ] Set up blog structure (/blog/)
+- [ ] Set up guides structure (/guides/)
 
 ### Week 2
 

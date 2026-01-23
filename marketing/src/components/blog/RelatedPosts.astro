@@ -11,12 +11,12 @@ interface Props {
 const { currentSlug, lang, limit = 3 } = Astro.props;
 
 // Get all posts for this language
-const allPosts = await getCollection('blog', ({ data }: { data: { lang: string } }) => data.lang === lang);
+const allPosts = await getCollection('guides', ({ data }: { data: { lang: string } }) => data.lang === lang);
 
 // Exclude current post and take first N
 const relatedPosts = allPosts
-  .filter((post: CollectionEntry<'blog'>) => post.slug !== currentSlug)
-  .sort((a: CollectionEntry<'blog'>, b: CollectionEntry<'blog'>) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime())
+  .filter((post: CollectionEntry<'guides'>) => post.slug !== currentSlug)
+  .sort((a: CollectionEntry<'guides'>, b: CollectionEntry<'guides'>) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime())
   .slice(0, limit);
 
 const title = lang === 'de' ? 'Weitere Artikel' : 'Related Posts';
@@ -26,7 +26,7 @@ const title = lang === 'de' ? 'Weitere Artikel' : 'Related Posts';
   <section class="related-posts">
     <h3>{title}</h3>
     <div class="related-grid">
-      {relatedPosts.map((post: CollectionEntry<'blog'>) => (
+      {relatedPosts.map((post: CollectionEntry<'guides'>) => (
         <PostCard post={post} lang={lang} />
       ))}
     </div>

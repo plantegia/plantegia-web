@@ -12,13 +12,13 @@ const { currentPath, lang } = Astro.props;
 const t = {
   en: {
     home: 'Home',
-    blog: 'Blog',
+    guides: 'Guides',
     tools: 'Tools',
     app: 'Open App',
   },
   de: {
     home: 'Start',
-    blog: 'Blog',
+    guides: 'Anleitungen',
     tools: 'Tools',
     app: 'App öffnen',
   },
@@ -29,7 +29,7 @@ const prefix = lang === 'de' ? '/de' : '';
 
 const links = [
   { href: `${prefix}/`, label: labels.home },
-  { href: `${prefix}/blog/`, label: labels.blog },
+  { href: `${prefix}/guides/`, label: labels.guides },
   { href: `${prefix}/tools/`, label: labels.tools },
 ];
 

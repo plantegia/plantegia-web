@@ -43,8 +43,8 @@
   --spacing-3xl: 64px;
 
   /* Borders */
-  --border-radius: 4px;
-  --border-radius-lg: 8px;
+  --border-radius: 0px;
+  --border-radius-lg: 0px;
 
   /* Transitions */
   --transition-fast: 150ms ease;

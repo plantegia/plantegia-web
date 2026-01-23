@@ -1,6 +1,7 @@
 ---
 title: "The Complete Guide to Perpetual Harvest: Never Run Out Again"
 heroImage: "https://plus.unsplash.com/premium_photo-1664299493936-34986c0128af?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+heroImageQuery: "indoor plants greenhouse"
 description: "Learn how to set up a perpetual harvest system with multiple grow tents. Plan your rotation schedule, calculate plant numbers, and maintain continuous harvests."
 pubDate: 2025-01-09
 keywords:
@@ -16,6 +17,7 @@ category: perpetual-harvest
 import SpaceViewDemo from '@components/viz/SpaceViewDemo';
 import TimelineDemo from '@components/viz/TimelineDemo';
 import RotationDiagram from '@components/viz/RotationDiagram';
+import PerpetualCalculator from '@components/tools/PerpetualCalculator';
 
 A perpetual harvest setup is the holy grail of indoor growing. Instead of harvesting everything at once and waiting months for your next crop, you harvest fresh plants every few weeks while new ones are always growing.
 
@@ -63,29 +65,22 @@ Plants stay in the veg tent until they're the right size, then move to the flowe
   ]}
 />
 
-## Calculating Your Plant Numbers
+## Calculate Your Plant Numbers
 
-The number of plants you need depends on three factors:
+Use this calculator to find exactly how many plants you need for your perpetual harvest setup:
 
-1. **Flowering time** — How long your strain takes to flower (typically 8-10 weeks)
-2. **Veg time** — How long you keep plants in veg (typically 4-8 weeks)
-3. **Harvest frequency** — How often you want to harvest (typically every 1-2 weeks)
+<PerpetualCalculator client:load lang="en" />
 
-### The Math
+### Quick Reference
 
-**Plants in flower** = Flowering weeks ÷ Harvest frequency (weeks)
+| Flowering Time | Harvest Every | Plants in Flower | Plants in Veg | Total |
+|----------------|---------------|------------------|---------------|-------|
+| 8 weeks | 2 weeks | 4 | 2 | 6 |
+| 9 weeks | 2 weeks | 5 | 2 | 7 |
+| 10 weeks | 2 weeks | 5 | 3 | 8 |
+| 10 weeks | 3 weeks | 4 | 2 | 6 |
 
-**Plants in veg** = Veg weeks ÷ Harvest frequency (weeks)
-
-### Example
-
-- 8-week flowering strain
-- 4-week veg period
-- Harvest every 2 weeks
-
-**Plants in flower:** 8 ÷ 2 = 4 plants
-**Plants in veg:** 4 ÷ 2 = 2 plants
-**Total:** 6 plants running continuously
+*Assuming 4-week veg period. Adjust based on your grow style.*
 
 ## The Timeline View
 

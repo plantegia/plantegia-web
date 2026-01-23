@@ -2,15 +2,16 @@
 import BaseLayout from './BaseLayout.astro';
 import TOC from '../components/blog/TOC.astro';
 import RelatedPosts from '../components/blog/RelatedPosts.astro';
+import HeroImagePicker from '../components/blog/HeroImagePicker';
 import type { CollectionEntry } from 'astro:content';
 
 interface Props {
-  post: CollectionEntry<'blog'>;
+  post: CollectionEntry<'guides'>;
   headings: { depth: number; slug: string; text: string }[];
 }
 
 const { post, headings } = Astro.props;
-const { title, description, pubDate, updatedDate, heroImage, keywords, lang } = post.data;
+const { title, description, pubDate, updatedDate, heroImage, heroImageQuery, keywords, lang } = post.data;
 
 const formattedDate = new Date(pubDate).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', {
   year: 'numeric',
@@ -32,7 +33,7 @@ const readingTime = Math.ceil(wordCount / 200);
 ---
 
 <BaseLayout
-  title={`${title} | Plantegia Blog`}
+  title={`${title} | Plantegia Guides`}
   description={description}
   keywords={keywords}
   lang={lang}
@@ -58,7 +59,16 @@ const readingTime = Math.ceil(wordCount / 200);
         </div>
         {heroImage && (
           <div class="header-image">
-            <img class="hero-image" src={heroImage} alt={title} />
+            {heroImageQuery ? (
+              <HeroImagePicker
+                client:load
+                initialSrc={heroImage}
+                searchQuery={heroImageQuery}
+                alt={title}
+              />
+            ) : (
+              <img class="hero-image" src={heroImage} alt={title} />
+            )}
           </div>
         )}
       </header>
