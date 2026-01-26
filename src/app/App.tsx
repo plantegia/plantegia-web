@@ -1,5 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
-import { AuthGuard } from '../components/auth/AuthGuard';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { PlantationList } from '../components/pages/PlantationList';
 import { PlantationView } from '../components/pages/PlantationView';
 import { TutorialView } from '../components/pages/TutorialView';
@@ -14,16 +13,13 @@ export function App() {
       {FEATURES.TUTORIALS && (
         <Route path="/tutorial/:tutorialId" element={<TutorialView />} />
       )}
+      <Route path="*" element={<Navigate to="/p/" replace />} />
     </Routes>
   );
 
-  return (
-    <AuthGuard>
-      {FEATURES.TUTORIALS ? (
-        <TutorialProvider>{routes}</TutorialProvider>
-      ) : (
-        routes
-      )}
-    </AuthGuard>
+  return FEATURES.TUTORIALS ? (
+    <TutorialProvider>{routes}</TutorialProvider>
+  ) : (
+    routes
   );
 }

@@ -13,13 +13,22 @@ interface ElementRect {
   height: number;
 }
 
+// Check if element is visible (not covered by another element)
+function isElementVisible(element: Element): boolean {
+  const rect = element.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const topElement = document.elementFromPoint(centerX, centerY);
+  return topElement !== null && (element === topElement || element.contains(topElement));
+}
+
 export function TutorialHighlight({ selector }: TutorialHighlightProps) {
   const [rect, setRect] = useState<ElementRect | null>(null);
 
   useEffect(() => {
     const updateRect = () => {
       const element = document.querySelector(selector);
-      if (element) {
+      if (element && isElementVisible(element)) {
         const domRect = element.getBoundingClientRect();
         setRect({
           top: domRect.top,

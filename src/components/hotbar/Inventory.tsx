@@ -5,6 +5,7 @@ import { EmptySlot } from './EmptySlot';
 import { SeedForm } from '../inspector/SeedForm';
 import { COLORS } from '../../constants';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useTutorial } from '../../tutorial/useTutorial';
 
 const SLOTS_PER_PAGE = 4;
 
@@ -12,6 +13,7 @@ export function Inventory() {
   const [showSeedForm, setShowSeedForm] = useState(false);
   const [page, setPage] = useState(0);
   const isMobile = useIsMobile();
+  const { currentStep } = useTutorial();
 
   const inventory = useAppStore((s) => s.inventory);
   const strains = useAppStore((s) => s.strains);
@@ -20,8 +22,11 @@ export function Inventory() {
   const expandedSection = useAppStore((s) => s.expandedHotbarSection);
   const setExpandedSection = useAppStore((s) => s.setExpandedHotbarSection);
 
-  // On desktop always show expanded, on mobile respect expandedSection
-  const isExpanded = !isMobile || expandedSection === 'inventory';
+  // Check if tutorial is highlighting something in inventory
+  const tutorialHighlightsInventory = currentStep?.highlightSelector?.includes('data-slot');
+
+  // On desktop always show expanded, on mobile respect expandedSection or tutorial highlight
+  const isExpanded = !isMobile || expandedSection === 'inventory' || tutorialHighlightsInventory;
 
   // Calculate pages: each page has 4 slots, add extra page when current page is full
   const filledPages = Math.ceil(inventory.length / SLOTS_PER_PAGE);
@@ -104,6 +109,7 @@ export function Inventory() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
           {totalPages > 1 && (
             <button
+              className="btn-icon"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
               style={{
@@ -117,6 +123,7 @@ export function Inventory() {
                 color: page === 0 ? COLORS.border : COLORS.textMuted,
                 fontSize: 28,
                 cursor: page === 0 ? 'default' : 'pointer',
+                borderRadius: 4,
               }}
             >
               ‹
@@ -149,6 +156,7 @@ export function Inventory() {
 
           {totalPages > 1 && (
             <button
+              className="btn-icon"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
               style={{
@@ -162,6 +170,7 @@ export function Inventory() {
                 color: page >= totalPages - 1 ? COLORS.border : COLORS.textMuted,
                 fontSize: 28,
                 cursor: page >= totalPages - 1 ? 'default' : 'pointer',
+                borderRadius: 4,
               }}
             >
               ›

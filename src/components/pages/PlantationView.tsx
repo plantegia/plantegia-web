@@ -15,7 +15,7 @@ export function PlantationView() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { plantation, loading, error } = usePlantation(id || '');
-  const { currentStep, currentStepIndex, totalSteps, isCompleted, skipTutorial, nextStep, previousStep, restartTutorial } = useTutorial();
+  const { currentStep, currentStepIndex, totalSteps, skipTutorial } = useTutorial();
 
   const isViewOnly = searchParams.get('view') === '1';
   const isOwner = plantation && user && plantation.ownerId === user.uid;
@@ -36,7 +36,7 @@ export function PlantationView() {
     return (
       <div style={styles.container}>
         <div style={styles.message}>{error || 'Plantation not found'}</div>
-        <button style={styles.backButton} onClick={() => navigate('/p/')}>
+        <button className="btn-secondary" style={styles.backButton} onClick={() => navigate('/p/')}>
           Back to list
         </button>
       </div>
@@ -47,7 +47,7 @@ export function PlantationView() {
     return (
       <div style={styles.container}>
         <div style={styles.message}>This plantation is private</div>
-        <button style={styles.backButton} onClick={() => navigate('/p/')}>
+        <button className="btn-secondary" style={styles.backButton} onClick={() => navigate('/p/')}>
           Back to list
         </button>
       </div>
@@ -77,13 +77,7 @@ export function PlantationView() {
             step={currentStep}
             stepNumber={currentStepIndex + 1}
             totalSteps={totalSteps}
-            canGoBack={currentStepIndex > 0}
-            canGoForward={currentStepIndex < totalSteps - 1}
-            isCompleted={isCompleted}
             onSkip={skipTutorial}
-            onPrevious={previousStep}
-            onNext={nextStep}
-            onRestart={restartTutorial}
           />
         </>
       )}

@@ -21,6 +21,7 @@ export function SeedSlot({ seed, strain, selected, onClick }: SeedSlotProps) {
       }}
     >
       <button
+        className="btn-tool"
         onClick={onClick}
         style={{
           width: 44,

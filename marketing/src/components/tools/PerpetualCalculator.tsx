@@ -198,7 +198,7 @@ export default function PerpetualCalculator({ lang = 'en' }: Props) {
         >
           {labels.ctaText}{' '}
           <a
-            href="https://app.plantegia.com"
+            href="/p/"
             style={{
               color: COLORS.text,
               fontWeight: 'bold',

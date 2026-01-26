@@ -91,14 +91,16 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
               onChange={(e) => handleCodeEdit(e.target.value)}
               autoFocus
               style={{
-                width: 100,
-                padding: '4px 8px',
+                width: 120,
+                height: 44,
+                padding: '8px 12px',
                 background: COLORS.background,
                 border: `1px solid ${codeError ? COLORS.danger : COLORS.border}`,
                 color: COLORS.text,
                 fontSize: 16,
                 fontWeight: 'bold',
                 fontFamily: 'inherit',
+                boxSizing: 'border-box',
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !codeError) handleCodeSave();
@@ -106,10 +108,12 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
               }}
             />
             <button
+              className="btn-primary"
               onClick={handleCodeSave}
               disabled={!!codeError}
               style={{
-                padding: 6,
+                width: 44,
+                height: 44,
                 background: codeError ? COLORS.backgroundLight : COLORS.green,
                 border: 'none',
                 color: codeError ? COLORS.textMuted : COLORS.background,
@@ -119,12 +123,14 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
                 justifyContent: 'center',
               }}
             >
-              <Check size={14} />
+              <Check size={20} />
             </button>
             <button
+              className="btn-icon"
               onClick={handleCodeCancel}
               style={{
-                padding: 6,
+                width: 44,
+                height: 44,
                 background: 'transparent',
                 border: `1px solid ${COLORS.border}`,
                 color: COLORS.textMuted,
@@ -132,9 +138,10 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                borderRadius: 4,
               }}
             >
-              <X size={14} />
+              <X size={20} />
             </button>
             {codeError && (
               <span style={{ color: COLORS.danger, fontSize: 12 }}>{codeError}</span>
@@ -161,25 +168,29 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
           </div>
         )}
         <button
+          className="btn-icon"
           onClick={onClose}
           style={{
             background: 'transparent',
             border: 'none',
             color: COLORS.textMuted,
             cursor: 'pointer',
-            padding: 4,
+            width: 44,
+            height: 44,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            marginRight: -8,
+            borderRadius: 4,
           }}
         >
-          <X size={16} />
+          <X size={24} />
         </button>
       </div>
 
       {/* Strain selector */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ color: COLORS.textMuted, fontSize: 12, marginBottom: 4 }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ color: COLORS.textMuted, fontSize: 14, marginBottom: 6 }}>
           Strain
         </div>
         <select
@@ -187,12 +198,13 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
           onChange={(e) => handleStrainChange(e.target.value || null)}
           style={{
             width: '100%',
-            padding: '8px 10px',
+            padding: '12px 10px',
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
             color: COLORS.text,
             fontSize: 14,
             fontFamily: 'inherit',
+            minHeight: 44,
           }}
         >
           <option value="">No strain</option>
@@ -205,8 +217,8 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
       </div>
 
       {/* Stage selector */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ color: COLORS.textMuted, fontSize: 12, marginBottom: 4 }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ color: COLORS.textMuted, fontSize: 14, marginBottom: 6 }}>
           Stage {isTimelineView && <span style={{ opacity: 0.6 }}>(drag to change in timeline)</span>}
         </div>
         <select
@@ -215,12 +227,13 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
           disabled={isTimelineView}
           style={{
             width: '100%',
-            padding: '8px 10px',
+            padding: '12px 10px',
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
             color: COLORS.text,
             fontSize: 14,
             fontFamily: 'inherit',
+            minHeight: 44,
             opacity: isTimelineView ? 0.6 : 1,
             cursor: isTimelineView ? 'not-allowed' : 'pointer',
           }}
@@ -235,16 +248,18 @@ export function PlantEditPanel({ plantId, onClose }: PlantEditPanelProps) {
 
       {/* Delete button */}
       <button
+        className="btn-danger"
         onClick={handleDelete}
         style={{
           width: '100%',
-          padding: 10,
+          padding: 14,
           background: COLORS.danger,
           border: 'none',
           color: COLORS.text,
-          fontSize: 12,
+          fontSize: 14,
           cursor: 'pointer',
           marginTop: 8,
+          minHeight: 44,
         }}
       >
         DELETE

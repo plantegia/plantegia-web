@@ -26,6 +26,46 @@
         user-select: none;
         -webkit-user-select: none;
       }
+      input::placeholder {
+        color: #51853B;
+        opacity: 1;
+      }
+
+      /* Button hover styles */
+      .btn-icon {
+        transition: background 0.15s ease, opacity 0.15s ease;
+      }
+      .btn-icon:hover:not(:disabled) {
+        background: rgba(251, 209, 159, 0.15) !important;
+      }
+
+      .btn-primary {
+        transition: filter 0.15s ease, opacity 0.15s ease;
+      }
+      .btn-primary:hover:not(:disabled) {
+        filter: brightness(1.15);
+      }
+
+      .btn-danger {
+        transition: filter 0.15s ease, opacity 0.15s ease;
+      }
+      .btn-danger:hover:not(:disabled) {
+        filter: brightness(1.15);
+      }
+
+      .btn-secondary {
+        transition: filter 0.15s ease, opacity 0.15s ease;
+      }
+      .btn-secondary:hover:not(:disabled) {
+        filter: brightness(0.9);
+      }
+
+      .btn-tool {
+        transition: all 0.15s ease;
+      }
+      .btn-tool:hover:not(:disabled) {
+        filter: brightness(1.1);
+      }
     </style>
   </head>
   <body>

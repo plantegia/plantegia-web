@@ -12,9 +12,9 @@ const LIGHT_OFF_COLOR = COLORS.backgroundDark;
 
 export function LightScheduleEditor({ schedule, onChange }: LightScheduleEditorProps) {
   // 390px viewport - need to fit 24 hours
-  // Each hour cell: ~13-14px width to fit within container
-  const cellWidth = 13;
-  const cellHeight = 20;
+  // Each hour cell: ~14px width to fit within container
+  const cellWidth = 14;
+  const cellHeight = 28;
   const currentHour = new Date().getHours();
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -28,7 +28,7 @@ export function LightScheduleEditor({ schedule, onChange }: LightScheduleEditorP
         alignItems: 'center',
         marginBottom: 6,
       }}>
-        <span style={{ color: COLORS.textMuted }}>Light:</span>
+        <span style={{ color: COLORS.textMuted, fontSize: 14 }}>Light:</span>
         <span style={{ color: COLORS.teal, fontWeight: 'bold' }}>
           {formatSchedule(schedule)}
         </span>
@@ -46,6 +46,7 @@ export function LightScheduleEditor({ schedule, onChange }: LightScheduleEditorP
 
           return (
             <button
+              className="btn-tool"
               key={hour}
               onClick={() => onChange(toggleHour(schedule, hour))}
               style={{
@@ -71,7 +72,7 @@ export function LightScheduleEditor({ schedule, onChange }: LightScheduleEditorP
       <div style={{
         display: 'flex',
         gap: 1,
-        fontSize: 8,
+        fontSize: 9,
         color: COLORS.textMuted,
       }}>
         {hours.map((hour) => (

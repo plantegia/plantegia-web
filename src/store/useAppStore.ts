@@ -624,14 +624,18 @@ export const useAppStore = create<AppState>()(
           );
           if (existing) {
             existing.quantity += quantity;
+            state.selectedSeedId = existing.id;
           } else {
+            const newId = nanoid();
             state.inventory.push({
-              id: nanoid(),
+              id: newId,
               strainId,
               quantity,
               isClone,
             });
+            state.selectedSeedId = newId;
           }
+          state.activeTool = null;
         });
       },
 

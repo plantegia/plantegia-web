@@ -51,20 +51,22 @@ export function PlantInspector({ plantId, onEdit }: PlantInspectorProps) {
 
       {/* Edit button */}
       <button
+        className="btn-secondary"
         onClick={onEdit}
         style={{
-          padding: '8px 12px',
+          padding: '12px 16px',
           background: COLORS.background,
           border: `1px solid ${COLORS.border}`,
           color: COLORS.text,
-          fontSize: 12,
+          fontSize: 14,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           gap: 6,
+          minHeight: 44,
         }}
       >
-        <Pencil size={14} />
+        <Pencil size={16} />
         Edit
       </button>
     </div>

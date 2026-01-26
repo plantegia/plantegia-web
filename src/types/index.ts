@@ -118,6 +118,7 @@ export interface Plantation {
   name: string;
   isPublic: boolean;
   isTutorial?: boolean;
+  tutorialId?: string;  // Which tutorial template was used (e.g., 'basic-setup')
   createdAt: string;
   updatedAt: string;
   spaces: Space[];

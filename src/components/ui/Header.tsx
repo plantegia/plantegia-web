@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Crosshair, Undo2, Redo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { updatePlantationSettings } from '../../lib/firestore';
-import { COLORS, MIN_ZOOM, MAX_ZOOM, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM } from '../../constants';
+import { COLORS, MIN_ZOOM, MAX_ZOOM, MIN_TIMELINE_ZOOM, MAX_TIMELINE_ZOOM, MOBILE_BREAKPOINT } from '../../constants';
 import { TIME_VIEW_CONSTANTS } from '../../utils/grid';
 
 interface HeaderProps {
@@ -37,11 +37,13 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
 
   const [showCenterButton, setShowCenterButton] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Track canvas size
+  // Track canvas size and mobile state
   useEffect(() => {
     const updateSize = () => {
       setCanvasSize({ width: window.innerWidth, height: window.innerHeight });
+      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
     };
     updateSize();
     window.addEventListener('resize', updateSize);
@@ -130,17 +132,20 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
         pointerEvents: 'auto',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
         <button
+          className="btn-icon"
           onClick={() => navigate('/p/')}
           style={{
             background: 'transparent',
             border: 'none',
             color: COLORS.text,
             cursor: 'pointer',
-            padding: 0,
+            padding: 4,
             display: 'flex',
             alignItems: 'center',
+            flexShrink: 0,
+            borderRadius: 4,
           }}
         >
           <ArrowLeft size={18} />
@@ -150,63 +155,77 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
             fontSize: 14,
             color: COLORS.text,
             fontWeight: 'bold',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
           {plantationName || 'PLANTEGIA'}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <button
-          onClick={handleZoomOut}
-          disabled={!canZoomOut}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: canZoomOut ? COLORS.text : COLORS.border,
-            fontSize: 16,
-            cursor: canZoomOut ? 'pointer' : 'default',
-            padding: '4px 6px',
-            opacity: canZoomOut ? 1 : 0.5,
-          }}
-          title="Zoom out"
-        >
-          <ZoomOut size={16} />
-        </button>
-        <button
-          onClick={handleZoomIn}
-          disabled={!canZoomIn}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: canZoomIn ? COLORS.text : COLORS.border,
-            fontSize: 16,
-            cursor: canZoomIn ? 'pointer' : 'default',
-            padding: '4px 6px',
-            opacity: canZoomIn ? 1 : 0.5,
-          }}
-          title="Zoom in"
-        >
-          <ZoomIn size={16} />
-        </button>
-        {showCenterButton && (
-          <button
-            onClick={handleCenter}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: COLORS.text,
-              fontSize: 16,
-              cursor: 'pointer',
-              padding: '4px 6px',
-            }}
-            title="Center view"
-          >
-            <Crosshair size={16} />
-          </button>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+        {!isMobile && (
+          <>
+            <button
+              className="btn-icon"
+              onClick={handleZoomOut}
+              disabled={!canZoomOut}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: canZoomOut ? COLORS.text : COLORS.border,
+                fontSize: 16,
+                cursor: canZoomOut ? 'pointer' : 'default',
+                padding: '4px 6px',
+                opacity: canZoomOut ? 1 : 0.5,
+                borderRadius: 4,
+              }}
+              title="Zoom out"
+            >
+              <ZoomOut size={16} />
+            </button>
+            <button
+              className="btn-icon"
+              onClick={handleZoomIn}
+              disabled={!canZoomIn}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: canZoomIn ? COLORS.text : COLORS.border,
+                fontSize: 16,
+                cursor: canZoomIn ? 'pointer' : 'default',
+                padding: '4px 6px',
+                opacity: canZoomIn ? 1 : 0.5,
+                borderRadius: 4,
+              }}
+              title="Zoom in"
+            >
+              <ZoomIn size={16} />
+            </button>
+            {showCenterButton && (
+              <button
+                className="btn-icon"
+                onClick={handleCenter}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: COLORS.text,
+                  fontSize: 16,
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                  borderRadius: 4,
+                }}
+                title="Center view"
+              >
+                <Crosshair size={16} />
+              </button>
+            )}
+          </>
         )}
         {canEdit && (
           <>
             <button
+              className="btn-icon"
               onClick={undo}
               disabled={historyPastLength === 0}
               style={{
@@ -217,12 +236,14 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
                 cursor: historyPastLength > 0 ? 'pointer' : 'default',
                 padding: '4px 6px',
                 opacity: historyPastLength > 0 ? 1 : 0.5,
+                borderRadius: 4,
               }}
               title="Undo (Ctrl+Z)"
             >
               <Undo2 size={16} />
             </button>
             <button
+              className="btn-icon"
               onClick={redo}
               disabled={historyFutureLength === 0}
               style={{
@@ -233,12 +254,14 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
                 cursor: historyFutureLength > 0 ? 'pointer' : 'default',
                 padding: '4px 6px',
                 opacity: historyFutureLength > 0 ? 1 : 0.5,
+                borderRadius: 4,
               }}
               title="Redo (Ctrl+Y)"
             >
               <Redo2 size={16} />
             </button>
             <button
+              className="btn-icon"
               onClick={handleShare}
               style={{
                 background: 'transparent',
@@ -248,6 +271,7 @@ export function Header({ plantationName, canEdit }: HeaderProps) {
                 fontSize: 14,
                 fontFamily: 'inherit',
                 cursor: 'pointer',
+                borderRadius: 4,
               }}
             >
               Share

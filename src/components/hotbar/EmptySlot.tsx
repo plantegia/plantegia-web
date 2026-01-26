@@ -15,7 +15,9 @@ export function EmptySlot({ onClick }: EmptySlotProps) {
       }}
     >
       <button
+        className="btn-tool"
         onClick={onClick}
+        data-slot="empty"
         style={{
           width: 44,
           height: 44,

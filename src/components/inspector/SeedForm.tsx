@@ -13,17 +13,19 @@ export function SeedForm({ onClose }: SeedFormProps) {
   const createStrain = useAppStore((s) => s.createStrain);
   const addSeed = useAppStore((s) => s.addSeed);
 
+  // Auto-open create mode if no strains exist
   const [selectedStrainId, setSelectedStrainId] = useState<string | null>(
-    strains[0]?.id || null
+    strains.length > 0 ? strains[0].id : null
   );
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(strains.length === 0);
   const [isEditing, setIsEditing] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(5);
   const [isClone, setIsClone] = useState(false);
 
-  const [newStrainName, setNewStrainName] = useState('');
+  // Default strain name for first-time users
+  const [newStrainName, setNewStrainName] = useState(strains.length === 0 ? 'Pineapple Express' : '');
   const [newAbbreviation, setNewAbbreviation] = useState('');
-  const [floweringDays, setFloweringDays] = useState(60);
+  const [floweringDays, setFloweringDays] = useState(56); // 8 weeks
   const [strainType, setStrainType] = useState<StrainType>('hybrid');
   const [photoperiod, setPhotoperiod] = useState<Photoperiod>('photo');
 
@@ -43,7 +45,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
     setSelectedStrainId(null);
     setNewStrainName('');
     setNewAbbreviation('');
-    setFloweringDays(60);
+    setFloweringDays(56); // 8 weeks
     setStrainType('hybrid');
     setPhotoperiod('photo');
   };
@@ -89,13 +91,17 @@ export function SeedForm({ onClose }: SeedFormProps) {
     <div
       style={{
         position: 'fixed',
-        bottom: 64,
+        top: 48,
+        bottom: 0,
         left: 0,
         right: 0,
         background: COLORS.backgroundLight,
         borderTop: `1px solid ${COLORS.border}`,
         padding: 16,
         zIndex: 100,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'auto',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -103,6 +109,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
           ADD SEEDS
         </span>
         <button
+          className="btn-icon"
           onClick={onClose}
           style={{
             background: 'transparent',
@@ -112,9 +119,14 @@ export function SeedForm({ onClose }: SeedFormProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            width: 44,
+            height: 44,
+            marginRight: -12,
+            marginTop: -8,
+            borderRadius: 4,
           }}
         >
-          <X size={16} />
+          <X size={24} />
         </button>
       </div>
 
@@ -125,6 +137,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
           return (
             <div key={strain.id} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <button
+                className="btn-secondary"
                 onClick={() => handleStrainSelect(strain.id)}
                 style={{
                   padding: '8px 12px',
@@ -139,6 +152,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
               </button>
               {isSelected && !isEditing && (
                 <button
+                  className="btn-secondary"
                   onClick={handleEditClick}
                   style={{
                     padding: '8px 6px',
@@ -155,20 +169,23 @@ export function SeedForm({ onClose }: SeedFormProps) {
             </div>
           );
         })}
-        <button
-          onClick={handleCreateClick}
-          style={{
-            padding: '8px 12px',
-            background: isCreating ? COLORS.teal : 'transparent',
-            border: `1px solid ${COLORS.border}`,
-            color: isCreating ? COLORS.background : COLORS.text,
-            fontSize: 14,
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          +
-        </button>
+        {strains.length > 0 && (
+          <button
+            className="btn-secondary"
+            onClick={handleCreateClick}
+            style={{
+              padding: '8px 12px',
+              background: isCreating ? COLORS.teal : 'transparent',
+              border: `1px solid ${COLORS.border}`,
+              color: isCreating ? COLORS.background : COLORS.text,
+              fontSize: 14,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+          >
+            +
+          </button>
+        )}
       </div>
 
       {/* Strain form (create or edit) */}
@@ -212,40 +229,58 @@ export function SeedForm({ onClose }: SeedFormProps) {
               />
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Flowering:</span>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Flowering:</span>
+              <span style={{ color: COLORS.text, fontSize: 12, marginLeft: 'auto' }}>
+                {Math.round(floweringDays / 7)} weeks
+              </span>
+            </div>
             <input
-              type="number"
-              value={floweringDays}
-              onChange={(e) => setFloweringDays(parseInt(e.target.value) || 60)}
+              type="range"
+              min={7}
+              max={12}
+              step={1}
+              list="weeks-ticks"
+              value={Math.round(floweringDays / 7)}
+              onChange={(e) => setFloweringDays(parseInt(e.target.value) * 7)}
               style={{
-                width: 60,
-                padding: 6,
-                background: COLORS.background,
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text,
-                fontSize: 14,
-                fontFamily: 'inherit',
+                width: '100%',
+                accentColor: COLORS.teal,
               }}
             />
-            <span style={{ color: COLORS.textMuted, fontSize: 12 }}>days</span>
+            <datalist id="weeks-ticks">
+              <option value="7" />
+              <option value="8" />
+              <option value="9" />
+              <option value="10" />
+              <option value="11" />
+              <option value="12" />
+            </datalist>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+              {[7, 8, 9, 10, 11, 12].map((w) => (
+                <span key={w} style={{ color: COLORS.textMuted, fontSize: 10 }}>{w}</span>
+              ))}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Type:</span>
+              <span style={{ color: COLORS.textMuted, fontSize: 14 }}>Type:</span>
               {(['indica', 'sativa', 'hybrid'] as const).map((type) => (
                 <button
+                  className="btn-secondary"
                   key={type}
                   onClick={() => setStrainType(type)}
                   style={{
-                    padding: '4px 8px',
+                    padding: '12px 16px',
                     background: strainType === type ? COLORS.green : 'transparent',
                     border: `1px solid ${COLORS.border}`,
                     color: COLORS.text,
-                    fontSize: 12,
+                    fontSize: 14,
                     cursor: 'pointer',
                     textTransform: 'capitalize',
+                    minHeight: 44,
                   }}
                 >
                   {type}
@@ -254,20 +289,22 @@ export function SeedForm({ onClose }: SeedFormProps) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Photo:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <span style={{ color: COLORS.textMuted, fontSize: 14 }}>Photo:</span>
             {(['auto', 'photo'] as const).map((type) => (
               <button
+                className="btn-secondary"
                 key={type}
                 onClick={() => setPhotoperiod(type)}
                 style={{
-                  padding: '4px 8px',
+                  padding: '12px 16px',
                   background: photoperiod === type ? COLORS.green : 'transparent',
                   border: `1px solid ${COLORS.border}`,
                   color: COLORS.text,
-                  fontSize: 12,
+                  fontSize: 14,
                   cursor: 'pointer',
                   textTransform: 'capitalize',
+                  minHeight: 44,
                 }}
               >
                 {type}
@@ -277,6 +314,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
 
           {isEditing && (
             <button
+              className="btn-primary"
               onClick={handleSaveEdit}
               disabled={!newStrainName.trim() || !newAbbreviation.trim()}
               style={{
@@ -298,50 +336,90 @@ export function SeedForm({ onClose }: SeedFormProps) {
         </>
       )}
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Qty:</span>
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            min={1}
+          <span style={{ color: COLORS.textMuted, fontSize: 14 }}>Qty:</span>
+          <button
+            className="btn-secondary"
+            onClick={() => setQuantity(Math.max(1, quantity - 1))}
             style={{
-              width: 50,
-              padding: 6,
+              width: 44,
+              height: 44,
               background: COLORS.background,
               border: `1px solid ${COLORS.border}`,
               color: COLORS.text,
-              fontSize: 14,
-              fontFamily: 'inherit',
+              fontSize: 20,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-          />
+          >
+            −
+          </button>
+          <span
+            style={{
+              width: 44,
+              height: 44,
+              background: COLORS.background,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text,
+              fontSize: 18,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {quantity}
+          </span>
+          <button
+            className="btn-secondary"
+            onClick={() => setQuantity(quantity + 1)}
+            style={{
+              width: 44,
+              height: 44,
+              background: COLORS.background,
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.text,
+              fontSize: 20,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            +
+          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Type:</span>
+          <span style={{ color: COLORS.textMuted, fontSize: 14 }}>Type:</span>
           <button
+            className="btn-secondary"
             onClick={() => setIsClone(false)}
             style={{
-              padding: '4px 8px',
+              padding: '12px 16px',
               background: !isClone ? COLORS.green : 'transparent',
               border: `1px solid ${COLORS.border}`,
               color: COLORS.text,
-              fontSize: 12,
+              fontSize: 14,
               cursor: 'pointer',
+              minHeight: 44,
             }}
           >
             Seed
           </button>
           <button
+            className="btn-secondary"
             onClick={() => setIsClone(true)}
             style={{
-              padding: '4px 8px',
+              padding: '12px 16px',
               background: isClone ? COLORS.green : 'transparent',
               border: `1px solid ${COLORS.border}`,
               color: COLORS.text,
-              fontSize: 12,
+              fontSize: 14,
               cursor: 'pointer',
+              minHeight: 44,
             }}
           >
             Clone
@@ -349,7 +427,10 @@ export function SeedForm({ onClose }: SeedFormProps) {
         </div>
       </div>
 
+      <div style={{ flex: 1 }} />
+
       <button
+        className="btn-primary"
         onClick={handleSubmit}
         disabled={!canSubmit}
         style={{
@@ -362,6 +443,7 @@ export function SeedForm({ onClose }: SeedFormProps) {
           fontWeight: 'bold',
           cursor: 'pointer',
           opacity: canSubmit ? 1 : 0.5,
+          flexShrink: 0,
         }}
       >
         ADD TO INVENTORY

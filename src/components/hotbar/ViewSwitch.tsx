@@ -37,8 +37,9 @@ export function ViewSwitch() {
         }}
       >
         <button
-          onClick={() => setViewMode(viewMode === 'space' ? 'time' : 'space')}
-          data-view="time"
+          className="btn-tool"
+          onClick={() => setViewMode('space')}
+          data-view="space"
           style={{
             width: '100%',
             height: '50%',
@@ -58,8 +59,9 @@ export function ViewSwitch() {
           XY
         </button>
         <button
-          onClick={() => setViewMode(viewMode === 'time' ? 'space' : 'time')}
-          data-view="space"
+          className="btn-tool"
+          onClick={() => setViewMode('time')}
+          data-view="time"
           style={{
             width: '100%',
             height: '50%',

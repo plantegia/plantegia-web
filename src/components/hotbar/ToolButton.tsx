@@ -23,6 +23,7 @@ export function ToolButton({ symbol, icon, label, active, onClick, style, dataTo
       }}
     >
       <button
+        className="btn-tool"
         onClick={onClick}
         data-tool={dataTool}
         style={{

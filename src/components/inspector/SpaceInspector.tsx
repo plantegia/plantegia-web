@@ -85,14 +85,16 @@ export function SpaceInspector({ spaceId }: SpaceInspectorProps) {
   };
 
   const inputStyle = {
-    width: 50,
-    padding: 6,
+    width: 60,
+    height: 44,
+    padding: '8px 12px',
     background: COLORS.background,
     border: `1px solid ${COLORS.border}`,
     color: COLORS.text,
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'inherit',
     textAlign: 'center' as const,
+    boxSizing: 'border-box' as const,
   };
 
   return (
@@ -116,8 +118,8 @@ export function SpaceInspector({ spaceId }: SpaceInspectorProps) {
         />
       </div>
 
-      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: COLORS.textMuted }}>Size:</span>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: COLORS.textMuted, fontSize: 14 }}>Size:</span>
         <input
           type="number"
           value={width}
@@ -142,16 +144,17 @@ export function SpaceInspector({ spaceId }: SpaceInspectorProps) {
         />
       </div>
 
-      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: COLORS.textMuted }}>Color:</span>
-        <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: COLORS.textMuted, fontSize: 14 }}>Color:</span>
+        <div style={{ display: 'flex', gap: 6 }}>
           {SPACE_COLORS.map((color) => (
             <button
+              className="btn-tool"
               key={color}
               onClick={() => handleColorChange(color)}
               style={{
-                width: 24,
-                height: 24,
+                width: 36,
+                height: 36,
                 background: color,
                 border: space.color === color ? `2px solid ${COLORS.teal}` : `1px solid ${COLORS.border}`,
                 cursor: 'pointer',
@@ -167,15 +170,17 @@ export function SpaceInspector({ spaceId }: SpaceInspectorProps) {
       </div>
 
       <button
+        className="btn-danger"
         onClick={handleDelete}
         style={{
           width: '100%',
-          padding: 10,
+          padding: 14,
           background: COLORS.danger,
           border: 'none',
           color: COLORS.text,
-          fontSize: 12,
+          fontSize: 14,
           cursor: 'pointer',
+          minHeight: 44,
         }}
       >
         DELETE SPACE

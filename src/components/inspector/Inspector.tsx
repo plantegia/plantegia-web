@@ -88,11 +88,12 @@ export function Inspector({ readOnly }: InspectorProps) {
       }}
     >
       <button
+        className="btn-icon"
         onClick={handleClose}
         style={{
           position: 'absolute',
-          top: 8,
-          right: 8,
+          top: 4,
+          right: 4,
           background: 'transparent',
           border: 'none',
           color: COLORS.textMuted,
@@ -100,9 +101,12 @@ export function Inspector({ readOnly }: InspectorProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          width: 44,
+          height: 44,
+          borderRadius: 4,
         }}
       >
-        <X size={16} />
+        <X size={24} />
       </button>
 
       <SpaceInspector spaceId={selection.id} />

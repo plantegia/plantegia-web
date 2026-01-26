@@ -23,6 +23,7 @@ export interface PlantationData {
   name: string;
   isPublic: boolean;
   isTutorial?: boolean;
+  tutorialId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   spaces: Space[];
@@ -38,6 +39,7 @@ function toPlantation(id: string, data: PlantationData): Plantation {
     name: data.name,
     isPublic: data.isPublic,
     isTutorial: data.isTutorial ?? false,
+    tutorialId: data.tutorialId,
     createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     spaces: data.spaces || [],
@@ -66,6 +68,24 @@ export async function getUserPlantations(userId: string): Promise<Plantation[]> 
   const querySnapshot = await getDocs(q);
 
   return querySnapshot.docs.map((doc) => toPlantation(doc.id, doc.data() as PlantationData));
+}
+
+export async function findTutorialPlantation(
+  userId: string,
+  tutorialId: string
+): Promise<Plantation | null> {
+  const q = query(
+    collection(db, PLANTATIONS),
+    where('ownerId', '==', userId),
+    where('tutorialId', '==', tutorialId)
+  );
+  const querySnapshot = await getDocs(q);
+
+  if (querySnapshot.empty) {
+    return null;
+  }
+
+  return toPlantation(querySnapshot.docs[0].id, querySnapshot.docs[0].data() as PlantationData);
 }
 
 export async function createPlantation(
@@ -113,6 +133,7 @@ export async function updatePlantation(
     strains: Strain[];
     inventory: Seed[];
     isTutorial?: boolean;
+    tutorialId?: string;
   }
 ): Promise<void> {
   const docRef = doc(db, PLANTATIONS, id);

@@ -21,7 +21,7 @@ Plantegia is a React + TypeScript plant rotation planning app built with Vite. I
 - **State management**: Zustand with Immer middleware. All state lives in [useAppStore.ts](src/store/useAppStore.ts).
 - **Data persistence**: Firebase Firestore. Each plantation is a document with all data (spaces, plants, strains, inventory). Auto-save with 1.5s debounce via [usePlantation.ts](src/hooks/usePlantation.ts).
 - **Authentication**: Firebase Auth with Google Sign-In. See [useAuth.ts](src/hooks/useAuth.ts).
-- **Routing**: React Router. `/` — plantation list, `/p/:id` — plantation view, `/p/:id?view=1` — read-only sharing.
+- **Routing**: React Router. `/p/` — plantation list, `/p/:id` — plantation view, `/p/:id?view=1` — read-only sharing. See "Routing Architecture" section below.
 - **Mobile-first**: Hardcoded 390px viewport width (`VIEWPORT_WIDTH` in constants). Even on desktop, the app renders in mobile dimensions.
 - **Gesture handling**: Custom gesture system in [useGestures.ts](src/hooks/useGestures.ts) handles tap, pan, zoom, drag-to-move, and drag-to-resize operations on canvas.
 
@@ -187,6 +187,35 @@ In [useAppStore.ts](src/store/useAppStore.ts):
 - `splitSegment(plantId, segmentId, splitDate)`: Divide segment into two at date
 - `moveSegmentToSlot(plantId, segmentId, slot)`: Change segment's space/cell location
 - `shiftPlantInTime(plantId, daysDelta)`: Move entire plant timeline by days
+
+## Routing Architecture
+
+The project consists of two parts: Astro marketing site and React app.
+
+### URL Structure (Production)
+- `plantegia.com/` — Marketing homepage (Astro)
+- `plantegia.com/guides/`, `/tools/`, `/de/` — Marketing pages (Astro)
+- `plantegia.com/p/` — Plantation list (React app)
+- `plantegia.com/p/:id` — Plantation view (React app)
+
+### Build & Deploy
+- `npm run build:all` — Builds both marketing and React app, merges into `dist-final/`
+- React app assets are at `/app/` (Vite `base: '/app/'`)
+- Vercel rewrites `/p/*` and `/tutorial/*` to `/app/index.html`
+- See [vercel.json](vercel.json) for rewrite rules
+- See [scripts/merge-dist.js](scripts/merge-dist.js) for build merge logic
+
+### Local Development
+- `npm run dev` — Starts Vite dev server, opens `/p/`
+- Custom Vite plugin rewrites `/p/*` to `/app/index.html` (mimics Vercel)
+- `npm run dev:marketing` — Starts Astro dev server for marketing site
+- Marketing dev server runs on port 4321, React app on port 5173
+
+### React Router Setup
+Routes in [App.tsx](src/app/App.tsx):
+- `/p/` → PlantationList
+- `/p/:id` → PlantationView
+- `*` → Redirect to `/p/` (catch-all fallback)
 
 ## Design Constraints
 
