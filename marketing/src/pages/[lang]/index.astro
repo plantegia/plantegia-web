@@ -55,7 +55,7 @@ const faqSchema = {
       </div>
       <div class="hero__price">
         <span class="price-tag">{t.hero.price}</span>
-        <span class="guarantee">{t.hero.guarantee}</span>
+        <span class="guarantee" set:html={t.hero.guarantee}></span>
       </div>
     </div>
   </section>
@@ -309,7 +309,7 @@ const faqSchema = {
       <div class="cta-content">
         <span class="cta-price">{t.cta.price}</span>
         <p class="cta-note">{t.cta.note}</p>
-        <p class="cta-guarantee">{t.cta.guarantee}</p>
+        <p class="cta-guarantee" set:html={t.cta.guarantee}></p>
         <SignInButton
           client:load
           className="cta-button"

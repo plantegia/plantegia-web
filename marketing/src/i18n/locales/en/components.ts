@@ -10,8 +10,8 @@ export default {
     taglineEnd: 'again.',
     cta: 'Sign in with Google',
     ctaSignedIn: 'Go to App',
-    price: 'Free For Early Adopters',
-    guarantee: 'then $29 one-time',
+    price: 'Free & Open Source',
+    guarantee: '<a href="https://github.com/plantegia/plantegia-web" target="_blank">View on GitHub</a>',
   },
   problem: {
     headline: 'Two tents.',
@@ -188,7 +188,7 @@ export default {
   cta: {
     price: 'Start for Free',
     note: 'Create your account and plan your first grow today.',
-    guarantee: 'The app is free for early adopters, then $29 one-time.',
+    guarantee: 'Free forever. <a href="https://github.com/plantegia/plantegia-web" target="_blank">Open source on GitHub</a>.',
     cta: 'Enter',
     ctaSignedIn: 'Go to App',
   },

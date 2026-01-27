@@ -10,8 +10,8 @@ export default {
     taglineEnd: 'muss.',
     cta: 'Mit Google anmelden',
     ctaSignedIn: 'Zur App',
-    price: 'Kostenlos für Early Adopters',
-    guarantee: 'dann 29 € einmalig',
+    price: 'Kostenlos & Open Source',
+    guarantee: '<a href="https://github.com/plantegia/plantegia-web" target="_blank">Auf GitHub ansehen</a>',
   },
   problem: {
     headline: 'Zwei Zelte.',
@@ -188,7 +188,7 @@ export default {
   cta: {
     price: 'Kostenlos starten',
     note: 'Erstelle dein Konto und plane deinen ersten Grow noch heute.',
-    guarantee: 'Die App ist kostenlos für Early Adopters, dann 29 € einmalig.',
+    guarantee: 'Für immer kostenlos. <a href="https://github.com/plantegia/plantegia-web" target="_blank">Open Source auf GitHub</a>.',
     cta: 'Eintreten',
     ctaSignedIn: 'Zur App',
   },
