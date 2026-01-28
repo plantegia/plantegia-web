@@ -114,7 +114,7 @@ export function PlantationList() {
         </div>
         <div style={styles.copyright}>
           <div style={styles.copyrightAuthor}>
-            Created by <a href="https://www.linkedin.com/in/ivansokolov2017/" target="_blank" rel="noopener noreferrer" style={styles.authorLink}>Ivan Sokolov</a> · 2026
+            Created by Vanya · <a href="mailto:builder@plantegia.com" style={styles.authorLink}>builder@plantegia.com</a>
           </div>
         </div>
       </div>
@@ -273,7 +273,7 @@ export function PlantationList() {
 
       <div style={styles.copyright}>
         <div style={styles.copyrightAuthor}>
-          Created by <a href="https://www.linkedin.com/in/ivansokolov2017/" target="_blank" rel="noopener noreferrer" style={styles.authorLink}>Ivan Sokolov</a> · 2026
+          Created by Vanya · <a href="mailto:builder@plantegia.com" style={styles.authorLink}>builder@plantegia.com</a>
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@ const { lang } = Astro.props;
 const t = {
   en: {
     tagline: 'Visual planning for indoor growers.',
+    contact: 'Contact',
     product: 'Product',
     home: 'Home',
     guides: 'Guides',
@@ -23,6 +24,7 @@ const t = {
   },
   de: {
     tagline: 'Visuelle Planung für Indoor-Grower.',
+    contact: 'Kontakt',
     product: 'Produkt',
     home: 'Start',
     guides: 'Anleitungen',
@@ -57,6 +59,7 @@ const year = new Date().getFullYear();
           <li><a href={`${prefix}/tools/`}>{labels.tools}</a></li>
           <li><a href="/p/">{labels.app}</a></li>
           <li><a href="https://github.com/plantegia/plantegia-web" target="_blank">{labels.github}</a></li>
+          <li><a href="mailto:builder@plantegia.com">{labels.contact}</a></li>
         </ul>
       </div>
 
