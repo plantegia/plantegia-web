@@ -24,3 +24,17 @@ Thumbs.db
 .env.local
 .env.*.local
 .vercel
+
+# Firebase
+*Firebase*.json
+serviceAccountKey.json
+
+# Internal scripts and data
+scripts/outreach-emails.json
+scripts/send-emails.mjs
+scripts/db-stats.mjs
+
+# Business documents (not for public)
+marketing/content_plan*.md
+marketing/plantegia_*.md
+marketing/*_requirements.md
